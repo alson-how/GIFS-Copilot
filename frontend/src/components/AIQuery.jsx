@@ -50,30 +50,68 @@ export default function AIQuery({ onOpenCanvas }) {
     try {
       // Check if user has files and wants to export/ship
       if (uploadedFiles.length > 0 && detectExportIntent(userMessage.content)) {
+        // Process files with OCR first
+        let ocrData = null;
+        try {
+          console.log('🔍 Processing uploaded files with OCR...');
+          
+          // Prepare files for OCR processing
+          const formData = new FormData();
+          uploadedFiles.forEach(fileData => {
+            formData.append('documents', fileData.file);
+          });
+          
+          // Call OCR API
+          const ocrResponse = await fetch(`${import.meta.env.VITE_API || 'http://localhost:8080'}/api/documents/upload`, {
+            method: 'POST',
+            body: formData
+          });
+          
+          if (ocrResponse.ok) {
+            ocrData = await ocrResponse.json();
+            console.log('✅ OCR processing completed:', ocrData);
+          } else {
+            console.warn('⚠️ OCR processing failed, continuing without OCR data');
+          }
+        } catch (error) {
+          console.error('❌ OCR processing error:', error);
+          // Continue without OCR data
+        }
+        
         // Extract information from query
         const extractedDate = extractDateFromQuery(userMessage.content);
         const extractedDestination = extractDestination(userMessage.content);
         
-        // Create canvas data
+        // Create canvas data with OCR results
         const canvasData = {
           extractedDate,
           extractedDestination,
           files: uploadedFiles,
-          originalQuery: userMessage.content
+          originalQuery: userMessage.content,
+          ocrData: ocrData // Include OCR results
         };
 
-        // Create AI response suggesting canvas opening
+        // Create AI response with OCR summary
+        let ocrSummary = '';
+        if (ocrData && ocrData.documents && ocrData.documents.length > 0) {
+          const processedDocs = ocrData.documents.map(doc => 
+            `📄 ${doc.documentType} (${doc.confidence}% confidence)`
+          ).join('\n');
+          
+          ocrSummary = `\n\n🔍 **Document Analysis Complete:**\n${processedDocs}\n\n📊 **Auto-fill Data Extracted:** ${Object.keys(ocrData.fieldSuggestions || {}).length} fields detected`;
+        }
+
         const aiMessage = {
           id: Date.now() + 1,
           type: 'ai',
           content: `🎯 **Export Request Detected!**
 
-I see you want to export/ship items${extractedDestination ? ` to **${extractedDestination}**` : ''}${extractedDate ? ` on **${extractedDate}**` : ''}. 
+I see you want to export/ship items${extractedDestination ? ` to **${extractedDestination}**` : ''}${extractedDate ? ` on **${extractedDate}**` : ''}.${ocrSummary}
 
 I've opened the **Shipment Canvas** on the right where you can:
 ✅ Configure your shipment details
-✅ Auto-filled information from your request
-✅ Upload and review your documents
+✅ Auto-filled information from your documents
+✅ Review extracted data and make corrections
 ✅ Ensure compliance requirements
 
 The canvas will guide you through the complete export process step by step.`,
@@ -81,10 +119,11 @@ The canvas will guide you through the complete export process step by step.`,
             title: 'Export Intent Detected',
             section: 'Workflow Automation',
             similarity_score: 1.0,
-            preview: `Detected export intent with ${uploadedFiles.length} file(s)`
+            preview: `Detected export intent with ${uploadedFiles.length} file(s)${ocrData ? ` - OCR processed ${ocrData.documents?.length || 0} documents` : ''}`
           }],
           timestamp: new Date(),
-          isCanvasOpener: true
+          isCanvasOpener: true,
+          ocrData: ocrData // Include OCR data in AI message
         };
 
         setConversation(prev => [...prev, aiMessage]);
@@ -762,7 +801,8 @@ The canvas will guide you through the complete export process step by step.`,
               />
               
               <div style={{marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)'}}>
-                <p>💡 Try asking: "I want to process this order" after uploading files</p>
+                <p>💡 Try asking: "I want to export these items" or "I want to ship this order" after uploading customs documents</p>
+                <p>🔍 Supported documents: Commercial Invoice, Bill of Lading, Packing List, Certificate of Origin, Insurance, etc.</p>
               </div>
             </div>
           </div>

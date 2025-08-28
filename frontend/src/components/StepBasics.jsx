@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { postBasics, uploadFiles, listFiles } from '../services/api.js';
-import DocumentOCR from './DocumentOCR.jsx';
 
 export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isCanvas }) {
   const [shipmentId, setShipmentId] = useState(defaultShipmentId || (crypto?.randomUUID?.() || ''));
@@ -68,9 +67,16 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
         }
       }
       
+      // Auto-fill from OCR data if available
+      if (canvasData.ocrData && canvasData.ocrData.fieldSuggestions) {
+        console.log('🔄 Applying OCR auto-fill from canvas data:', canvasData.ocrData.fieldSuggestions);
+        handleAutoFill(canvasData.ocrData.fieldSuggestions);
+      }
+      
       // Show canvas-specific status message
       if (canvasData.originalQuery) {
-        setStatus(`📋 Canvas opened from: "${canvasData.originalQuery}"`);
+        const ocrInfo = canvasData.ocrData ? ` (${canvasData.ocrData.documents?.length || 0} documents processed)` : '';
+        setStatus(`📋 Canvas opened from: "${canvasData.originalQuery}"${ocrInfo}`);
       }
     }
   }, [canvasData]);
@@ -565,18 +571,6 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
             </div>
           </div>
         </div>
-
-        {/* OCR Document Processing - Only show when NOT in canvas mode */}
-        {!isCanvas && (
-          <DocumentOCR 
-            shipmentId={shipmentId}
-            onAutoFill={handleAutoFill}
-            onDocumentsProcessed={(result) => {
-              console.log('📊 Documents processed:', result);
-              // Optionally refresh file list or update UI
-            }}
-          />
-        )}
 
                 {/* File Upload Section - Only show when NOT in canvas mode */}
         {!isCanvas && (
