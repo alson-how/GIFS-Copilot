@@ -2,7 +2,6 @@ import express from 'express';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import DocumentParser from '../services/documentParser.js';
-import { pool } from '../db/pool.js';
 
 const router = express.Router();
 const documentParser = new DocumentParser();
@@ -163,7 +162,7 @@ router.get('/extract/:id', async (req, res) => {
       WHERE document_id = $1
     `;
     
-    const result = await pool.query(query, [id]);
+    const result = await req.db.query(query, [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -223,7 +222,7 @@ router.get('/shipment/:shipmentId', async (req, res) => {
       ORDER BY created_at DESC
     `;
     
-    const result = await pool.query(query, [shipmentId]);
+    const result = await req.db.query(query, [shipmentId]);
     
     const documents = result.rows.map(doc => ({
       documentId: doc.document_id,
@@ -275,7 +274,7 @@ router.post('/auto-fill/:shipmentId', async (req, res) => {
       ORDER BY confidence DESC
     `;
     
-    const result = await pool.query(query, [shipmentId]);
+    const result = await req.db.query(query, [shipmentId]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -350,7 +349,7 @@ async function storeDocumentRecord(data) {
     parseResult.processingDate
   ];
   
-  const result = await pool.query(query, values);
+  const result = await req.db.query(query, values);
   return result.rows[0];
 }
 
