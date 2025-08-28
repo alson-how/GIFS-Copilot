@@ -112,61 +112,31 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   // OCR integration function
   const populateFromOCR = (ocrData) => {
     if (ocrData && ocrData.fieldSuggestions) {
-      // Check if we have table data from Commercial Invoice
-      if (ocrData.fieldSuggestions.invoice_table && ocrData.fieldSuggestions.product_items) {
-        const tableItems = ocrData.fieldSuggestions.product_items;
-        const newItems = tableItems.map((item, index) => ({
-          id: crypto?.randomUUID?.() || (Date.now() + index).toString(),
-          semiconductorCategory: 'standard_ic_asics', // Default, user can change
-          technologyOrigin: item.origin || 'malaysia',
-          hsCode: item.hs_code || '',
-          quantity: item.quantity || '',
-          unit: item.unit || 'PCS',
-          endUsePurpose: '',
-          productDescription: item.description || '',
-          commercialValue: item.total_amount || '',
-          isStrategic: false,
-          isAIChip: false,
-          // Store original table data for reference
-          tableRowNumber: item.row_number,
-          originalTableData: item
-        }));
+      // If OCR contains multiple product items, create multiple items
+      const ocrItems = ocrData.extractedItems || [ocrData.fieldSuggestions];
+      
+      const newItems = ocrItems.map((itemData, index) => ({
+        id: crypto?.randomUUID?.() || (Date.now() + index).toString(),
+        semiconductorCategory: itemData.semiconductor_category || 'standard_ic_asics',
+        technologyOrigin: itemData.technology_origin || 'malaysia',
+        hsCode: itemData.hs_code || '',
+        quantity: itemData.quantity || '',
+        unit: itemData.quantity_unit || 'PCS',
+        endUsePurpose: itemData.end_use_purpose || '',
+        productDescription: itemData.product_description || '',
+        commercialValue: itemData.commercial_value || '',
+        isStrategic: false,
+        isAIChip: false
+      }));
 
-        // Auto-detect strategic/AI status for each item
-        const processedItems = newItems.map(item => ({
-          ...item,
-          isStrategic: checkIfStrategic(item),
-          isAIChip: checkIfAIChip(item)
-        }));
+      // Auto-detect strategic/AI status for each item
+      const processedItems = newItems.map(item => ({
+        ...item,
+        isStrategic: checkIfStrategic(item),
+        isAIChip: checkIfAIChip(item)
+      }));
 
-        setProductItems(processedItems);
-      } else {
-        // Fallback to single item from field suggestions
-        const ocrItems = ocrData.extractedItems || [ocrData.fieldSuggestions];
-        
-        const newItems = ocrItems.map((itemData, index) => ({
-          id: crypto?.randomUUID?.() || (Date.now() + index).toString(),
-          semiconductorCategory: itemData.semiconductor_category || 'standard_ic_asics',
-          technologyOrigin: itemData.technology_origin || 'malaysia',
-          hsCode: itemData.hs_code || '',
-          quantity: itemData.quantity || '',
-          unit: itemData.quantity_unit || 'PCS',
-          endUsePurpose: itemData.end_use_purpose || '',
-          productDescription: itemData.product_description || '',
-          commercialValue: itemData.commercial_value || '',
-          isStrategic: false,
-          isAIChip: false
-        }));
-
-        // Auto-detect strategic/AI status for each item
-        const processedItems = newItems.map(item => ({
-          ...item,
-          isStrategic: checkIfStrategic(item),
-          isAIChip: checkIfAIChip(item)
-        }));
-
-        setProductItems(processedItems);
-      }
+      setProductItems(processedItems);
     }
   };
 
@@ -498,119 +468,27 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           </div>
         </div>
 
-        {/* Invoice Table Display (if available from OCR) */}
-        {canvasData && canvasData.ocrData && canvasData.ocrData.fieldSuggestions && canvasData.ocrData.fieldSuggestions.invoice_table && (
-          <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem' }}>
-              📊 Extracted Invoice Table
-            </h3>
-            <div style={{
-              background: 'rgba(90, 140, 179, 0.05)',
-              border: '1px solid rgba(90, 140, 179, 0.3)',
-              borderRadius: '8px',
-              padding: '1rem',
-              marginBottom: '1rem',
-              overflow: 'auto'
-            }}>
-              <div style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                Original table from Commercial Invoice • {canvasData.ocrData.fieldSuggestions.invoice_table.rows.length} items detected
-              </div>
-              <table style={{ 
-                width: '100%', 
-                borderCollapse: 'collapse',
-                fontSize: '0.85rem',
-                background: 'white',
-                borderRadius: '4px',
-                overflow: 'hidden'
-              }}>
-                <thead>
-                  <tr style={{ background: 'var(--primary)', color: 'white' }}>
-                    {canvasData.ocrData.fieldSuggestions.invoice_table.headers.map((header, index) => (
-                      <th key={index} style={{ 
-                        padding: '0.5rem', 
-                        textAlign: 'left', 
-                        borderRight: index < canvasData.ocrData.fieldSuggestions.invoice_table.headers.length - 1 ? '1px solid rgba(255,255,255,0.2)' : 'none'
-                      }}>
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {canvasData.ocrData.fieldSuggestions.invoice_table.rows.map((row, rowIndex) => (
-                    <tr key={rowIndex} style={{ 
-                      borderBottom: '1px solid var(--border)',
-                      background: rowIndex % 2 === 0 ? 'white' : 'rgba(0,0,0,0.02)'
-                    }}>
-                      {row.map((cell, cellIndex) => (
-                        <td key={cellIndex} style={{ 
-                          padding: '0.5rem', 
-                          borderRight: cellIndex < row.length - 1 ? '1px solid var(--border)' : 'none',
-                          maxWidth: '200px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }}>
-                          {cell}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div style={{ 
-                marginTop: '0.5rem', 
-                fontSize: '0.8rem', 
-                color: 'var(--text-muted)',
-                textAlign: 'center'
-              }}>
-                ✨ Product items below were auto-populated from this table
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Section 2: Multi-Product Details */}
         <div style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
             <h3 style={{ color: 'var(--primary)', fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem', margin: 0 }}>
               📦 Product Details ({productItems.length} item{productItems.length !== 1 ? 's' : ''})
             </h3>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {canvasData && canvasData.ocrData && canvasData.ocrData.fieldSuggestions && canvasData.ocrData.fieldSuggestions.invoice_table && (
-                <button 
-                  type="button" 
-                  onClick={() => populateFromOCR(canvasData.ocrData)}
-                  className="btn btn-primary"
-                  style={{ 
-                    padding: '0.5rem 1rem', 
-                    fontSize: '0.9rem',
-                    background: 'var(--primary)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🔄 Refresh from Table
-                </button>
-              )}
-              <button 
-                type="button" 
-                onClick={addNewItem}
-                className="btn btn-secondary"
-                style={{ 
-                  padding: '0.5rem 1rem', 
-                  fontSize: '0.9rem',
-                  background: 'var(--secondary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '6px',
-                  cursor: 'pointer'
-                }}
-              >
-                + Add Item
-              </button>
-            </div>
+            <button 
+              type="button" 
+              onClick={addNewItem}
+              className="btn btn-secondary"
+              style={{ 
+                padding: '0.5rem 1rem', 
+                fontSize: '0.9rem',
+                background: 'var(--secondary)',
+                border: '1px solid var(--border)',
+                borderRadius: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              + Add Item
+            </button>
           </div>
 
           {/* Product Items */}
@@ -632,29 +510,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '1rem' }}>
                     Product {index + 1}
-                    {item.tableRowNumber && (
-                      <span style={{ 
-                        fontSize: '0.8rem', 
-                        color: 'var(--text-muted)', 
-                        fontWeight: 'normal',
-                        marginLeft: '0.5rem'
-                      }}>
-                        (from table row {item.tableRowNumber})
-                      </span>
-                    )}
                   </h4>
-                  {item.tableRowNumber && (
-                    <span style={{
-                      background: '#4caf50',
-                      color: 'white',
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: '12px',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold'
-                    }}>
-                      📊 FROM TABLE
-                    </span>
-                  )}
                   {item.isStrategic && (
                     <span style={{
                       background: '#ff9800',
