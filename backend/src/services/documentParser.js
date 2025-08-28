@@ -247,6 +247,12 @@ class DocumentParser {
       }
     }
     
+    // Extract table data for Commercial Invoices
+    if (documentType === 'Commercial Invoice') {
+      fields.invoice_table = this.extractInvoiceTable(text);
+      fields.product_items = this.parseTableToProducts(fields.invoice_table);
+    }
+    
     // Apply document-specific field mapping
     const mappedFields = this.mapFieldsByDocumentType(fields, documentType, text);
     
@@ -500,6 +506,263 @@ class DocumentParser {
     }
     
     return crossValidation;
+  }
+
+  /**
+   * Extract table data from Commercial Invoice text
+   * @param {string} text - Invoice text
+   * @returns {Object} Table structure with headers and rows
+   */
+  extractInvoiceTable(text) {
+    console.log('📊 Extracting table from Commercial Invoice...');
+    
+    // Common table section indicators
+    const tableSectionPatterns = [
+      /(?:ITEM|DESCRIPTION|QTY|QUANTITY|UNIT|PRICE|AMOUNT|TOTAL)[\s\S]*?(?=\n\s*(?:SUB|TOTAL|GRAND|SHIPPING|TAX|\n\s*$))/i,
+      /(?:SL|S\.?N|NO\.?)[\s\S]*?(?=\n\s*(?:SUB|TOTAL|GRAND|SHIPPING|TAX|\n\s*$))/i,
+      /(?:PART|MODEL|PRODUCT)[\s\S]*?(?=\n\s*(?:SUB|TOTAL|GRAND|SHIPPING|TAX|\n\s*$))/i
+    ];
+
+    let tableSection = '';
+    for (const pattern of tableSectionPatterns) {
+      const match = text.match(pattern);
+      if (match && match[0].length > tableSection.length) {
+        tableSection = match[0];
+      }
+    }
+
+    if (!tableSection) {
+      console.log('⚠️ No table section found in invoice');
+      return { headers: [], rows: [], raw_text: '' };
+    }
+
+    // Extract headers (first line with column names)
+    const lines = tableSection.split('\n').filter(line => line.trim());
+    const headers = this.extractTableHeaders(lines);
+    
+    // Extract data rows
+    const rows = this.extractTableRows(lines, headers);
+
+    console.log(`📊 Extracted table: ${headers.length} columns, ${rows.length} rows`);
+    
+    return {
+      headers,
+      rows,
+      raw_text: tableSection,
+      extracted_at: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Extract table headers from text lines
+   * @param {Array} lines - Text lines
+   * @returns {Array} Header names
+   */
+  extractTableHeaders(lines) {
+    const headerKeywords = [
+      'ITEM', 'SL', 'S.N', 'NO', 'SERIAL',
+      'DESCRIPTION', 'PRODUCT', 'PART', 'MODEL',
+      'QTY', 'QUANTITY', 'UNIT', 'UOM',
+      'PRICE', 'RATE', 'UNIT PRICE',
+      'AMOUNT', 'TOTAL', 'VALUE',
+      'HS CODE', 'TARIFF', 'CLASSIFICATION',
+      'ORIGIN', 'COUNTRY'
+    ];
+
+    // Find line with most header keywords
+    let bestHeaderLine = '';
+    let maxKeywords = 0;
+
+    for (const line of lines.slice(0, 10)) { // Check first 10 lines
+      const upperLine = line.toUpperCase();
+      const keywordCount = headerKeywords.filter(keyword => 
+        upperLine.includes(keyword)
+      ).length;
+      
+      if (keywordCount > maxKeywords) {
+        maxKeywords = keywordCount;
+        bestHeaderLine = line;
+      }
+    }
+
+    if (!bestHeaderLine) {
+      return ['ITEM', 'DESCRIPTION', 'QTY', 'UNIT', 'PRICE', 'AMOUNT'];
+    }
+
+    // Split header line into columns (handle various separators)
+    const headers = bestHeaderLine
+      .split(/[\t|,;]+/)
+      .map(h => h.trim().toUpperCase())
+      .filter(h => h.length > 0);
+
+    return headers.length > 0 ? headers : ['ITEM', 'DESCRIPTION', 'QTY', 'UNIT', 'PRICE', 'AMOUNT'];
+  }
+
+  /**
+   * Extract table rows from text lines
+   * @param {Array} lines - Text lines
+   * @param {Array} headers - Table headers
+   * @returns {Array} Table rows
+   */
+  extractTableRows(lines, headers) {
+    const rows = [];
+    const numColumns = headers.length;
+
+    // Skip header line and find data rows
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Skip empty lines and lines that look like totals
+      if (!line || /^(SUB|TOTAL|GRAND|SHIPPING|TAX|DISCOUNT)/i.test(line)) {
+        continue;
+      }
+
+      // Try to parse as table row
+      const row = this.parseTableRow(line, numColumns);
+      if (row && row.length > 0) {
+        rows.push(row);
+      }
+    }
+
+    return rows;
+  }
+
+  /**
+   * Parse a single table row
+   * @param {string} line - Text line
+   * @param {number} expectedColumns - Expected number of columns
+   * @returns {Array} Row data
+   */
+  parseTableRow(line, expectedColumns) {
+    // Try different splitting strategies
+    const strategies = [
+      line.split(/\t+/),                    // Tab separated
+      line.split(/\s{2,}/),                 // Multiple spaces
+      line.split(/\|/).map(s => s.trim()),  // Pipe separated
+      line.split(/,(?=\s*\d)/)              // Comma before numbers
+    ];
+
+    // Find strategy that gives closest to expected columns
+    let bestSplit = [];
+    let bestScore = 0;
+
+    for (const split of strategies) {
+      const cleanSplit = split.filter(s => s.trim().length > 0);
+      if (cleanSplit.length >= 2) { // At least description and one number
+        const score = Math.min(cleanSplit.length, expectedColumns) / Math.max(cleanSplit.length, expectedColumns);
+        if (score > bestScore) {
+          bestScore = score;
+          bestSplit = cleanSplit;
+        }
+      }
+    }
+
+    return bestSplit.map(cell => cell.trim());
+  }
+
+  /**
+   * Convert extracted table to product items
+   * @param {Object} tableData - Extracted table data
+   * @returns {Array} Product items array
+   */
+  parseTableToProducts(tableData) {
+    if (!tableData || !tableData.rows || tableData.rows.length === 0) {
+      return [];
+    }
+
+    const { headers, rows } = tableData;
+    const products = [];
+
+    // Map common header variations to standard fields
+    const headerMap = this.createHeaderMapping(headers);
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (row.length === 0) continue;
+
+      const product = {
+        row_number: i + 1,
+        description: '',
+        quantity: '',
+        unit: 'PCS',
+        unit_price: '',
+        total_amount: '',
+        hs_code: '',
+        origin: '',
+        raw_row: row.join(' | ')
+      };
+
+      // Map row data to product fields
+      for (let j = 0; j < Math.min(row.length, headers.length); j++) {
+        const header = headers[j];
+        const value = row[j];
+        const mappedField = headerMap[header];
+
+        if (mappedField && value) {
+          product[mappedField] = value;
+        }
+      }
+
+      // Clean up numeric values
+      product.quantity = this.extractNumber(product.quantity);
+      product.unit_price = this.extractNumber(product.unit_price);
+      product.total_amount = this.extractNumber(product.total_amount);
+
+      // Extract HS code if present in description
+      const hsMatch = product.description.match(/\b\d{4,10}\b/);
+      if (hsMatch && !product.hs_code) {
+        product.hs_code = hsMatch[0];
+      }
+
+      products.push(product);
+    }
+
+    console.log(`📦 Converted ${products.length} table rows to product items`);
+    return products;
+  }
+
+  /**
+   * Create mapping from table headers to standard fields
+   * @param {Array} headers - Table headers
+   * @returns {Object} Header mapping
+   */
+  createHeaderMapping(headers) {
+    const mapping = {};
+
+    headers.forEach(header => {
+      const upperHeader = header.toUpperCase();
+      
+      if (/^(ITEM|SL|S\.?N|NO\.?|SERIAL)/.test(upperHeader)) {
+        mapping[header] = 'item_number';
+      } else if (/DESCRIPTION|PRODUCT|PART|MODEL/.test(upperHeader)) {
+        mapping[header] = 'description';
+      } else if (/^(QTY|QUANTITY)/.test(upperHeader)) {
+        mapping[header] = 'quantity';
+      } else if (/UNIT(?!\s*PRICE)|UOM/.test(upperHeader)) {
+        mapping[header] = 'unit';
+      } else if (/UNIT\s*PRICE|PRICE|RATE/.test(upperHeader)) {
+        mapping[header] = 'unit_price';
+      } else if (/AMOUNT|TOTAL|VALUE/.test(upperHeader)) {
+        mapping[header] = 'total_amount';
+      } else if (/HS\s*CODE|TARIFF|CLASSIFICATION/.test(upperHeader)) {
+        mapping[header] = 'hs_code';
+      } else if (/ORIGIN|COUNTRY/.test(upperHeader)) {
+        mapping[header] = 'origin';
+      }
+    });
+
+    return mapping;
+  }
+
+  /**
+   * Extract numeric value from string
+   * @param {string} str - String containing number
+   * @returns {string} Extracted number
+   */
+  extractNumber(str) {
+    if (!str) return '';
+    const match = str.toString().match(/[\d,]+\.?\d*/);
+    return match ? match[0].replace(/,/g, '') : '';
   }
 }
 
