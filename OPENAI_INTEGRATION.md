@@ -296,8 +296,62 @@ For issues related to OpenAI integration:
 4. Review OpenAI API documentation
 5. Check system resource usage
 
+## K2 Customs Form Integration
+
+### Overview
+The system includes a comprehensive Malaysian Customs K2 Export Declaration Form generator that integrates with the compliance workflow.
+
+### Features
+- **Interactive Form**: Full bilingual (BM/EN) K2 form with all 54 fields
+- **Dynamic Items Table**: Add/remove items with auto-calculated totals
+- **PDF Generation**: Backend service generates filled PDF using pdf-lib
+- **Print Support**: Browser-friendly printing with clean layout
+- **Live Preview**: Real-time JSON preview of form data
+
+### Usage
+
+1. **Access the Form**:
+   - Navigate to Step 4 (Documentation & Classification)
+   - Click "📝 Generate K2" button
+   - Form appears in expandable section
+
+2. **Fill the Form**:
+   - Complete all required sections (1-54)
+   - Add items to the goods table
+   - Totals calculate automatically
+
+3. **Generate PDF**:
+   - Click "📄 Generate K2 PDF"
+   - System sends data to backend
+   - PDF downloads automatically
+
+### API Endpoints
+
+```
+POST /api/k2/render
+- Generates filled K2 PDF from form data
+- Returns: PDF file download
+
+POST /api/k2/calibrate  
+- Generates calibration grid for coordinate tuning
+- Returns: PDF with overlay grid
+```
+
+### Backend Integration
+- Route: `backend/src/routes/form_k2.js`
+- Uses pdf-lib for PDF manipulation
+- Coordinate-based field positioning
+- Supports checkbox marking and text fields
+
+### File Structure
+```
+frontend/src/components/FormK2.jsx    # React form component
+backend/src/routes/form_k2.js         # PDF generation service
+```
+
 ## References
 
 - [OpenAI API Documentation](https://platform.openai.com/docs)
 - [pgvector Documentation](https://github.com/pgvector/pgvector)
 - [PostgreSQL Vector Operations](https://www.postgresql.org/docs/current/functions-array.html)
+- [pdf-lib Documentation](https://pdf-lib.js.org/)

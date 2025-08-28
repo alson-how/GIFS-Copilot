@@ -70,7 +70,7 @@ export default function App(){
     }
   };
 
-    return (
+  return (
     <div className="app">
       {/* Header Section - Hide when canvas is fullscreen */}
       {!showCanvas && (
@@ -330,9 +330,9 @@ export default function App(){
             productType={basics?.productType}
             techOrigin={basics?.techOrigin}
           />
-          {isAI && <StepAI shipmentId={shipmentId} />}
-          <StepScreening shipmentId={shipmentId} />
-          <StepDocs shipmentId={shipmentId} />
+      {isAI && <StepAI shipmentId={shipmentId} />}
+      <StepScreening shipmentId={shipmentId} />
+      <StepDocs shipmentId={shipmentId} />
         </div>
       )}
 
