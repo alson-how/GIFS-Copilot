@@ -86,3 +86,36 @@ CREATE TABLE IF NOT EXISTS shipment_files (
   uploaded_at timestamptz DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_shipment_files_shipment ON shipment_files (shipment_id);
+
+-- Add missing critical fields to shipment table
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS commercial_value DECIMAL(15,2);
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'USD';
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS quantity DECIMAL(10,2);
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS quantity_unit VARCHAR(20);
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS incoterms VARCHAR(10);
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS end_use_purpose VARCHAR(100);
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS insurance_required BOOLEAN DEFAULT true;
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS consignee_registration VARCHAR(50);
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS shipment_priority VARCHAR(20) DEFAULT 'Standard';
+
+-- Document extraction tracking table for OCR service
+CREATE TABLE IF NOT EXISTS document_extractions (
+  document_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  shipment_id uuid REFERENCES shipments(shipment_id) ON DELETE CASCADE,
+  filename text NOT NULL,
+  file_size integer NOT NULL,
+  mime_type text NOT NULL,
+  document_type text NOT NULL,           -- 'Commercial Invoice', 'Bill of Lading', etc.
+  confidence integer NOT NULL,           -- OCR/extraction confidence (0-100)
+  extraction_method text NOT NULL,       -- 'pdf-parse', 'ocr', 'hybrid'
+  extracted_fields jsonb NOT NULL,       -- JSON object with extracted field values
+  raw_text text,                        -- Full extracted text for debugging
+  processing_date timestamptz NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Indexes for efficient querying
+CREATE INDEX IF NOT EXISTS idx_document_extractions_shipment ON document_extractions (shipment_id);
+CREATE INDEX IF NOT EXISTS idx_document_extractions_type ON document_extractions (document_type);
+CREATE INDEX IF NOT EXISTS idx_document_extractions_confidence ON document_extractions (confidence DESC);
+CREATE INDEX IF NOT EXISTS idx_document_extractions_date ON document_extractions (processing_date DESC);

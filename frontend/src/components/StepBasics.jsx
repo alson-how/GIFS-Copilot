@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { postBasics, uploadFiles, listFiles } from '../services/api.js';
+import DocumentOCR from './DocumentOCR.jsx';
 
 export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isCanvas }) {
   const [shipmentId, setShipmentId] = useState(defaultShipmentId || (crypto?.randomUUID?.() || ''));
@@ -11,6 +12,18 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   const [techOrigin, setTechOrigin] = useState('malaysia');
   const [destination, setDestination] = useState('China');
   const [endUser, setEndUser] = useState('');
+  
+  // New critical fields
+  const [commercialValue, setCommercialValue] = useState('');
+  const [currency, setCurrency] = useState('USD');
+  const [quantity, setQuantity] = useState('');
+  const [quantityUnit, setQuantityUnit] = useState('PCS');
+  const [incoterms, setIncoterms] = useState('FOB');
+  const [endUsePurpose, setEndUsePurpose] = useState('');
+  const [insuranceRequired, setInsuranceRequired] = useState(true);
+  const [consigneeRegistration, setConsigneeRegistration] = useState('');
+  const [shipmentPriority, setShipmentPriority] = useState('Standard');
+  
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [tag, setTag] = useState('datasheet');
@@ -62,12 +75,78 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     }
   }, [canvasData]);
 
+  // Auto-suggest priority and insurance based on commercial value
+  useEffect(() => {
+    const value = parseFloat(commercialValue);
+    if (value > 100000) {
+      if (shipmentPriority === 'Standard') {
+        setShipmentPriority('Urgent');
+      }
+      if (!insuranceRequired) {
+        setInsuranceRequired(true);
+      }
+    }
+  }, [commercialValue, shipmentPriority, insuranceRequired]);
+
   async function refreshFiles(id) {
     if (!id) return;
     try {
       const res = await listFiles(id);
       setUploaded(res.files || []);
     } catch {}
+  }
+
+  // Handle auto-fill from OCR document processing
+  function handleAutoFill(suggestions) {
+    console.log('🔄 Applying OCR auto-fill suggestions:', suggestions);
+    
+    // Map OCR field names to form state setters
+    const fieldMapping = {
+      'commercial_value': (value) => setCommercialValue(String(value)),
+      'currency': (value) => setCurrency(value),
+      'quantity': (value) => setQuantity(String(value)),
+      'quantity_unit': (value) => setQuantityUnit(value),
+      'hs_code': (value) => setHsCode(value),
+      'consignee_name': (value) => setEndUser(value),
+      'end_user_consignee_name': (value) => setEndUser(value),
+      'incoterms': (value) => setIncoterms(value),
+      'technology_origin': (value) => setTechOrigin(value.toLowerCase()),
+      'destination_country': (value) => setDestination(value),
+      'transport_mode': (value) => setMode(value.toLowerCase()),
+      'target_export_date': (value) => setExportDate(value),
+      'end_use_purpose': (value) => setEndUsePurpose(value),
+      'consignee_registration': (value) => setConsigneeRegistration(value)
+    };
+
+    // Apply suggestions to form fields
+    let appliedCount = 0;
+    for (const [fieldName, suggestion] of Object.entries(suggestions)) {
+      const setter = fieldMapping[fieldName];
+      if (setter && suggestion.value) {
+        try {
+          setter(suggestion.value);
+          appliedCount++;
+          console.log(`✅ Applied ${fieldName}: ${suggestion.value} (from ${suggestion.source})`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to apply ${fieldName}:`, error);
+        }
+      }
+    }
+
+    // Show success message
+    if (appliedCount > 0) {
+      setStatus(`✨ Auto-filled ${appliedCount} fields from uploaded documents`);
+      
+      // Auto-apply conditional logic
+      const commercialVal = parseFloat(suggestions.commercial_value?.value || 0);
+      if (commercialVal > 100000) {
+        setShipmentPriority('Urgent');
+        setInsuranceRequired(true);
+        console.log('🚨 High-value shipment detected - set to Urgent priority with insurance');
+      }
+    } else {
+      setStatus('⚠️ No matching fields found for auto-fill');
+    }
   }
 
   async function save() {
@@ -83,7 +162,17 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
         description: description || null, // if you want to pass for LLM HS-suggestion later
         tech_origin: techOrigin,
         destination_country: destination,
-        end_user_name: endUser
+        end_user_name: endUser,
+        // New critical fields
+        commercial_value: parseFloat(commercialValue) || null,
+        currency,
+        quantity: parseFloat(quantity) || null,
+        quantity_unit: quantityUnit,
+        incoterms,
+        end_use_purpose: endUsePurpose || null,
+        insurance_required: insuranceRequired,
+        consignee_registration: consigneeRegistration || null,
+        shipment_priority: shipmentPriority
       });
       setStatus('✅ Shipment basics saved successfully');
       const id = res?.shipment_id || shipmentId;
@@ -125,7 +214,11 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     return 'status status-success show';
   };
 
-  const isFormValid = exportDate && mode && productType && techOrigin && destination && endUser;
+  const isFormValid = exportDate && mode && productType && techOrigin && destination && endUser && 
+                     commercialValue && parseFloat(commercialValue) > 0 && 
+                     quantity && parseFloat(quantity) > 0 && 
+                     incoterms && 
+                     (!productType.includes('ic') && !productType.includes('memory') && !productType.includes('ai_accelerator') || endUsePurpose);
 
   return (
     <section className={`card ${isCanvas ? '' : 'fade-in'}`} style={isCanvas ? {
@@ -186,116 +279,304 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           </div>
         </div>
         
-        <div className="form-row">
-          <div className="form-field">
-            <label className="form-label">Target Export Date</label>
-            <input 
-              type="date" 
-              className="form-input"
-              value={exportDate} 
-              onChange={e=>setExportDate(e.target.value)}
-              required
-            />
-          </div>
+        {/* Section 1: Basic Info */}
+        <div style={{ marginBottom: '2rem' }}>
+          <h3 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem' }}>
+            📋 Basic Information
+          </h3>
+          <div className="form-row">
+            <div className="form-field">
+              <label className="form-label">Target Export Date *</label>
+              <input 
+                type="date" 
+                className="form-input"
+                value={exportDate} 
+                onChange={e=>setExportDate(e.target.value)}
+                required
+              />
+            </div>
 
-          <div className="form-field">
-            <label className="form-label">Transport Mode</label>
-            <select 
-              className="form-select"
-              value={mode} 
-              onChange={e=>setMode(e.target.value)}
-            >
-              <option value="air">✈️ Air Freight</option>
-              <option value="sea">🚢 Sea Freight</option>
-              <option value="courier">📦 Express Courier</option>
-            </select>
-          </div>
+            <div className="form-field">
+              <label className="form-label">Transport Mode *</label>
+              <select 
+                className="form-select"
+                value={mode} 
+                onChange={e=>setMode(e.target.value)}
+              >
+                <option value="air">✈️ Air Freight</option>
+                <option value="sea">🚢 Sea Freight</option>
+                <option value="courier">📦 Express Courier</option>
+              </select>
+            </div>
 
-          <div className="form-field">
-            <label className="form-label">Semiconductor Category</label>
-            <select 
-              className="form-select"
-              value={productType} 
-              onChange={e=>setProductType(e.target.value)}
-            >
-              <option value="standard_ic_asics">🔲 Standard IC/ASICs</option>
-              <option value="memory_nand_dram">💾 Memory (NAND/DRAM)</option>
-              <option value="discrete_semiconductors">⚡ Discrete Semiconductors</option>
-              <option value="pcbas_modules">🔧 PCBAs / Modules</option>
-              <option value="ai_accelerator_gpu_tpu_npu">🧠 AI Accelerator (GPU/TPU/NPU)</option>
-              <option value="unsure">❓ Unsure</option>
-            </select>
+            <div className="form-field">
+              <label className="form-label">Shipment Priority</label>
+              <select 
+                className="form-select"
+                value={shipmentPriority} 
+                onChange={e=>setShipmentPriority(e.target.value)}
+              >
+                <option value="Standard">📦 Standard</option>
+                <option value="Urgent">⚡ Urgent</option>
+                <option value="Express">🚀 Express</option>
+                <option value="Critical">🔥 Critical</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <div className="form-row">
+        {/* Section 2: Product Details */}
+        <div style={{ marginBottom: '2rem' }}>
+          <h3 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem' }}>
+            📦 Product Details
+          </h3>
+          <div className="form-row">
+            <div className="form-field">
+              <label className="form-label">Semiconductor Category *</label>
+              <select 
+                className="form-select"
+                value={productType} 
+                onChange={e=>setProductType(e.target.value)}
+              >
+                <option value="standard_ic_asics">🔲 Standard IC/ASICs</option>
+                <option value="memory_nand_dram">💾 Memory (NAND/DRAM)</option>
+                <option value="discrete_semiconductors">⚡ Discrete Semiconductors</option>
+                <option value="pcbas_modules">🔧 PCBAs / Modules</option>
+                <option value="ai_accelerator_gpu_tpu_npu">🧠 AI Accelerator (GPU/TPU/NPU)</option>
+                <option value="unsure">❓ Unsure</option>
+              </select>
+            </div>
+
+            <div className="form-field">
+              <label className="form-label">Technology Origin *</label>
+              <select 
+                className="form-select"
+                value={techOrigin} 
+                onChange={e=>setTechOrigin(e.target.value)}
+              >
+                <option value="malaysia">🇲🇾 Malaysia</option>
+                <option value="us_origin">🇺🇸 US Origin</option>
+                <option value="eu_origin">🇪🇺 EU Origin</option>
+                <option value="mixed">🌍 Mixed Origin</option>
+                <option value="unknown">❓ Unknown</option>
+              </select>
+            </div>
+
+            <div className="form-field">
+              <label className="form-label">HS Code (Optional)</label>
+              <input 
+                className="form-input"
+                placeholder="e.g., 85423110"
+                value={hsCode} 
+                onChange={e=>setHsCode(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-field">
+              <label className="form-label">Quantity *</label>
+              <input 
+                type="number"
+                className="form-input"
+                placeholder="Enter quantity"
+                value={quantity} 
+                onChange={e=>setQuantity(e.target.value)}
+                min="0.01"
+                step="0.01"
+                required
+              />
+            </div>
+
+            <div className="form-field">
+              <label className="form-label">Unit *</label>
+              <select 
+                className="form-select"
+                value={quantityUnit} 
+                onChange={e=>setQuantityUnit(e.target.value)}
+              >
+                <option value="PCS">📦 Pieces (PCS)</option>
+                <option value="KG">⚖️ Kilograms (KG)</option>
+                <option value="TONS">🏗️ Tons</option>
+                <option value="CBM">📐 Cubic Meters (CBM)</option>
+                <option value="LITERS">🧪 Liters</option>
+              </select>
+            </div>
+
+            {(productType.includes('ic') || productType.includes('memory') || productType.includes('ai_accelerator')) && (
+              <div className="form-field">
+                <label className="form-label">End Use Purpose *</label>
+                <select 
+                  className="form-select"
+                  value={endUsePurpose} 
+                  onChange={e=>setEndUsePurpose(e.target.value)}
+                  required
+                >
+                  <option value="">Select purpose...</option>
+                  <option value="consumer_electronics">📱 Consumer Electronics</option>
+                  <option value="industrial_automation">🏭 Industrial Automation</option>
+                  <option value="automotive">🚗 Automotive</option>
+                  <option value="telecommunications">📡 Telecommunications</option>
+                  <option value="medical_devices">🏥 Medical Devices</option>
+                  <option value="research_development">🔬 Research & Development</option>
+                  <option value="military_defense">🛡️ Military/Defense</option>
+                  <option value="other">🔧 Other</option>
+                </select>
+              </div>
+            )}
+          </div>
+
           <div className="form-field">
-            <label className="form-label">HS Code (Optional)</label>
-            <input 
+            <label className="form-label">Product Description (Optional)</label>
+            <textarea 
               className="form-input"
-              placeholder="e.g., 85423110"
-              value={hsCode} 
-              onChange={e=>setHsCode(e.target.value)}
+              placeholder="Paste part description. The AI will suggest HS code in Step 5 for broker validation."
+              value={description} 
+              onChange={e=>setDescription(e.target.value)}
+              rows="3"
+              style={{resize: 'vertical', minHeight: '80px'}}
             />
             <small style={{color: 'var(--text-muted)', fontSize: '0.8rem'}}>
-              Leave blank if unknown - AI will suggest in Step 5
+              Detailed description helps with accurate HS code classification
             </small>
           </div>
+        </div>
 
-          <div className="form-field">
-            <label className="form-label">Technology Origin</label>
-            <select 
-              className="form-select"
-              value={techOrigin} 
-              onChange={e=>setTechOrigin(e.target.value)}
-            >
-              <option value="malaysia">🇲🇾 Malaysia</option>
-              <option value="us_origin">🇺🇸 US Origin</option>
-              <option value="eu_origin">🇪🇺 EU Origin</option>
-              <option value="mixed">🌍 Mixed Origin</option>
-              <option value="unknown">❓ Unknown</option>
-            </select>
+        {/* Section 3: Trade Terms */}
+        <div style={{ marginBottom: '2rem' }}>
+          <h3 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem' }}>
+            💰 Trade Terms
+          </h3>
+          <div className="form-row">
+            <div className="form-field">
+              <label className="form-label">Commercial Value *</label>
+              <input 
+                type="number"
+                className="form-input"
+                placeholder="Enter value"
+                value={commercialValue} 
+                onChange={e=>setCommercialValue(e.target.value)}
+                min="0.01"
+                step="0.01"
+                required
+              />
+              {parseFloat(commercialValue) > 100000 && (
+                <small style={{color: 'orange', fontSize: '0.8rem'}}>
+                  💡 High value shipment - consider urgent priority and insurance
+                </small>
+              )}
+            </div>
+
+            <div className="form-field">
+              <label className="form-label">Currency *</label>
+              <select 
+                className="form-select"
+                value={currency} 
+                onChange={e=>setCurrency(e.target.value)}
+              >
+                <option value="USD">🇺🇸 USD</option>
+                <option value="MYR">🇲🇾 MYR</option>
+                <option value="SGD">🇸🇬 SGD</option>
+              </select>
+            </div>
+
+            <div className="form-field">
+              <label className="form-label">Incoterms *</label>
+              <select 
+                className="form-select"
+                value={incoterms} 
+                onChange={e=>setIncoterms(e.target.value)}
+              >
+                <option value="FOB">🚢 FOB (Free on Board)</option>
+                <option value="CIF">📦 CIF (Cost, Insurance & Freight)</option>
+                <option value="EXW">🏭 EXW (Ex Works)</option>
+                <option value="DDP">🚚 DDP (Delivered Duty Paid)</option>
+                <option value="CPT">🚛 CPT (Carriage Paid To)</option>
+                <option value="CIP">📋 CIP (Carriage & Insurance Paid)</option>
+                <option value="FCA">📍 FCA (Free Carrier)</option>
+                <option value="DAP">🏠 DAP (Delivered at Place)</option>
+              </select>
+            </div>
           </div>
 
-          <div className="form-field">
-            <label className="form-label">Destination Country</label>
-            <input 
-              className="form-input"
-              value={destination} 
-              onChange={e=>setDestination(e.target.value)}
-              placeholder="Enter destination country"
-              required
-            />
+          <div className="form-row">
+            <div className="form-field">
+              <label className="form-label">Insurance Required</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input 
+                    type="radio"
+                    name="insurance"
+                    checked={insuranceRequired === true}
+                    onChange={() => setInsuranceRequired(true)}
+                  />
+                  ✅ Yes
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input 
+                    type="radio"
+                    name="insurance"
+                    checked={insuranceRequired === false}
+                    onChange={() => setInsuranceRequired(false)}
+                  />
+                  ❌ No
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="form-row">
-          <div className="form-field">
-            <label className="form-label">End-User / Consignee Name</label>
-            <input 
-              className="form-input"
-              value={endUser} 
-              onChange={e=>setEndUser(e.target.value)}
-              placeholder="Company or individual name"
-              required
-            />
+        {/* Section 4: Parties & Destination */}
+        <div style={{ marginBottom: '2rem' }}>
+          <h3 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem' }}>
+            🌍 Parties & Destination
+          </h3>
+          <div className="form-row">
+            <div className="form-field">
+              <label className="form-label">Destination Country *</label>
+              <input 
+                className="form-input"
+                value={destination} 
+                onChange={e=>setDestination(e.target.value)}
+                placeholder="Enter destination country"
+                required
+              />
+            </div>
+
+            <div className="form-field">
+              <label className="form-label">End-User / Consignee Name *</label>
+              <input 
+                className="form-input"
+                value={endUser} 
+                onChange={e=>setEndUser(e.target.value)}
+                placeholder="Company or individual name"
+                required
+              />
+            </div>
+
+            <div className="form-field">
+              <label className="form-label">Consignee Registration (Optional)</label>
+              <input 
+                className="form-input"
+                value={consigneeRegistration} 
+                onChange={e=>setConsigneeRegistration(e.target.value)}
+                placeholder="Registration number or ID"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="form-field">
-          <label className="form-label">Product Description (Optional)</label>
-          <textarea 
-            className="form-input"
-            placeholder="Paste part description. The AI will suggest HS code in Step 5 for broker validation."
-            value={description} 
-            onChange={e=>setDescription(e.target.value)}
-            rows="3"
-            style={{resize: 'vertical', minHeight: '80px'}}
+        {/* OCR Document Processing - Only show when NOT in canvas mode */}
+        {!isCanvas && (
+          <DocumentOCR 
+            shipmentId={shipmentId}
+            onAutoFill={handleAutoFill}
+            onDocumentsProcessed={(result) => {
+              console.log('📊 Documents processed:', result);
+              // Optionally refresh file list or update UI
+            }}
           />
-          <small style={{color: 'var(--text-muted)', fontSize: '0.8rem'}}>
-            Detailed description helps with accurate HS code classification
-          </small>
-        </div>
+        )}
 
                 {/* File Upload Section - Only show when NOT in canvas mode */}
         {!isCanvas && (
@@ -446,7 +727,9 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
         )}
         
         <div className="mt-3" style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>
-          <p>📋 Required fields: Export Date, Mode, Product Type, Tech Origin, Destination, End User</p>
+          <p>📋 Required fields: Export Date, Mode, Product Type, Tech Origin, Destination, End User, Commercial Value, Quantity, Incoterms</p>
+          <p>⚡ End Use Purpose required for semiconductor categories</p>
+          <p>💡 Values over $100K auto-suggest urgent priority and insurance</p>
         </div>
       </div>
     </section>

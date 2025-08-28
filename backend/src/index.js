@@ -10,6 +10,8 @@ import policyRouter from './routes/policy.js';
 import shipmentsRouter from './routes/shipments.js';
 import uploadsRouter from './routes/upload.js';
 import opsRouter from './routes/ops.js';
+import k2Router from "./routes/form_k2.js";
+import documentsRouter from './routes/documents.js';
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -36,6 +38,8 @@ app.use('/api/policy', policyRouter);
 app.use('/api/shipments', shipmentsRouter);
 app.use('/api/uploads', uploadsRouter);
 app.use('/api/ops', opsRouter);
+app.use("/api/k2", k2Router);
+app.use('/api/documents', documentsRouter);
 
 // Static file serving for uploaded files
 app.use('/files', express.static(path.join(process.cwd(), 'uploads')));
