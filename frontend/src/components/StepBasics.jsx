@@ -412,22 +412,17 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
             {(productType.includes('ic') || productType.includes('memory') || productType.includes('ai_accelerator')) && (
               <div className="form-field">
                 <label className="form-label">End Use Purpose *</label>
-                <select 
-                  className="form-select"
-                  value={endUsePurpose} 
+                <input
+                  type="text"
+                  className="form-input"
+                  value={endUsePurpose}
                   onChange={e=>setEndUsePurpose(e.target.value)}
+                  placeholder="Enter end use purpose (e.g., Consumer Electronics, Industrial Automation, Medical Devices...)"
                   required
-                >
-                  <option value="">Select purpose...</option>
-                  <option value="consumer_electronics">📱 Consumer Electronics</option>
-                  <option value="industrial_automation">🏭 Industrial Automation</option>
-                  <option value="automotive">🚗 Automotive</option>
-                  <option value="telecommunications">📡 Telecommunications</option>
-                  <option value="medical_devices">🏥 Medical Devices</option>
-                  <option value="research_development">🔬 Research & Development</option>
-                  <option value="military_defense">🛡️ Military/Defense</option>
-                  <option value="other">🔧 Other</option>
-                </select>
+                />
+                <div className="form-hint">
+                  Common examples: Consumer Electronics, Industrial Automation, Automotive, Telecommunications, Medical Devices, Research & Development
+                </div>
               </div>
             )}
           </div>
