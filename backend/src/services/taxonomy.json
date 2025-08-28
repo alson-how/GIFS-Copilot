@@ -1,0 +1,76 @@
+{
+  "version": "1.0.0",
+  "categories": {
+    "food_agriculture": {
+      "synonyms": [
+        "food",
+        "agri",
+        "agriculture",
+        "fresh",
+        "produce",
+        "halal",
+        "\u51b7\u94fe",
+        "\u98df\u54c1\u519c\u4e1a"
+      ],
+      "specializations": {
+        "birds_nest_export": {
+          "synonyms": [
+            "bird's nest",
+            "birds nest",
+            "birdnest",
+            "edible bird\u2019s nest",
+            "EBN",
+            "\u71d5\u7a9d"
+          ]
+        },
+        "cold_chain": {
+          "synonyms": [
+            "cold chain",
+            "chilled",
+            "frozen",
+            "temperature controlled",
+            "\u51b7\u94fe"
+          ]
+        }
+      }
+    },
+    "semiconductor": {
+      "synonyms": [
+        "semicon",
+        "semiconductor",
+        "chips",
+        "ic",
+        "gpu",
+        "tpu",
+        "npu"
+      ],
+      "specializations": {
+        "ai_accelerator": {
+          "synonyms": [
+            "ai chip",
+            "gpu",
+            "tpu",
+            "npu",
+            "accelerator",
+            "h100",
+            "a100"
+          ]
+        },
+        "standard_ic": {
+          "synonyms": [
+            "asic",
+            "ic",
+            "logic"
+          ]
+        },
+        "memory": {
+          "synonyms": [
+            "dram",
+            "nand",
+            "memory"
+          ]
+        }
+      }
+    }
+  }
+}

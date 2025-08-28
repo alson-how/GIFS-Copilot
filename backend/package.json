@@ -1,0 +1,33 @@
+{
+  "name": "gifs-semicon-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "seed-knowledge": "node src/db/seed-knowledge.js",
+    "clear-knowledge": "node src/db/seed-knowledge.js --clear",
+    "ingest-knowledge": "node src/scripts/ingest-knowledge.js",
+    "ingest-enhanced": "node src/scripts/enhanced-ingest.js",
+    "ingest-enhanced-clear": "node src/scripts/enhanced-ingest.js --clear",
+    "ingest-stats": "node src/scripts/ingest-knowledge.js --stats",
+    "ingest-clear": "node src/scripts/ingest-knowledge.js --clear"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsdom": "^24.0.0",
+    "multer": "^1.4.5-lts.1",
+    "node-fetch": "^3.3.2",
+    "node-html-parser": "^6.1.13",
+    "openai": "^4.28.0",
+    "pdf-parse": "^1.1.1",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "luxon": "^3.7.1"
+  }
+}
