@@ -682,11 +682,13 @@ class DocumentParser {
 
       const product = {
         row_number: i + 1,
+        item_number: '',
         description: '',
         quantity: '',
         unit: 'PCS',
         unit_price: '',
         total_amount: '',
+        line_total: '',
         hs_code: '',
         origin: '',
         raw_row: row.join(' | ')
@@ -707,6 +709,12 @@ class DocumentParser {
       product.quantity = this.extractNumber(product.quantity);
       product.unit_price = this.extractNumber(product.unit_price);
       product.total_amount = this.extractNumber(product.total_amount);
+      product.line_total = this.extractNumber(product.line_total);
+      
+      // Use line_total as total_amount if total_amount is empty
+      if (!product.total_amount && product.line_total) {
+        product.total_amount = product.line_total;
+      }
 
       // Extract HS code if present in description
       const hsMatch = product.description.match(/\b\d{4,10}\b/);
@@ -732,17 +740,21 @@ class DocumentParser {
     headers.forEach(header => {
       const upperHeader = header.toUpperCase();
       
-      if (/^(ITEM|SL|S\.?N|NO\.?|SERIAL)/.test(upperHeader)) {
+      if (/^(ITEM|SL|S\.?N|NO\.?|SERIAL|INDEX)/.test(upperHeader)) {
         mapping[header] = 'item_number';
       } else if (/DESCRIPTION|PRODUCT|PART|MODEL/.test(upperHeader)) {
         mapping[header] = 'description';
       } else if (/^(QTY|QUANTITY)/.test(upperHeader)) {
         mapping[header] = 'quantity';
-      } else if (/UNIT(?!\s*PRICE)|UOM/.test(upperHeader)) {
+      } else if (/UNIT(?!\s*PRICE)(?!\s*TOTAL)|UOM/.test(upperHeader)) {
         mapping[header] = 'unit';
-      } else if (/UNIT\s*PRICE|PRICE|RATE/.test(upperHeader)) {
+      } else if (/UNIT\s*PRICE|UNIT\s*COST|PRICE|RATE(?!\s*TOTAL)/.test(upperHeader)) {
         mapping[header] = 'unit_price';
-      } else if (/AMOUNT|TOTAL|VALUE/.test(upperHeader)) {
+      } else if (/LINE\s*TOTAL|TOTAL\s*AMOUNT|AMOUNT/.test(upperHeader)) {
+        mapping[header] = 'line_total';
+      } else if (/UNIT\s*TOTAL/.test(upperHeader)) {
+        mapping[header] = 'total_amount';
+      } else if (/^TOTAL$|^VALUE$/.test(upperHeader)) {
         mapping[header] = 'total_amount';
       } else if (/HS\s*CODE|TARIFF|CLASSIFICATION/.test(upperHeader)) {
         mapping[header] = 'hs_code';

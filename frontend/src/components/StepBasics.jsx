@@ -16,6 +16,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     hsCode: '',
     quantity: '',
     unit: 'PCS',
+    unitPrice: '',
     endUsePurpose: '',
     productDescription: '',
     commercialValue: '',
@@ -42,6 +43,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       hsCode: '',
       quantity: '',
       unit: 'PCS',
+      unitPrice: '',
       endUsePurpose: '',
       productDescription: '',
       commercialValue: '',
@@ -112,31 +114,63 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   // OCR integration function
   const populateFromOCR = (ocrData) => {
     if (ocrData && ocrData.fieldSuggestions) {
-      // If OCR contains multiple product items, create multiple items
-      const ocrItems = ocrData.extractedItems || [ocrData.fieldSuggestions];
-      
-      const newItems = ocrItems.map((itemData, index) => ({
-        id: crypto?.randomUUID?.() || (Date.now() + index).toString(),
-        semiconductorCategory: itemData.semiconductor_category || 'standard_ic_asics',
-        technologyOrigin: itemData.technology_origin || 'malaysia',
-        hsCode: itemData.hs_code || '',
-        quantity: itemData.quantity || '',
-        unit: itemData.quantity_unit || 'PCS',
-        endUsePurpose: itemData.end_use_purpose || '',
-        productDescription: itemData.product_description || '',
-        commercialValue: itemData.commercial_value || '',
-        isStrategic: false,
-        isAIChip: false
-      }));
+      // Check if we have table data from Commercial Invoice
+      if (ocrData.fieldSuggestions.invoice_table && ocrData.fieldSuggestions.product_items) {
+        const tableItems = ocrData.fieldSuggestions.product_items;
+        const newItems = tableItems.map((item, index) => ({
+          id: crypto?.randomUUID?.() || (Date.now() + index).toString(),
+          semiconductorCategory: 'standard_ic_asics', // Default, user can change
+          technologyOrigin: item.origin || 'malaysia',
+          hsCode: item.hs_code || '',
+          quantity: item.quantity || '',
+          unit: item.unit || 'PCS',
+          unitPrice: item.unit_price || '',
+          endUsePurpose: '',
+          productDescription: item.description || '',
+          commercialValue: item.total_amount || '',
+          isStrategic: false,
+          isAIChip: false,
+          // Store original table data for reference
+          tableRowNumber: item.row_number,
+          originalTableData: item
+        }));
 
-      // Auto-detect strategic/AI status for each item
-      const processedItems = newItems.map(item => ({
-        ...item,
-        isStrategic: checkIfStrategic(item),
-        isAIChip: checkIfAIChip(item)
-      }));
+        // Auto-detect strategic/AI status for each item
+        const processedItems = newItems.map(item => ({
+          ...item,
+          isStrategic: checkIfStrategic(item),
+          isAIChip: checkIfAIChip(item)
+        }));
 
-      setProductItems(processedItems);
+        setProductItems(processedItems);
+      } else {
+        // Fallback to single item from field suggestions
+        const ocrItems = ocrData.extractedItems || [ocrData.fieldSuggestions];
+        
+        const newItems = ocrItems.map((itemData, index) => ({
+          id: crypto?.randomUUID?.() || (Date.now() + index).toString(),
+          semiconductorCategory: itemData.semiconductor_category || 'standard_ic_asics',
+          technologyOrigin: itemData.technology_origin || 'malaysia',
+          hsCode: itemData.hs_code || '',
+          quantity: itemData.quantity || '',
+          unit: itemData.quantity_unit || 'PCS',
+          unitPrice: itemData.unit_price || '',
+          endUsePurpose: itemData.end_use_purpose || '',
+          productDescription: itemData.product_description || '',
+          commercialValue: itemData.commercial_value || '',
+          isStrategic: false,
+          isAIChip: false
+        }));
+
+        // Auto-detect strategic/AI status for each item
+        const processedItems = newItems.map(item => ({
+          ...item,
+          isStrategic: checkIfStrategic(item),
+          isAIChip: checkIfAIChip(item)
+        }));
+
+        setProductItems(processedItems);
+      }
     }
   };
 
@@ -199,8 +233,6 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       }
     }
   }, [productItems, shipmentPriority, insuranceRequired]);
-
-
 
   // Handle auto-fill from OCR document processing
   function handleAutoFill(suggestions) {
@@ -335,8 +367,6 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     }
   }
 
-
-
   const getStatusClass = () => {
     if (!status) return '';
     if (status.includes('Error')) return 'status status-error show';
@@ -468,220 +498,410 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           </div>
         </div>
 
-        {/* Section 2: Multi-Product Details */}
+        {/* Invoice Table Display (if available from OCR) */}
+        {canvasData && canvasData.ocrData && canvasData.ocrData.fieldSuggestions && canvasData.ocrData.fieldSuggestions.invoice_table && (
+          <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem' }}>
+              📊 Extracted Invoice Table
+            </h3>
+            <div style={{
+              background: 'rgba(90, 140, 179, 0.05)',
+              border: '1px solid rgba(90, 140, 179, 0.3)',
+              borderRadius: '8px',
+              padding: '1rem',
+              marginBottom: '1rem',
+              overflow: 'auto'
+            }}>
+              <div style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                Original table from Commercial Invoice • {canvasData.ocrData.fieldSuggestions.invoice_table.rows.length} items detected • {canvasData.ocrData.fieldSuggestions.invoice_table.headers.length} columns
+              </div>
+              <table style={{ 
+                width: '100%', 
+                borderCollapse: 'collapse',
+                fontSize: '0.85rem',
+                background: 'white',
+                borderRadius: '4px',
+                overflow: 'hidden',
+                minWidth: 'max-content'
+              }}>
+                <thead>
+                  <tr style={{ background: 'var(--primary)', color: 'white' }}>
+                    {canvasData.ocrData.fieldSuggestions.invoice_table.headers.map((header, index) => (
+                      <th key={index} style={{ 
+                        padding: '0.75rem 0.5rem', 
+                        textAlign: 'left', 
+                        borderRight: index < canvasData.ocrData.fieldSuggestions.invoice_table.headers.length - 1 ? '1px solid rgba(255,255,255,0.2)' : 'none',
+                        whiteSpace: 'nowrap',
+                        fontWeight: 'bold',
+                        fontSize: '0.85rem'
+                      }}>
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {canvasData.ocrData.fieldSuggestions.invoice_table.rows.map((row, rowIndex) => (
+                    <tr key={rowIndex} style={{ 
+                      borderBottom: '1px solid var(--border)',
+                      background: rowIndex % 2 === 0 ? 'white' : 'rgba(0,0,0,0.02)'
+                    }}>
+                      {row.map((cell, cellIndex) => (
+                        <td key={cellIndex} style={{ 
+                          padding: '0.75rem 0.5rem', 
+                          borderRight: cellIndex < row.length - 1 ? '1px solid var(--border)' : 'none',
+                          maxWidth: '250px',
+                          minWidth: '80px',
+                          wordBreak: 'break-word',
+                          fontSize: '0.85rem'
+                        }}>
+                          {cell || '-'}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ 
+                marginTop: '0.5rem', 
+                fontSize: '0.8rem', 
+                color: 'var(--text-muted)',
+                textAlign: 'center'
+              }}>
+                ✨ This original invoice table data is used to populate the editable product table below
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Section 2: Product Details Table */}
         <div style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
             <h3 style={{ color: 'var(--primary)', fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem', margin: 0 }}>
               📦 Product Details ({productItems.length} item{productItems.length !== 1 ? 's' : ''})
             </h3>
-            <button 
-              type="button" 
-              onClick={addNewItem}
-              className="btn btn-secondary"
-              style={{ 
-                padding: '0.5rem 1rem', 
-                fontSize: '0.9rem',
-                background: 'var(--secondary)',
-                border: '1px solid var(--border)',
-                borderRadius: '6px',
-                cursor: 'pointer'
-              }}
-            >
-              + Add Item
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {canvasData && canvasData.ocrData && canvasData.ocrData.fieldSuggestions && canvasData.ocrData.fieldSuggestions.invoice_table && (
+                <button 
+                  type="button" 
+                  onClick={() => populateFromOCR(canvasData.ocrData)}
+                  className="btn btn-primary"
+                  style={{ 
+                    padding: '0.5rem 1rem', 
+                    fontSize: '0.9rem',
+                    background: 'var(--primary)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔄 Refresh from Table
+                </button>
+              )}
+              <button 
+                type="button" 
+                onClick={addNewItem}
+                className="btn btn-secondary"
+                style={{ 
+                  padding: '0.5rem 1rem', 
+                  fontSize: '0.9rem',
+                  background: 'var(--secondary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                + Add Item
+              </button>
+            </div>
           </div>
 
-          {/* Product Items */}
-          {productItems.map((item, index) => (
-            <div 
-              key={item.id} 
-              className="product-item-card"
-              style={{
-                border: `2px solid ${item.isStrategic ? '#ff9800' : (item.isAIChip ? '#2196f3' : 'var(--border)')}`,
-                borderRadius: '8px',
-                padding: '1rem',
-                marginBottom: '1rem',
-                background: item.isStrategic ? 'rgba(255, 152, 0, 0.05)' : (item.isAIChip ? 'rgba(33, 150, 243, 0.05)' : 'white'),
-                position: 'relative'
-              }}
-            >
-              {/* Item Header */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '1rem' }}>
-                    Product {index + 1}
-                  </h4>
-                  {item.isStrategic && (
-                    <span style={{
-                      background: '#ff9800',
-                      color: 'white',
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: '12px',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold'
-                    }}>
-                      🛡️ STRATEGIC
-                    </span>
-                  )}
-                  {item.isAIChip && (
-                    <span style={{
-                      background: '#2196f3',
-                      color: 'white',
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: '12px',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold'
-                    }}>
-                      🧠 AI CHIP
-                    </span>
-                  )}
-                </div>
-                {productItems.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeItem(item.id)}
-                    style={{
-                      background: '#f44336',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: '24px',
-                      height: '24px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
+          {/* Product Items Table */}
+          <div style={{
+            background: 'white',
+            borderRadius: '8px',
+            overflow: 'auto',
+            border: '1px solid var(--border)'
+          }}>
+            <table style={{ 
+              width: '100%', 
+              borderCollapse: 'collapse',
+              fontSize: '0.9rem'
+            }}>
+              <thead>
+                <tr style={{ background: 'var(--primary)', color: 'white' }}>
+                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', minWidth: '50px' }}>Item #</th>
+                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', minWidth: '200px' }}>Product Description</th>
+                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', minWidth: '140px' }}>Category</th>
+                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', minWidth: '100px' }}>Origin</th>
+                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', minWidth: '100px' }}>HS Code</th>
+                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', minWidth: '70px' }}>Quantity</th>
+                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', minWidth: '60px' }}>Unit</th>
+                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', minWidth: '90px' }}>Unit Price</th>
+                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', minWidth: '100px' }}>Line Total</th>
+                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', minWidth: '150px' }}>End Use</th>
+                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', minWidth: '80px' }}>Status</th>
+                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', minWidth: '60px' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {productItems.map((item, index) => (
+                  <tr key={item.id} style={{ 
+                    borderBottom: '1px solid var(--border)',
+                    background: item.isStrategic ? 'rgba(255, 152, 0, 0.05)' : (item.isAIChip ? 'rgba(33, 150, 243, 0.05)' : (index % 2 === 0 ? 'white' : 'rgba(0,0,0,0.02)'))
+                  }}>
+                    {/* Row Number */}
+                    <td style={{ padding: '0.5rem', borderRight: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <strong>{index + 1}</strong>
+                        {item.tableRowNumber && (
+                          <span style={{ 
+                            fontSize: '0.7rem', 
+                            color: '#4caf50',
+                            fontWeight: 'bold'
+                          }}>
+                            📊
+                          </span>
+                        )}
+                      </div>
+                    </td>
 
-              {/* Product Fields */}
-              <div className="form-row">
-                <div className="form-field">
-                  <label className="form-label">Semiconductor Category *</label>
-                  <select 
-                    className="form-select"
-                    value={item.semiconductorCategory} 
-                    onChange={e => updateItem(item.id, 'semiconductorCategory', e.target.value)}
-                  >
-                    <option value="standard_ic_asics">🔲 Standard IC/ASICs</option>
-                    <option value="memory_nand_dram">💾 Memory (NAND/DRAM)</option>
-                    <option value="discrete_semiconductors">⚡ Discrete Semiconductors</option>
-                    <option value="pcbas_modules">🔧 PCBAs / Modules</option>
-                    <option value="ai_accelerator_gpu_tpu_npu">🧠 AI Accelerator (GPU/TPU/NPU)</option>
-                    <option value="military_grade">🛡️ Military Grade</option>
-                    <option value="high_performance_computing">⚡ High Performance Computing</option>
-                    <option value="neural_processing">🧠 Neural Processing</option>
-                    <option value="unsure">❓ Unsure</option>
-                  </select>
-                </div>
+                    {/* Description */}
+                    <td style={{ padding: '0.5rem', borderRight: '1px solid var(--border)' }}>
+                      <textarea 
+                        value={item.productDescription}
+                        onChange={e => updateItem(item.id, 'productDescription', e.target.value)}
+                        placeholder="Product description..."
+                        style={{
+                          width: '100%',
+                          minHeight: '60px',
+                          border: 'none',
+                          background: 'transparent',
+                          resize: 'vertical',
+                          fontSize: '0.85rem'
+                        }}
+                      />
+                    </td>
 
-                <div className="form-field">
-                  <label className="form-label">Technology Origin *</label>
-                  <select 
-                    className="form-select"
-                    value={item.technologyOrigin} 
-                    onChange={e => updateItem(item.id, 'technologyOrigin', e.target.value)}
-                  >
-                    <option value="malaysia">🇲🇾 Malaysia</option>
-                    <option value="us_origin">🇺🇸 US Origin</option>
-                    <option value="eu_origin">🇪🇺 EU Origin</option>
-                    <option value="mixed">🌍 Mixed Origin</option>
-                    <option value="unknown">❓ Unknown</option>
-                  </select>
-                </div>
+                    {/* Category */}
+                    <td style={{ padding: '0.5rem', borderRight: '1px solid var(--border)' }}>
+                      <select 
+                        value={item.semiconductorCategory}
+                        onChange={e => updateItem(item.id, 'semiconductorCategory', e.target.value)}
+                        style={{
+                          width: '100%',
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        <option value="standard_ic_asics">Standard IC/ASICs</option>
+                        <option value="memory_nand_dram">Memory (NAND/DRAM)</option>
+                        <option value="discrete_semiconductors">Discrete Semiconductors</option>
+                        <option value="pcbas_modules">PCBAs / Modules</option>
+                        <option value="ai_accelerator_gpu_tpu_npu">AI Accelerator</option>
+                        <option value="military_grade">Military Grade</option>
+                        <option value="high_performance_computing">High Performance</option>
+                        <option value="neural_processing">Neural Processing</option>
+                        <option value="unsure">Unsure</option>
+                      </select>
+                    </td>
 
-                <div className="form-field">
-                  <label className="form-label">HS Code (Optional)</label>
-                  <input 
-                    className="form-input"
-                    placeholder="e.g., 85423110"
-                    value={item.hsCode} 
-                    onChange={e => updateItem(item.id, 'hsCode', e.target.value)}
-                  />
-                </div>
-              </div>
+                    {/* Origin */}
+                    <td style={{ padding: '0.5rem', borderRight: '1px solid var(--border)' }}>
+                      <select 
+                        value={item.technologyOrigin}
+                        onChange={e => updateItem(item.id, 'technologyOrigin', e.target.value)}
+                        style={{
+                          width: '100%',
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        <option value="malaysia">🇲🇾 Malaysia</option>
+                        <option value="us_origin">🇺🇸 US Origin</option>
+                        <option value="eu_origin">🇪🇺 EU Origin</option>
+                        <option value="mixed">🌍 Mixed</option>
+                        <option value="unknown">❓ Unknown</option>
+                      </select>
+                    </td>
 
-              <div className="form-row">
-                <div className="form-field">
-                  <label className="form-label">Commercial Value *</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    value={item.commercialValue}
-                    onChange={e => updateItem(item.id, 'commercialValue', e.target.value)}
-                    placeholder="Enter value"
-                    min="0"
-                    step="0.01"
-                    required
-                  />
-                </div>
+                    {/* HS Code */}
+                    <td style={{ padding: '0.5rem', borderRight: '1px solid var(--border)' }}>
+                      <input 
+                        type="text"
+                        value={item.hsCode}
+                        onChange={e => updateItem(item.id, 'hsCode', e.target.value)}
+                        placeholder="85423110"
+                        style={{
+                          width: '100%',
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: '0.85rem'
+                        }}
+                      />
+                    </td>
 
-                <div className="form-field">
-                  <label className="form-label">Quantity *</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    value={item.quantity}
-                    onChange={e => updateItem(item.id, 'quantity', e.target.value)}
-                    placeholder="Enter quantity"
-                    min="0"
-                    step="0.01"
-                    required
-                  />
-                </div>
+                    {/* Quantity */}
+                    <td style={{ padding: '0.5rem', borderRight: '1px solid var(--border)' }}>
+                      <input 
+                        type="number"
+                        value={item.quantity}
+                        onChange={e => updateItem(item.id, 'quantity', e.target.value)}
+                        placeholder="100"
+                        min="0"
+                        step="0.01"
+                        style={{
+                          width: '100%',
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: '0.85rem'
+                        }}
+                      />
+                    </td>
 
-                <div className="form-field">
-                  <label className="form-label">Unit *</label>
-                  <select 
-                    className="form-select"
-                    value={item.unit}
-                    onChange={e => updateItem(item.id, 'unit', e.target.value)}
-                    required
-                  >
-                    <option value="PCS">📦 Pieces (PCS)</option>
-                    <option value="KG">⚖️ Kilograms (KG)</option>
-                    <option value="TONS">🏋️ Tons</option>
-                    <option value="CBM">📐 Cubic Meters (CBM)</option>
-                    <option value="LITERS">🧪 Liters</option>
-                  </select>
-                </div>
-              </div>
+                    {/* Unit */}
+                    <td style={{ padding: '0.5rem', borderRight: '1px solid var(--border)' }}>
+                      <select 
+                        value={item.unit}
+                        onChange={e => updateItem(item.id, 'unit', e.target.value)}
+                        style={{
+                          width: '100%',
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        <option value="PCS">PCS</option>
+                        <option value="KG">KG</option>
+                        <option value="TONS">TONS</option>
+                        <option value="CBM">CBM</option>
+                        <option value="LITERS">LITERS</option>
+                      </select>
+                    </td>
 
-              {(item.semiconductorCategory.includes('ic') || item.semiconductorCategory.includes('memory') || item.semiconductorCategory.includes('ai_accelerator')) && (
-                <div className="form-field">
-                  <label className="form-label">End Use Purpose *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={item.endUsePurpose}
-                    onChange={e => updateItem(item.id, 'endUsePurpose', e.target.value)}
-                    placeholder="Enter end use purpose (e.g., Consumer Electronics, Industrial Automation, Medical Devices...)"
-                    required
-                  />
-                  <div className="form-hint">
-                    Common examples: Consumer Electronics, Industrial Automation, Automotive, Telecommunications, Medical Devices, Research & Development
-                  </div>
-                </div>
-              )}
+                    {/* Unit Price */}
+                    <td style={{ padding: '0.5rem', borderRight: '1px solid var(--border)' }}>
+                      <input 
+                        type="number"
+                        value={item.unitPrice}
+                        onChange={e => updateItem(item.id, 'unitPrice', e.target.value)}
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
+                        style={{
+                          width: '100%',
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: '0.85rem'
+                        }}
+                      />
+                    </td>
 
-              <div className="form-field">
-                <label className="form-label">Product Description (Optional)</label>
-                <textarea 
-                  className="form-input"
-                  placeholder="Paste part description. The AI will suggest HS code in Step 5 for broker validation."
-                  value={item.productDescription} 
-                  onChange={e => updateItem(item.id, 'productDescription', e.target.value)}
-                  rows="2"
-                  style={{resize: 'vertical', minHeight: '60px'}}
-                />
-              </div>
-            </div>
-          ))}
+                    {/* Line Total (Commercial Value) */}
+                    <td style={{ padding: '0.5rem', borderRight: '1px solid var(--border)' }}>
+                      <input 
+                        type="number"
+                        value={item.commercialValue}
+                        onChange={e => updateItem(item.id, 'commercialValue', e.target.value)}
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
+                        style={{
+                          width: '100%',
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: '0.85rem'
+                        }}
+                      />
+                    </td>
+
+                    {/* End Use Purpose */}
+                    <td style={{ padding: '0.5rem', borderRight: '1px solid var(--border)' }}>
+                      <input 
+                        type="text"
+                        value={item.endUsePurpose}
+                        onChange={e => updateItem(item.id, 'endUsePurpose', e.target.value)}
+                        placeholder="Consumer Electronics"
+                        style={{
+                          width: '100%',
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: '0.85rem'
+                        }}
+                      />
+                    </td>
+
+                    {/* Status Badges */}
+                    <td style={{ padding: '0.5rem', borderRight: '1px solid var(--border)', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
+                        {item.tableRowNumber && (
+                          <span style={{
+                            background: '#4caf50',
+                            color: 'white',
+                            padding: '0.1rem 0.3rem',
+                            borderRadius: '8px',
+                            fontSize: '0.6rem',
+                            fontWeight: 'bold'
+                          }}>
+                            TABLE
+                          </span>
+                        )}
+                        {item.isStrategic && (
+                          <span style={{
+                            background: '#ff9800',
+                            color: 'white',
+                            padding: '0.1rem 0.3rem',
+                            borderRadius: '8px',
+                            fontSize: '0.6rem',
+                            fontWeight: 'bold'
+                          }}>
+                            STRATEGIC
+                          </span>
+                        )}
+                        {item.isAIChip && (
+                          <span style={{
+                            background: '#2196f3',
+                            color: 'white',
+                            padding: '0.1rem 0.3rem',
+                            borderRadius: '8px',
+                            fontSize: '0.6rem',
+                            fontWeight: 'bold'
+                          }}>
+                            AI CHIP
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Action */}
+                    <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                      {productItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          style={{
+                            background: '#f44336',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            width: '24px',
+                            height: '24px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           {/* Summary Section */}
           <div style={{
@@ -798,8 +1018,6 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
             </div>
           </div>
         </div>
-
-
 
         {/* Status and Action Buttons */}
         <div className={getStatusClass()}>{status}</div>
