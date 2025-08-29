@@ -5,8 +5,15 @@ import StepAI from './components/StepAI.jsx';
 import StepScreening from './components/StepScreening.jsx';
 import StepDocs from './components/StepDocs.jsx';
 import AIQuery from './components/AIQuery.jsx';
+import Sidebar from './components/Sidebar.jsx';
+import EnhancedWorkflow from './components/EnhancedWorkflow.jsx';
 
 export default function App(){
+  // Navigation state
+  const [currentView, setCurrentView] = useState('enhanced-workflow');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  // Traditional workflow state
   const [shipmentId, setShipmentId] = useState(null);
   const [basics, setBasics] = useState(null);
   const [showCanvas, setShowCanvas] = useState(false);
@@ -20,6 +27,28 @@ export default function App(){
   }, []);
 
   const isAI = basics?.productType === 'ai_accelerator_gpu_tpu_npu';
+
+  // Handle view changes
+  const handleViewChange = (viewId) => {
+    setCurrentView(viewId);
+    
+    // Reset traditional workflow state when switching to enhanced workflow
+    if (viewId === 'enhanced-workflow') {
+      setShowCanvas(false);
+      setCanvasData(null);
+      setShowChatOnly(false);
+      setCurrentCanvasStep(1);
+    }
+    
+    // Switch to traditional workflow when needed
+    if (viewId === 'traditional-workflow') {
+      setCurrentView('traditional-workflow');
+    }
+  };
+
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
 
   // Handle canvas opening from AI chat
   const handleOpenCanvas = (data) => {
@@ -70,13 +99,46 @@ export default function App(){
     }
   };
 
-  return (
-    <div className="app">
+  // Render different views based on current selection
+  const renderCurrentView = () => {
+    switch (currentView) {
+      case 'enhanced-workflow':
+        return <EnhancedWorkflow />;
+      
+      case 'traditional-workflow':
+        return renderTraditionalWorkflow();
+      
+      case 'dashboard':
+        return renderDashboard();
+      
+      case 'shipments':
+        return renderShipments();
+      
+      case 'documents':
+        return renderDocuments();
+      
+      case 'compliance':
+        return renderCompliance();
+      
+      case 'settings':
+        return renderSettings();
+      
+      case 'help':
+        return renderHelp();
+      
+      default:
+        return <EnhancedWorkflow />;
+    }
+  };
+
+  // Traditional workflow component (existing functionality)
+  const renderTraditionalWorkflow = () => (
+    <div className="traditional-workflow">
       {/* Header Section - Hide when canvas is fullscreen */}
       {!showCanvas && (
-        <header className="header">
-          <h1 className="app-title">GIFS Logistics Copilot</h1>
-          <p className="app-subtitle">AI-Powered Semiconductor Export Compliance</p>
+        <header className="header" style={{ marginLeft: 0, padding: '2rem' }}>
+          <h1 className="app-title">Traditional Workflow</h1>
+          <p className="app-subtitle">Step-by-step manual shipment processing</p>
           {shipmentId && (
             <div className="shipment-id">
               <strong>Active Shipment:</strong> {shipmentId}
@@ -361,6 +423,72 @@ export default function App(){
           </div>
         </div>
       )}
+    </div>
+  );
+
+  // Placeholder render functions for other views
+  const renderDashboard = () => (
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <h2>📊 Dashboard</h2>
+      <p>Workflow analytics and overview coming soon...</p>
+    </div>
+  );
+
+  const renderShipments = () => (
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <h2>📦 Shipments</h2>
+      <p>Shipment management interface coming soon...</p>
+    </div>
+  );
+
+  const renderDocuments = () => (
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <h2>📄 Documents</h2>
+      <p>Document library and management coming soon...</p>
+    </div>
+  );
+
+  const renderCompliance = () => (
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <h2>🛡️ Compliance</h2>
+      <p>Compliance tools and regulations coming soon...</p>
+    </div>
+  );
+
+  const renderSettings = () => (
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <h2>⚙️ Settings</h2>
+      <p>Application settings and configuration coming soon...</p>
+    </div>
+  );
+
+  const renderHelp = () => (
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <h2>❓ Help & Support</h2>
+      <p>Documentation and support resources coming soon...</p>
+    </div>
+  );
+
+  return (
+    <div className="app" style={{ display: 'flex', minHeight: '100vh' }}>
+      {/* Sidebar Navigation */}
+      <Sidebar 
+        currentView={currentView}
+        onViewChange={handleViewChange}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={handleToggleSidebar}
+      />
+
+      {/* Main Content */}
+      <div style={{
+        flex: 1,
+        marginLeft: sidebarCollapsed ? '60px' : '280px',
+        transition: 'margin-left 0.3s ease',
+        background: '#f5f7fa',
+        minHeight: '100vh'
+      }}>
+        {renderCurrentView()}
+      </div>
     </div>
   );
 }

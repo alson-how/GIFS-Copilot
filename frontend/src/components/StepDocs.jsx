@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { postJSON } from '../services/api.js';
+import FormK2 from './FormK2.jsx';
 
 export default function StepDocs({ shipmentId, onSaved, isCanvas }){
   const [hsCode, setHsCode] = useState('85423110');
@@ -9,6 +10,7 @@ export default function StepDocs({ shipmentId, onSaved, isCanvas }){
   const [permits, setPermits] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showK2Form, setShowK2Form] = useState(false);
 
   async function submit(){
     setLoading(true);
@@ -152,6 +154,44 @@ export default function StepDocs({ shipmentId, onSaved, isCanvas }){
           <small style={{color: 'var(--text-muted)', fontSize: '0.8rem'}}>
             Include all relevant permit and license numbers
           </small>
+        </div>
+
+        {/* K2 Form Generation Section */}
+        <div className="mt-4" style={{
+          background: 'rgba(90, 140, 179, 0.05)', 
+          padding: '1rem', 
+          borderRadius: '8px',
+          border: '1px solid var(--border)'
+        }}>
+          <div className="flex-between mb-3">
+            <div>
+              <h4 style={{color: 'var(--primary)', margin: 0, fontSize: '1rem'}}>
+                📋 K2 Customs Export Declaration Form
+              </h4>
+              <p style={{color: 'var(--text-muted)', fontSize: '0.8rem', margin: '0.5rem 0 0 0'}}>
+                Generate the official Malaysian Customs K2 form for export declaration
+              </p>
+            </div>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => setShowK2Form(!showK2Form)}
+              style={{minWidth: '120px'}}
+            >
+              {showK2Form ? '🔼 Hide Form' : '📝 Generate K2'}
+            </button>
+          </div>
+          
+          {showK2Form && (
+            <div style={{
+              marginTop: '1rem',
+              padding: '1rem',
+              background: 'white',
+              borderRadius: '8px',
+              border: '1px solid var(--border)'
+            }}>
+              <FormK2 />
+            </div>
+          )}
         </div>
 
         <div className="flex-between mt-4">

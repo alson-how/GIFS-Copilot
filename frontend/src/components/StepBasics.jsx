@@ -2,6 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { postBasics } from '../services/api.js';
 
 export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isCanvas }) {
+  console.log('🚀 StepBasics component rendered');
+  console.log('🚀 canvasData prop:', canvasData);
+  
+  // VERY OBVIOUS TEST - this will show an alert if component is rendering
+  if (typeof window !== 'undefined') {
+    setTimeout(() => {
+      console.log('🚀 ALERT TEST: StepBasics is definitely rendering!');
+      // Uncomment this line to test: alert('StepBasics component is rendering!');
+    }, 1000);
+  }
+  
   const [shipmentId, setShipmentId] = useState(defaultShipmentId || (crypto?.randomUUID?.() || ''));
   const [exportDate, setExportDate] = useState('');
   const [mode, setMode] = useState('air');
@@ -72,16 +83,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     }));
   };
 
-  // Auto-detection functions
-  const checkIfStrategic = (item) => {
-    const strategicCategories = ['military_grade', 'high_performance_computing', 'ai_accelerator_gpu_tpu_npu'];
-    const strategicHSCodes = ['8542.31', '8542.32', '8542.33'];
-    
-    return strategicCategories.includes(item.semiconductorCategory) ||
-           strategicHSCodes.some(code => item.hsCode.startsWith(code)) ||
-           item.endUsePurpose.toLowerCase().includes('military') ||
-           item.endUsePurpose.toLowerCase().includes('defense');
-  };
+  // Auto-detection functions (checkIfStrategic is now defined above with RAG integration)
 
   const checkIfAIChip = (item) => {
     const aiCategories = ['ai_accelerator_gpu_tpu_npu', 'neural_processing'];
@@ -96,7 +98,28 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
 
   // Calculate totals and summaries
   const getTotalValue = () => {
-    return productItems.reduce((sum, item) => sum + (parseFloat(item.commercialValue) || 0), 0);
+    console.log('🔍 getTotalValue called');
+    console.log('🔍 canvasData:', canvasData);
+    console.log('🔍 canvasData?.ocrData:', canvasData?.ocrData);
+    console.log('🔍 canvasData?.ocrData?.fieldSuggestions:', canvasData?.ocrData?.fieldSuggestions);
+    console.log('🔍 commercial_value available:', !!canvasData?.ocrData?.fieldSuggestions?.commercial_value);
+    
+    // First try to get the commercial_value from OCR data (this is the SUBTOTAL from the invoice)
+    if (canvasData?.ocrData?.fieldSuggestions?.commercial_value?.value) {
+      const ocrTotal = canvasData.ocrData.fieldSuggestions.commercial_value.value;
+      console.log('🧮 Using OCR SUBTOTAL:', ocrTotal);
+      return ocrTotal;
+    }
+    
+    // Fallback to manual calculation from product items
+    console.log('🔍 Falling back to manual calculation, productItems:', productItems);
+    const total = productItems.reduce((sum, item) => {
+      const value = parseFloat(item.commercialValue) || 0;
+      console.log(`🧮 Item ${item.id}: commercialValue="${item.commercialValue}" -> ${value}`);
+      return sum + value;
+    }, 0);
+    console.log('🧮 Manual total calculated:', total);
+    return total;
   };
 
   const getTotalQuantity = () => {
@@ -110,6 +133,10 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   const getAIChipCount = () => {
     return productItems.filter(item => item.isAIChip).length;
   };
+
+  // Document requirements state
+  const [requiredDocuments, setRequiredDocuments] = useState([]);
+  const [uploadedDocuments, setUploadedDocuments] = useState({});
 
   // OCR integration function
   const populateFromOCR = (ocrData) => {
@@ -127,7 +154,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           unitPrice: item.unit_price || '',
           endUsePurpose: '',
           productDescription: item.description || '',
-          commercialValue: item.total_amount || '',
+          commercialValue: item.line_total || item.total_amount || '',  // Use line_total first
           isStrategic: false,
           isAIChip: false,
           // Store original table data for reference
@@ -143,6 +170,9 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
         }));
 
         setProductItems(processedItems);
+        
+        // Check for strategic items and high-value requirements after processing
+        checkDocumentRequirements(processedItems);
       } else {
         // Fallback to single item from field suggestions
         const ocrItems = ocrData.extractedItems || [ocrData.fieldSuggestions];
@@ -170,11 +200,139 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
         }));
 
         setProductItems(processedItems);
+        
+        // Check for strategic items and high-value requirements after processing
+        checkDocumentRequirements(processedItems);
       }
     }
   };
 
-  // Auto-fill data from canvas when provided
+  // Enhanced strategic items detection with RAG integration
+  const checkIfStrategic = (item) => {
+    const strategicCategories = ['military_grade', 'high_performance_computing', 'ai_accelerator_gpu_tpu_npu'];
+    const strategicHSCodes = ['8542.31', '8542.32', '8542.33', '8473.30'];
+    
+    // Basic category and HS code checking
+    const basicStrategic = strategicCategories.includes(item.semiconductorCategory) ||
+                          strategicHSCodes.some(code => item.hsCode.startsWith(code)) ||
+                          item.endUsePurpose.toLowerCase().includes('military') ||
+                          item.endUsePurpose.toLowerCase().includes('defense');
+    
+    // RAG-based strategic detection from product descriptions
+    const ragStrategic = checkStrategicFromDescription(item.productDescription);
+    
+    return basicStrategic || ragStrategic;
+  };
+
+  // RAG-based strategic items detection
+  const checkStrategicFromDescription = (description) => {
+    if (!description) return false;
+    
+    const desc = description.toLowerCase();
+    const strategicKeywords = [
+      'ai accelerator', 'gpu', 'tpu', 'npu', 'neural processing',
+      'high performance computing', 'hpc', 'supercomputing',
+      'military', 'defense', 'aerospace', 'satellite',
+      'cryptographic', 'encryption', 'secure processor',
+      'fpga', 'field programmable', 'asic', 'application specific',
+      'radar', 'lidar', 'autonomous', 'drone', 'unmanned',
+      'quantum', 'photonic', 'optical computing'
+    ];
+    
+    return strategicKeywords.some(keyword => desc.includes(keyword));
+  };
+
+  // Document requirements checking
+  const checkDocumentRequirements = (items) => {
+    const requirements = [];
+    const hasStrategicItems = items.some(item => item.isStrategic);
+    const totalValue = items.reduce((sum, item) => sum + (parseFloat(item.commercialValue) || 0), 0);
+    console.log('items', items);
+		console.log('hasStrategicItems', hasStrategicItems);
+    // Strategic items require technical documentation (mandatory)
+    if (hasStrategicItems) {
+      requirements.push({
+        id: 'technical_docs',
+        type: 'Technical Documentation',
+        description: 'Product specifications required for strategic items',
+        mandatory: true,
+        reason: 'Strategic Items Detected'
+      });
+      
+      // Also check if import permit is available
+      requirements.push({
+        id: 'import_permit',
+        type: 'Import Permit STA 2010',
+        description: 'If you have it (strategic trade authorization)',
+        mandatory: false,
+        reason: 'Strategic Items Detected'
+      });
+    }
+    
+          // High-value shipments recommend insurance
+      if (totalValue > 100000) {
+        console.log('🛡️ HIGH-VALUE DETECTED: Adding insurance requirement for $', totalValue);
+        requirements.push({
+          id: 'insurance_cert',
+          type: 'Insurance Certificate',
+          description: 'For coverage protection on high-value shipment',
+          mandatory: false,
+          reason: 'High-Value Shipment (>$100K)'
+        });
+      }
+    
+    setRequiredDocuments(requirements);
+    
+    // Update status message
+    if (requirements.length > 0) {
+      const mandatoryCount = requirements.filter(req => req.mandatory).length;
+      const optionalCount = requirements.length - mandatoryCount;
+      let message = '📋 Document requirements identified: ';
+      if (mandatoryCount > 0) message += `${mandatoryCount} mandatory`;
+      if (optionalCount > 0) message += `${mandatoryCount > 0 ? ', ' : ''}${optionalCount} recommended`;
+      setStatus(message);
+    }
+  };
+
+  // File upload handler
+  const handleFileUpload = async (docType, file) => {
+    if (!file) return;
+    
+    try {
+      setStatus(`📤 Uploading ${docType}...`);
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('document', file);
+      formData.append('document_type', docType);
+      formData.append('shipment_id', shipmentId);
+      
+      const response = await fetch('/api/documents/upload-supporting', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setUploadedDocuments(prev => ({
+          ...prev,
+          [docType]: {
+            filename: file.name,
+            uploaded_at: new Date().toISOString(),
+            document_id: result.document_id
+          }
+        }));
+        setStatus(`✅ ${docType} uploaded successfully`);
+      } else {
+        setStatus(`❌ Failed to upload ${docType}`);
+      }
+    } catch (error) {
+      console.error('File upload error:', error);
+      setStatus(`❌ Error uploading ${docType}: ${error.message}`);
+    }
+  };
+
+  // Auto-fill data from canvas when provided, or load default OCR data
   useEffect(() => {
     if (canvasData) {
       // Auto-fill export date if extracted
@@ -216,13 +374,43 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
         const ocrInfo = canvasData.ocrData ? ` (${canvasData.ocrData.documents?.length || 0} documents processed)` : '';
         setStatus(`📋 Canvas opened from: "${canvasData.originalQuery}"${ocrInfo}`);
       }
+    } else {
+      // Load default OCR data when no canvas data is provided (for demo/testing)
+      const loadDefaultOCRData = async () => {
+        try {
+          const response = await fetch('/api/documents/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ demo: true })
+          });
+          
+          if (response.ok) {
+            const ocrData = await response.json();
+            if (ocrData.fieldSuggestions) {
+              console.log('🔄 Loading default OCR data for demo:', ocrData.fieldSuggestions);
+              handleAutoFill(ocrData.fieldSuggestions);
+              setStatus('📊 Demo OCR data loaded - showing sample Commercial Invoice data');
+            }
+          }
+        } catch (error) {
+          console.log('No default OCR data available:', error.message);
+        }
+      };
+      
+      loadDefaultOCRData();
     }
   }, [canvasData]);
 
   // Conditional logic: high-value shipment
   useEffect(() => {
+    console.log('🔍 High-value useEffect triggered');
+    console.log('🔍 productItems:', productItems);
+    console.log('🔍 canvasData in useEffect:', canvasData);
+    console.log('🔍 canvasData?.ocrData in useEffect:', canvasData?.ocrData);
     const totalValue = getTotalValue();
+    console.log('🔍 totalValue:', totalValue);
     if (totalValue > 100000) {
+      console.log('🚨 HIGH-VALUE SHIPMENT DETECTED: $', totalValue);
       if (shipmentPriority === 'Standard') {
         setShipmentPriority('Urgent');
         console.log('🚨 High-value shipment detected - upgraded to Urgent priority');
@@ -231,8 +419,10 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
         setInsuranceRequired(true);
         console.log('🛡️ High-value shipment detected - enabled insurance requirement');
       }
+    } else {
+      console.log('📊 Normal-value shipment: $', totalValue);
     }
-  }, [productItems, shipmentPriority, insuranceRequired]);
+  }, [productItems, shipmentPriority, insuranceRequired, canvasData]);
 
   // Handle auto-fill from OCR document processing
   function handleAutoFill(suggestions) {
@@ -258,40 +448,49 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     for (const [fieldName, suggestion] of Object.entries(suggestions)) {
       // Handle shipment-level fields
       const shipmentSetter = shipmentFieldMapping[fieldName];
-      if (shipmentSetter && suggestion.value) {
-        try {
-          shipmentSetter(suggestion.value);
-          appliedCount++;
-          console.log(`✅ Applied shipment field ${fieldName}: ${suggestion.value} (from ${suggestion.source})`);
-        } catch (error) {
-          console.warn(`⚠️ Failed to apply ${fieldName}:`, error);
+      if (shipmentSetter) {
+        // Handle both direct values and object format
+        const value = typeof suggestion === 'object' && suggestion.value ? suggestion.value : suggestion;
+        if (value) {
+          try {
+            shipmentSetter(value);
+            appliedCount++;
+            const source = typeof suggestion === 'object' && suggestion.source ? suggestion.source : 'OCR';
+            console.log(`✅ Applied shipment field ${fieldName}: ${value} (from ${source})`);
+          } catch (error) {
+            console.warn(`⚠️ Failed to apply ${fieldName}:`, error);
+          }
         }
       }
       // Handle product-level fields by updating first product item
-      else if (productFields.includes(fieldName) && suggestion.value) {
-        try {
-          const firstItemId = productItems[0]?.id;
-          if (firstItemId) {
-            const fieldMap = {
-              'commercial_value': 'commercialValue',
-              'quantity': 'quantity', 
-              'quantity_unit': 'unit',
-              'hs_code': 'hsCode',
-              'technology_origin': 'technologyOrigin',
-              'end_use_purpose': 'endUsePurpose',
-              'product_description': 'productDescription',
-              'semiconductor_category': 'semiconductorCategory'
-            };
-            const mappedField = fieldMap[fieldName];
-            if (mappedField) {
-              updateItem(firstItemId, mappedField, suggestion.value);
-              appliedCount++;
-              console.log(`✅ Applied product field ${fieldName}: ${suggestion.value} (from ${suggestion.source})`);
-            }
-          }
-        } catch (error) {
-          console.warn(`⚠️ Failed to apply product field ${fieldName}:`, error);
-        }
+      else if (productFields.includes(fieldName)) {
+        const value = typeof suggestion === 'object' && suggestion.value ? suggestion.value : suggestion;
+        if (value) {
+						try {
+							const firstItemId = productItems[0]?.id;
+							if (firstItemId) {
+							const fieldMap = {
+								'commercial_value': 'commercialValue',
+								'quantity': 'quantity', 
+								'quantity_unit': 'unit',
+								'hs_code': 'hsCode',
+								'technology_origin': 'technologyOrigin',
+								'end_use_purpose': 'endUsePurpose',
+								'product_description': 'productDescription',
+								'semiconductor_category': 'semiconductorCategory'
+							};
+							const mappedField = fieldMap[fieldName];
+							if (mappedField) {
+								updateItem(firstItemId, mappedField, value);
+								appliedCount++;
+								const source = typeof suggestion === 'object' && suggestion.source ? suggestion.source : 'OCR';
+								console.log(`✅ Applied product field ${fieldName}: ${value} (from ${source})`);
+							}
+						}
+					} catch (error) {
+						console.warn(`⚠️ Failed to apply product field ${fieldName}:`, error);
+					}
+				}
       }
     }
 
@@ -301,6 +500,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       
       // Conditional logic based on auto-filled commercial value
       const totalValue = getTotalValue();
+			console.log('totalValue 483', totalValue);
       if (totalValue > 100000) {
         setShipmentPriority('Urgent');
         setInsuranceRequired(true);
@@ -373,17 +573,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     return 'status status-success show';
   };
 
-  const isFormValid = exportDate && mode && destination && endUser && incoterms &&
-                     productItems.length > 0 && 
-                     productItems.every(item => 
-                       item.semiconductorCategory && 
-                       item.technologyOrigin && 
-                       item.quantity && parseFloat(item.quantity) > 0 &&
-                       item.commercialValue && parseFloat(item.commercialValue) > 0 &&
-                       (!item.semiconductorCategory.includes('ic') && 
-                        !item.semiconductorCategory.includes('memory') && 
-                        !item.semiconductorCategory.includes('ai_accelerator') || item.endUsePurpose)
-                     );
+  const isFormValid = exportDate && mode && destination && endUser && incoterms;
 
   return (
     <section className={`card ${isCanvas ? '' : 'fade-in'}`} style={isCanvas ? {
@@ -424,11 +614,207 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           </div>
         )}
 
+        {/* Document Requirements Checklist */}
+        {requiredDocuments.length > 0 && (
+          <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem' }}>
+              📄 Document Requirements
+            </h3>
+            
+            {/* Strategic Items Warning */}
+            {requiredDocuments.some(req => req.reason === 'Strategic Items Detected') && (
+              <div style={{
+                background: 'rgba(255, 193, 7, 0.1)',
+                border: '1px solid rgba(255, 193, 7, 0.3)',
+                borderRadius: '8px',
+                padding: '1rem',
+                marginBottom: '1rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>⚠️</span>
+                  <strong style={{ color: '#856404' }}>Strategic Items Detected</strong>
+                </div>
+                <div style={{ color: '#856404', fontSize: '0.9rem' }}>
+                  Strategic items require additional documentation for export compliance
+                </div>
+              </div>
+            )}
+
+            {/* High-Value Warning */}
+            {requiredDocuments.some(req => req.reason === 'High-Value Shipment (>$100K)') && (
+              <div style={{
+                background: 'rgba(23, 162, 184, 0.1)',
+                border: '1px solid rgba(23, 162, 184, 0.3)',
+                borderRadius: '8px',
+                padding: '1rem',
+                marginBottom: '1rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>💡</span>
+                  <strong style={{ color: '#0c5460' }}>High-Value Shipment Recommendation</strong>
+                </div>
+                <div style={{ color: '#0c5460', fontSize: '0.9rem' }}>
+                  High-value shipment (>${(getTotalValue() / 1000).toFixed(0)}K) - insurance coverage recommended
+                </div>
+              </div>
+            )}
+
+            {/* Document Checklist */}
+            <div style={{
+              background: 'rgba(248, 249, 250, 1)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              padding: '1rem'
+            }}>
+              <ul style={{ 
+                listStyle: 'none', 
+                padding: 0, 
+                margin: 0 
+              }}>
+                {requiredDocuments.map((doc) => (
+                  <li key={doc.id} style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    padding: '0.75rem 0',
+                    borderBottom: '1px solid rgba(0,0,0,0.1)'
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        marginBottom: '0.25rem' 
+                      }}>
+                        <span style={{ 
+                          marginRight: '0.5rem',
+                          color: doc.mandatory ? '#dc3545' : '#28a745'
+                        }}>
+                          {uploadedDocuments[doc.id] ? '✅' : (doc.mandatory ? '🔴' : '🟡')}
+                        </span>
+                        <strong style={{ 
+                          color: doc.mandatory ? '#dc3545' : '#495057'
+                        }}>
+                          {doc.type}
+                          {doc.mandatory && <span style={{ color: '#dc3545' }}> *</span>}
+                        </strong>
+                      </div>
+                      <div style={{ 
+                        fontSize: '0.85rem', 
+                        color: '#6c757d',
+                        marginLeft: '1.5rem'
+                      }}>
+                        {doc.description}
+                      </div>
+                      {uploadedDocuments[doc.id] && (
+                        <div style={{ 
+                          fontSize: '0.8rem', 
+                          color: '#28a745',
+                          marginLeft: '1.5rem',
+                          marginTop: '0.25rem'
+                        }}>
+                          ✅ {uploadedDocuments[doc.id].filename} uploaded
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ marginLeft: '1rem' }}>
+                      {!uploadedDocuments[doc.id] ? (
+                        <label style={{
+                          background: doc.mandatory ? '#dc3545' : '#007bff',
+                          color: 'white',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          border: 'none',
+                          display: 'inline-block'
+                        }}>
+                          Upload File
+                          <input
+                            type="file"
+                            style={{ display: 'none' }}
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            onChange={(e) => {
+                              if (e.target.files[0]) {
+                                handleFileUpload(doc.id, e.target.files[0]);
+                              }
+                            }}
+                          />
+                        </label>
+                      ) : (
+                        <button
+                          style={{
+                            background: '#28a745',
+                            color: 'white',
+                            padding: '0.5rem 1rem',
+                            borderRadius: '4px',
+                            border: 'none',
+                            fontSize: '0.85rem',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => {
+                            // Allow re-upload
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = '.pdf,.doc,.docx,.jpg,.jpeg,.png';
+                            input.onchange = (e) => {
+                              if (e.target.files[0]) {
+                                handleFileUpload(doc.id, e.target.files[0]);
+                              }
+                            };
+                            input.click();
+                          }}
+                        >
+                          Replace
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              
+              {/* Legend */}
+              <div style={{ 
+                marginTop: '1rem', 
+                padding: '0.5rem 0',
+                borderTop: '1px solid rgba(0,0,0,0.1)',
+                fontSize: '0.8rem',
+                color: '#6c757d'
+              }}>
+                <div><span style={{ color: '#dc3545' }}>🔴 *</span> Mandatory documents required for export</div>
+                <div><span style={{ color: '#28a745' }}>🟡</span> Recommended documents</div>
+                <div><span style={{ color: '#28a745' }}>✅</span> Document uploaded successfully</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Section 1: Basic Information */}
         <div style={{ marginBottom: '2rem' }}>
-          <h3 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem' }}>
-            📅 Basic Information
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem', flex: 1 }}>
+              📅 Basic Information
+            </h3>
+            <button 
+              onClick={() => {
+                console.log('🧪 MANUAL TEST: getTotalValue clicked');
+                const total = getTotalValue();
+                console.log('🧪 MANUAL TEST result:', total);
+                alert(`Total Value: ${total}`);
+              }}
+              style={{
+                marginLeft: '1rem',
+                padding: '6px 12px',
+                fontSize: '0.7rem',
+                background: 'var(--primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              TEST getTotalValue
+            </button>
+          </div>
           <div className="form-row">
             <div className="form-field">
               <label className="form-label">Target Export Date *</label>
@@ -513,7 +899,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
               overflow: 'auto'
             }}>
               <div style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                Original table from Commercial Invoice • {canvasData.ocrData.fieldSuggestions.invoice_table.rows.length} items detected • {canvasData.ocrData.fieldSuggestions.invoice_table.headers.length} columns
+                Original table from Commercial Invoice • {canvasData.ocrData.fieldSuggestions.invoice_table?.value?.rows?.length || 0} items detected • {canvasData.ocrData.fieldSuggestions.invoice_table?.value?.headers?.length || 0} columns
               </div>
               <table style={{ 
                 width: '100%', 
@@ -525,12 +911,12 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
                 minWidth: 'max-content'
               }}>
                 <thead>
-                  <tr style={{ background: 'var(--primary)', color: 'white' }}>
-                    {canvasData.ocrData.fieldSuggestions.invoice_table.headers.map((header, index) => (
+                  <tr style={{ background: 'black', color: 'white' }}>
+                    {(canvasData.ocrData.fieldSuggestions.invoice_table?.value?.headers || []).map((header, index) => (
                       <th key={index} style={{ 
                         padding: '0.75rem 0.5rem', 
                         textAlign: 'left', 
-                        borderRight: index < canvasData.ocrData.fieldSuggestions.invoice_table.headers.length - 1 ? '1px solid rgba(255,255,255,0.2)' : 'none',
+                        borderRight: index < (canvasData.ocrData.fieldSuggestions.invoice_table?.value?.headers?.length || 0) - 1 ? '1px solid rgba(255,255,255,0.2)' : 'none',
                         whiteSpace: 'nowrap',
                         fontWeight: 'bold',
                         fontSize: '0.85rem'
@@ -541,19 +927,21 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
                   </tr>
                 </thead>
                 <tbody>
-                  {canvasData.ocrData.fieldSuggestions.invoice_table.rows.map((row, rowIndex) => (
+                  {(canvasData.ocrData.fieldSuggestions.invoice_table?.value?.rows || []).map((row, rowIndex) => (
                     <tr key={rowIndex} style={{ 
                       borderBottom: '1px solid var(--border)',
                       background: rowIndex % 2 === 0 ? 'white' : 'rgba(0,0,0,0.02)'
                     }}>
-                      {row.map((cell, cellIndex) => (
+                      {(row || []).map((cell, cellIndex) => (
                         <td key={cellIndex} style={{ 
                           padding: '0.75rem 0.5rem', 
-                          borderRight: cellIndex < row.length - 1 ? '1px solid var(--border)' : 'none',
+                          borderRight: cellIndex < (row?.length || 0) - 1 ? '1px solid var(--border)' : 'none',
                           maxWidth: '250px',
                           minWidth: '80px',
                           wordBreak: 'break-word',
-                          fontSize: '0.85rem'
+                          fontSize: '0.85rem',
+                          color: '#333',
+                          backgroundColor: 'white'
                         }}>
                           {cell || '-'}
                         </td>
@@ -686,11 +1074,11 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           
           {!isFormValid && (
             <small style={{color: 'var(--error)', fontSize: '0.8rem', marginTop: '0.5rem', display: 'block'}}>
-              ⚠️ Please fill in all required fields for each product item
+              ⚠️ Please fill in all required fields: Export Date, Transport Mode, Destination, End User/Consignee, and Incoterms
             </small>
           )}
         </div>
       </div>
     </section>
   );
-}
+};

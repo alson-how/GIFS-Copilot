@@ -40,6 +40,7 @@ const upload = multer({
 router.post('/upload', upload.array('documents', 5), async (req, res) => {
   try {
     console.log(`📤 Processing ${req.files?.length || 0} uploaded documents`);
+    console.log('📋 Files received:', req.files?.map(f => `${f.originalname} (${f.size} bytes, ${f.mimetype})`));
     
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
@@ -68,7 +69,7 @@ router.post('/upload', upload.array('documents', 5), async (req, res) => {
         const documentId = uuidv4();
         
         // Store document processing result in database
-        const documentRecord = await storeDocumentRecord({
+        const documentRecord = await storeDocumentRecord(req.db, {
           documentId,
           shipmentId: shipment_id || null,
           filename: file.originalname,
@@ -113,6 +114,18 @@ router.post('/upload', upload.array('documents', 5), async (req, res) => {
     // Generate field suggestions for auto-fill
     const fieldSuggestions = generateFieldSuggestions(results);
     
+    // DEBUG: Check what fields are actually being extracted
+    console.log('🔍 DEBUG: Checking extracted fields in documents...');
+    for (const doc of results) {
+      console.log(`📄 Document: ${doc.documentType}`);
+      console.log(`📋 Extracted fields:`, Object.keys(doc.extractedFields || {}));
+      if (doc.extractedFields && doc.extractedFields.consignee_name) {
+        console.log(`✅ consignee_name found: "${doc.extractedFields.consignee_name}"`);
+      } else {
+        console.log(`❌ consignee_name NOT found in extractedFields`);
+      }
+    }
+    
     const response = {
       success: true,
       processedFiles: results.length,
@@ -125,6 +138,7 @@ router.post('/upload', upload.array('documents', 5), async (req, res) => {
     };
     
     console.log(`🎉 Document processing complete: ${results.length}/${req.files.length} successful`);
+    console.log(`🔍 Field suggestions generated:`, JSON.stringify(fieldSuggestions, null, 2));
     res.json(response);
     
   } catch (error) {
@@ -305,10 +319,11 @@ router.post('/auto-fill/:shipmentId', async (req, res) => {
 
 /**
  * Store document processing result in database
+ * @param {Object} db - Database connection object
  * @param {Object} data - Document data to store
  * @returns {Promise<Object>} Stored document record
  */
-async function storeDocumentRecord(data) {
+async function storeDocumentRecord(db, data) {
   const {
     documentId,
     shipmentId,
@@ -349,7 +364,7 @@ async function storeDocumentRecord(data) {
     parseResult.processingDate
   ];
   
-  const result = await req.db.query(query, values);
+  const result = await db.query(query, values);
   return result.rows[0];
 }
 
@@ -389,8 +404,15 @@ function generateFieldSuggestions(documents) {
         fieldSources[fieldName] = [];
       }
       
+      // Handle complex objects (like invoice_table) properly
+      let processedValue = fieldValue;
+      if (typeof fieldValue === 'object' && fieldValue !== null) {
+        // Keep objects as-is for complex data like tables
+        processedValue = fieldValue;
+      }
+      
       fieldSources[fieldName].push({
-        value: fieldValue,
+        value: processedValue,
         source: docType,
         confidence: docConfidence,
         priority
@@ -407,14 +429,27 @@ function generateFieldSuggestions(documents) {
     });
     
     const bestSource = sources[0];
-    const allValues = [...new Set(sources.map(s => s.value))];
+    
+    // Handle object values differently from primitive values
+    let allValues, alternatives, consistent;
+    if (typeof bestSource.value === 'object' && bestSource.value !== null) {
+      // For objects, don't try to create alternatives or check consistency
+      allValues = [bestSource.value];
+      alternatives = [];
+      consistent = true;
+    } else {
+      // For primitive values, use the original logic
+      allValues = [...new Set(sources.map(s => s.value))];
+      alternatives = allValues.length > 1 ? allValues.slice(1) : [];
+      consistent = allValues.length === 1;
+    }
     
     fieldSuggestions[fieldName] = {
       value: bestSource.value,
       confidence: bestSource.confidence,
       source: bestSource.source,
-      alternatives: allValues.length > 1 ? allValues.slice(1) : [],
-      consistent: allValues.length === 1
+      alternatives,
+      consistent
     };
   }
   
@@ -450,6 +485,108 @@ router.use((error, req, res, next) => {
     error: 'Internal server error',
     message: 'An unexpected error occurred during document processing'
   });
+});
+
+// Supporting documents upload endpoint
+// DEBUG endpoint to check field patterns
+router.get('/debug-patterns', (req, res) => {
+  const patterns = Object.keys(documentParser.fieldPatterns);
+  const hasConsignee = !!documentParser.fieldPatterns.consignee_name;
+  const consigneePatterns = documentParser.fieldPatterns.consignee_name?.patterns || [];
+  
+  res.json({
+    allPatterns: patterns,
+    hasConsignee,
+    consigneePatterns: consigneePatterns.map(p => p.toString())
+  });
+});
+
+// DEBUG endpoint to test consignee extraction directly
+router.get('/debug-consignee', async (req, res) => {
+  try {
+    const sampleText = `COMMERCIAL INVOICE (MALAYSIA)
+TECHFLOW ELECTRONICS PTE LTD
+Block 123, Innovation Drive #05-67
+Singapore Science Park 118261
+Tel: +65-6123-4567 | Email: export@techflow.com.sg
+GST Reg: 201234567M
+INVOICE NO:TF-2025-0892DATE:28 August 2025
+PAGE:1 of 1CURRENCY:USD
+SOLD TO:
+DIGITAL SOLUTIONS SDN BHD
+No. 45, Jalan Technology 3/4
+Technology Park Malaysia
+57000 Kuala Lumpur, Malaysia
+Tel: +60-3-8996-1234
+SHIP TO:
+Same as above
+TERMS:FOB Singapore
+PAYMENT:L/C at sight
+COUNTRY OF ORIGIN:Singapore/USA (Mixed)`;
+
+    console.log('🔧 DEBUG: Testing consignee extraction directly...');
+    const fields = documentParser.extractFields(sampleText, 'Commercial Invoice');
+    
+    res.json({
+      sampleTextLength: sampleText.length,
+      extractedFields: fields,
+      hasConsignee: !!fields.consignee_name,
+      consigneeName: fields.consignee_name
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/upload-supporting', upload.single('document'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { document_type, shipment_id } = req.body;
+    
+    if (!document_type || !shipment_id) {
+      return res.status(400).json({ error: 'Missing document_type or shipment_id' });
+    }
+
+    // Store document metadata in database
+    const documentId = uuidv4();
+    const query = `
+      INSERT INTO uploaded_documents (
+        document_id, shipment_id, document_type, filename, 
+        file_size, mime_type, upload_date, file_path
+      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+      RETURNING document_id, filename, upload_date
+    `;
+    
+    const values = [
+      documentId,
+      shipment_id,
+      document_type,
+      req.file.originalname,
+      req.file.size,
+      req.file.mimetype,
+      req.file.path
+    ];
+    
+    const result = await req.db.query(query, values);
+    
+    res.json({
+      success: true,
+      document_id: documentId,
+      filename: req.file.originalname,
+      document_type,
+      upload_date: result.rows[0].upload_date
+    });
+    
+  } catch (error) {
+    console.error('Supporting document upload error:', error);
+    res.status(500).json({ 
+      error: 'Failed to upload supporting document',
+      details: error.message 
+    });
+  }
 });
 
 export default router;
