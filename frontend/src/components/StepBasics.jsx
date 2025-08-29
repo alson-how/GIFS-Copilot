@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { postBasics } from '../services/api.js';
+import StrategicItemPermitInterface from './StrategicItemPermitInterface.jsx';
 
 export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isCanvas }) {
   console.log('🚀 StepBasics component rendered');
@@ -44,6 +45,14 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Strategic Items Compliance State
+  const [strategicItemsDetected, setStrategicItemsDetected] = useState(false);
+  const [strategicDetectionComplete, setStrategicDetectionComplete] = useState(false);
+  const [strategicDetectionLoading, setStrategicDetectionLoading] = useState(false);
+  const [exportBlocked, setExportBlocked] = useState(false);
+  const [complianceScore, setComplianceScore] = useState(100);
+  const [missingPermits, setMissingPermits] = useState([]);
 
   // Product item management functions
   const addNewItem = () => {
@@ -94,6 +103,129 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
              item.productDescription.toLowerCase().includes(keyword) ||
              item.endUsePurpose.toLowerCase().includes(keyword)
            );
+  };
+
+  // Strategic Items Detection
+  const triggerStrategicDetection = async () => {
+    if (strategicDetectionLoading) {
+      console.log('⏳ Strategic detection already in progress, skipping...');
+      return;
+    }
+    
+    try {
+      console.log('🔍 Triggering strategic items detection for shipment:', shipmentId);
+      setStrategicDetectionLoading(true);
+      
+      let detectionItems = [];
+      
+      // First try to use OCR data if available
+      if (canvasData?.ocrData?.fieldSuggestions?.product_items?.value?.length > 0) {
+        console.log('🔍 Using OCR product items for detection');
+        const ocrItems = canvasData.ocrData.fieldSuggestions.product_items.value;
+        detectionItems = ocrItems.map(item => ({
+          description: item.description,
+          hs_code: item.hs_code,
+          technical_specs: {
+            semiconductor_category: 'ai_accelerator', // Inferred from description
+            technology_origin: canvasData.ocrData.fieldSuggestions.technology_origin?.value || 'singapore',
+            quantity: parseFloat(item.quantity) || 0,
+            unit_price: parseFloat(item.unit_price) || 0,
+            commercial_value: parseFloat(item.line_total) || 0
+          }
+        })).filter(item => item.description && item.description.trim() !== '');
+      }
+      
+      // Fallback to form data if no OCR data
+      if (detectionItems.length === 0) {
+        console.log('🔍 Using form product items for detection');
+        detectionItems = productItems.map(item => ({
+          description: item.productDescription,
+          hs_code: item.hsCode,
+          technical_specs: {
+            semiconductor_category: item.semiconductorCategory,
+            technology_origin: item.technologyOrigin,
+            quantity: parseFloat(item.quantity) || 0,
+            unit_price: parseFloat(item.unitPrice) || 0,
+            commercial_value: parseFloat(item.commercialValue) || 0
+          }
+        })).filter(item => item.description && item.description.trim() !== '');
+      }
+
+      if (detectionItems.length === 0) {
+        console.log('⚠️ No items with descriptions found for strategic detection');
+        return;
+      }
+      
+      console.log('🔍 Detection items prepared:', detectionItems);
+
+      const response = await fetch('/api/strategic/detect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          shipment_id: shipmentId,
+          product_items: detectionItems
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log('✅ Strategic detection completed:', data.data);
+        setStrategicItemsDetected(data.data.strategic_items_found > 0);
+        setExportBlocked(data.data.export_blocked);
+        // Calculate compliance score based on strategic items and export status
+        let calculatedComplianceScore = 100;
+        if (data.data.strategic_items_found > 0) {
+          if (data.data.export_blocked) {
+            calculatedComplianceScore = 50; // Blocked due to missing permits
+          } else {
+            calculatedComplianceScore = 90; // Strategic items detected but compliant
+          }
+        }
+        setComplianceScore(data.data.overall_compliance_score || calculatedComplianceScore);
+        // Set missing permits based on required permits (all are missing until uploaded)
+        const requiredPermits = data.data.required_permits || [];
+        setMissingPermits(requiredPermits); // All required permits are initially missing
+        setStrategicDetectionComplete(true);
+        
+        // Update product items with strategic flags
+        const updatedItems = productItems.map(item => {
+          const detectionResult = data.data.detection_results.find(
+            result => result.product_description === item.productDescription
+          );
+          
+          if (detectionResult) {
+            return {
+              ...item,
+              isStrategic: detectionResult.is_strategic,
+              strategicCodes: detectionResult.strategic_codes || []
+            };
+          }
+          
+          return item;
+        });
+        
+        setProductItems(updatedItems);
+      } else {
+        console.error('❌ Strategic detection failed:', data.error);
+      }
+    } catch (error) {
+      console.error('❌ Strategic detection error:', error);
+    } finally {
+      setStrategicDetectionLoading(false);
+    }
+  };
+
+  // Handle strategic compliance changes
+  const handleComplianceChange = (complianceData) => {
+    setStrategicItemsDetected(complianceData.hasStrategicItems);
+    setExportBlocked(complianceData.exportBlocked);
+    setComplianceScore(complianceData.complianceScore);
+    setMissingPermits(complianceData.missingPermits || []);
+    
+    console.log('🔒 Compliance status updated:', complianceData);
   };
 
   // Calculate totals and summaries
@@ -401,6 +533,22 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     }
   }, [canvasData]);
 
+  // Strategic Items Detection Trigger
+  useEffect(() => {
+    // Check if we have OCR data with product items from Commercial Invoice
+    const hasOCRProductItems = canvasData?.ocrData?.fieldSuggestions?.product_items?.value?.length > 0;
+    const hasFormProductItems = productItems.filter(item => 
+      item.productDescription && item.productDescription.trim() !== ''
+    ).length > 0;
+    
+    if ((hasOCRProductItems || hasFormProductItems) && !strategicDetectionComplete && !strategicDetectionLoading && shipmentId) {
+      console.log('🔍 Product items detected, triggering strategic detection...');
+      console.log('🔍 OCR product items:', hasOCRProductItems ? canvasData.ocrData.fieldSuggestions.product_items.value.length : 0);
+      console.log('🔍 Form product items:', hasFormProductItems ? productItems.length : 0);
+      triggerStrategicDetection();
+    }
+  }, [productItems, canvasData, strategicDetectionComplete, strategicDetectionLoading, shipmentId]);
+
   // Conditional logic: high-value shipment
   useEffect(() => {
     console.log('🔍 High-value useEffect triggered');
@@ -512,6 +660,15 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   }
 
   async function save() {
+    // Check for export blocking due to strategic items compliance
+    if (exportBlocked) {
+      setStatus('❌ Export blocked due to strategic items compliance requirements. Please upload all required permits before proceeding.');
+      alert('🚫 EXPORT BLOCKED\n\nThis shipment contains strategic items subject to Malaysian Strategic Trade Act 2010.\n\nRequired actions:\n' + 
+            missingPermits.map(permit => `• Upload ${permit} permit`).join('\n') + 
+            '\n\nExport cannot proceed until all permits are uploaded and validated.');
+      return;
+    }
+    
     setLoading(true);
     setStatus('');
     try {
@@ -788,32 +945,24 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           </div>
         )}
 
+                    {/* Strategic Items Permit Interface - Must be at top for compliance */}
+            <StrategicItemPermitInterface 
+              shipmentId={shipmentId}
+              onComplianceChange={handleComplianceChange}
+              strategicItemsDetected={strategicItemsDetected}
+              exportBlocked={exportBlocked}
+              complianceScore={complianceScore}
+              missingPermits={missingPermits}
+              strategicDetectionComplete={strategicDetectionComplete}
+              strategicDetectionLoading={strategicDetectionLoading}
+            />
+
         {/* Section 1: Basic Information */}
         <div style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
             <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem', flex: 1 }}>
               📅 Basic Information
-            </h3>
-            <button 
-              onClick={() => {
-                console.log('🧪 MANUAL TEST: getTotalValue clicked');
-                const total = getTotalValue();
-                console.log('🧪 MANUAL TEST result:', total);
-                alert(`Total Value: ${total}`);
-              }}
-              style={{
-                marginLeft: '1rem',
-                padding: '6px 12px',
-                fontSize: '0.7rem',
-                background: 'var(--primary)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              TEST getTotalValue
-            </button>
+            </h3>            
           </div>
           <div className="form-row">
             <div className="form-field">

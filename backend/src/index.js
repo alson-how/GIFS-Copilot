@@ -15,6 +15,7 @@ import documentsRouter from './routes/documents.js';
 import { batchProcessingRouter } from './routes/batchProcessing.js';
 import { stepRoutingRouter } from './routes/stepRouting.js';
 import comprehensiveScreeningRouter from './routes/comprehensiveScreening.js';
+import strategicItemsRouter from './routes/strategicItems.js';
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -46,6 +47,7 @@ app.use('/api/documents', documentsRouter);
 app.use('/api/batch-processing', batchProcessingRouter);
 app.use('/api/step-routing', stepRoutingRouter);
 app.use('/api/comprehensive-screening', comprehensiveScreeningRouter);
+app.use('/api/strategic', strategicItemsRouter);
 
 // Static file serving for uploaded files
 app.use('/files', express.static(path.join(process.cwd(), 'uploads')));
