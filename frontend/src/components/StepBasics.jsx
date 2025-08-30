@@ -19,6 +19,14 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   const [mode, setMode] = useState('air');
   const [destination, setDestination] = useState('China');
   const [endUser, setEndUser] = useState('');
+
+  // Update shipmentId when canvasData contains a new shipmentId from invoice processing
+  useEffect(() => {
+    if (canvasData?.shipmentId && canvasData.shipmentId !== shipmentId) {
+      console.log('🆔 Updating shipmentId from canvasData:', canvasData.shipmentId);
+      setShipmentId(canvasData.shipmentId);
+    }
+  }, [canvasData?.shipmentId, shipmentId]);
   
   // Multi-product state - array of product items
   const [productItems, setProductItems] = useState([{
@@ -499,6 +507,18 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       if (canvasData.ocrData && canvasData.ocrData.fieldSuggestions) {
         console.log('🔄 Applying OCR auto-fill from canvas data:', canvasData.ocrData.fieldSuggestions);
         handleAutoFill(canvasData.ocrData.fieldSuggestions);
+        
+        // Also populate product items from OCR table data
+        console.log('📦 Populating product items from OCR data');
+        console.log('📦 OCR data structure:', canvasData.ocrData);
+        console.log('📦 Has invoice_table:', !!canvasData.ocrData.fieldSuggestions.invoice_table);
+        console.log('📦 Has product_items:', !!canvasData.ocrData.fieldSuggestions.product_items);
+        if (canvasData.ocrData.fieldSuggestions.invoice_table) {
+          console.log('📊 Invoice table structure:', canvasData.ocrData.fieldSuggestions.invoice_table);
+          console.log('📊 Table headers:', canvasData.ocrData.fieldSuggestions.invoice_table.headers);
+          console.log('📊 Table rows count:', canvasData.ocrData.fieldSuggestions.invoice_table.rows?.length);
+        }
+        populateFromOCR(canvasData.ocrData);
       }
       
       // Show canvas-specific status message
@@ -572,30 +592,106 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     }
   }, [productItems, shipmentPriority, insuranceRequired, canvasData]);
 
+  // Helper function to format dates for input fields
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    
+    try {
+      // Handle various date formats
+      let date;
+      
+      // Try parsing common date formats
+      if (dateString.includes('/')) {
+        // Format: MM/DD/YYYY or DD/MM/YYYY
+        const parts = dateString.split('/');
+        if (parts.length === 3) {
+          // Assume MM/DD/YYYY for now
+          date = new Date(parts[2], parts[0] - 1, parts[1]);
+        }
+      } else if (dateString.includes('-')) {
+        // Format: YYYY-MM-DD or DD-MM-YYYY
+        date = new Date(dateString);
+      } else {
+        date = new Date(dateString);
+      }
+      
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date format:', dateString);
+        return '';
+      }
+      
+      // Return in YYYY-MM-DD format for HTML date input
+      return date.toISOString().split('T')[0];
+    } catch (error) {
+      console.warn('Error formatting date:', dateString, error);
+      return '';
+    }
+  };
+
   // Handle auto-fill from OCR document processing
   function handleAutoFill(suggestions) {
     console.log('🔄 Applying OCR auto-fill suggestions:', suggestions);
+    console.log('🔍 Checking for consignee_name in suggestions:', suggestions.consignee_name);
     
     // Map OCR field names to shipment-level setters
     const shipmentFieldMapping = {
       'currency': (value) => setCurrency(value),
-      'consignee_name': (value) => setEndUser(value),
-      'end_user_consignee_name': (value) => setEndUser(value),
+      'consignee_name': (value) => {
+        console.log('✅ Setting endUser from consignee_name:', value);
+        setEndUser(value);
+      },
+      'end_user_consignee_name': (value) => {
+        console.log('✅ Setting endUser from end_user_consignee_name:', value);
+        setEndUser(value);
+      },
       'incoterms': (value) => setIncoterms(value),
       'destination_country': (value) => setDestination(value),
-      'transport_mode': (value) => setMode(value.toLowerCase()),
-      'target_export_date': (value) => setExportDate(value),
+      'transport_mode': (value) => {
+        console.log('✅ Setting transport mode from transport_mode:', value);
+        // Map transport mode values
+        const modeMapping = {
+          'sea': 'sea',
+          'ocean': 'sea', 
+          'vessel': 'sea',
+          'ship': 'sea',
+          'air': 'air',
+          'flight': 'air',
+          'airline': 'air',
+          'aircraft': 'air',
+          'land': 'land',
+          'truck': 'land',
+          'road': 'land'
+        };
+        const mappedMode = modeMapping[value.toLowerCase()] || value.toLowerCase();
+        setMode(mappedMode);
+      },
+      'target_export_date': (value) => {
+        console.log('✅ Setting export date from target_export_date:', value);
+        // Handle different date formats
+        const formattedDate = formatDateForInput(value);
+        setExportDate(formattedDate);
+      },
       'consignee_registration': (value) => setConsigneeRegistration(value)
     };
 
     // Product-level fields will be handled by populateFromOCR function
     const productFields = ['commercial_value', 'quantity', 'quantity_unit', 'hs_code', 'technology_origin', 'end_use_purpose', 'product_description', 'semiconductor_category'];
+    
+    // Additional shipment-level mappings for missing fields
+    const additionalMappings = {
+      'technology_origin': (value) => {
+        console.log('✅ Setting technology origin for first product item:', value);
+        if (productItems.length > 0) {
+          updateItem(productItems[0].id, 'technologyOrigin', value);
+        }
+      }
+    };
 
     // Apply suggestions to shipment-level fields
     let appliedCount = 0;
     for (const [fieldName, suggestion] of Object.entries(suggestions)) {
       // Handle shipment-level fields
-      const shipmentSetter = shipmentFieldMapping[fieldName];
+      const shipmentSetter = shipmentFieldMapping[fieldName] || additionalMappings[fieldName];
       if (shipmentSetter) {
         // Handle both direct values and object format
         const value = typeof suggestion === 'object' && suggestion.value ? suggestion.value : suggestion;
@@ -610,38 +706,44 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           }
         }
       }
-      // Handle product-level fields by updating first product item
+            // Handle product-level fields by updating first product item
       else if (productFields.includes(fieldName)) {
         const value = typeof suggestion === 'object' && suggestion.value ? suggestion.value : suggestion;
         if (value) {
-						try {
-							const firstItemId = productItems[0]?.id;
-							if (firstItemId) {
-							const fieldMap = {
-								'commercial_value': 'commercialValue',
-								'quantity': 'quantity', 
-								'quantity_unit': 'unit',
-								'hs_code': 'hsCode',
-								'technology_origin': 'technologyOrigin',
-								'end_use_purpose': 'endUsePurpose',
-								'product_description': 'productDescription',
-								'semiconductor_category': 'semiconductorCategory'
-							};
-							const mappedField = fieldMap[fieldName];
-							if (mappedField) {
-								updateItem(firstItemId, mappedField, value);
-								appliedCount++;
-								const source = typeof suggestion === 'object' && suggestion.source ? suggestion.source : 'OCR';
-								console.log(`✅ Applied product field ${fieldName}: ${value} (from ${source})`);
-							}
-						}
-					} catch (error) {
-						console.warn(`⚠️ Failed to apply product field ${fieldName}:`, error);
-					}
-				}
+          try {
+            const firstItemId = productItems[0]?.id;
+            if (firstItemId) {
+              const fieldMap = {
+                'commercial_value': 'commercialValue',
+                'quantity': 'quantity', 
+                'quantity_unit': 'unit',
+                'hs_code': 'hsCode',
+                'technology_origin': 'technologyOrigin',
+                'end_use_purpose': 'endUsePurpose',
+                'product_description': 'productDescription',
+                'semiconductor_category': 'semiconductorCategory'
+              };
+              const mappedField = fieldMap[fieldName];
+                if (mappedField) {
+                  updateItem(firstItemId, mappedField, value);
+                  appliedCount++;
+                  const source = typeof suggestion === 'object' && suggestion.source ? suggestion.source : 'OCR';
+                  console.log(`✅ Applied product field ${fieldName}: ${value} (from ${source})`);
+                }
+            }
+          } catch (error) {
+            console.warn(`⚠️ Failed to apply product field ${fieldName}:`, error);
+          }
+        }
       }
     }
 
+    // Log summary of what was processed
+    console.log(`🔄 OCR Auto-fill Summary: ${appliedCount} fields applied from ${Object.keys(suggestions).length} suggestions`);
+    console.log('🔍 Available fields in suggestions:', Object.keys(suggestions));
+    console.log('🔍 Mapped shipment fields:', Object.keys(shipmentFieldMapping));
+    console.log('🔍 Product fields to check:', productFields);
+    
     // Show success message
     if (appliedCount > 0) {
       setStatus(`✨ Auto-filled ${appliedCount} fields from uploaded documents`);
@@ -811,7 +913,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
                   <strong style={{ color: '#0c5460' }}>High-Value Shipment Recommendation</strong>
                 </div>
                 <div style={{ color: '#0c5460', fontSize: '0.9rem' }}>
-                  High-value shipment (>${(getTotalValue() / 1000).toFixed(0)}K) - insurance coverage recommended
+                  High-value shipment (&gt;${(getTotalValue() / 1000).toFixed(0)}K) - insurance coverage recommended
                 </div>
               </div>
             )}
@@ -1048,7 +1150,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
               overflow: 'auto'
             }}>
               <div style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                Original table from Commercial Invoice • {canvasData.ocrData.fieldSuggestions.invoice_table?.value?.rows?.length || 0} items detected • {canvasData.ocrData.fieldSuggestions.invoice_table?.value?.headers?.length || 0} columns
+                Original table from Commercial Invoice • {canvasData.ocrData.fieldSuggestions.invoice_table?.rows?.length || 0} items detected • {canvasData.ocrData.fieldSuggestions.invoice_table?.headers?.length || 0} columns
               </div>
               <table style={{ 
                 width: '100%', 
@@ -1061,11 +1163,11 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
               }}>
                 <thead>
                   <tr style={{ background: 'black', color: 'white' }}>
-                    {(canvasData.ocrData.fieldSuggestions.invoice_table?.value?.headers || []).map((header, index) => (
+                    {(canvasData.ocrData.fieldSuggestions.invoice_table?.headers || []).map((header, index) => (
                       <th key={index} style={{ 
                         padding: '0.75rem 0.5rem', 
                         textAlign: 'left', 
-                        borderRight: index < (canvasData.ocrData.fieldSuggestions.invoice_table?.value?.headers?.length || 0) - 1 ? '1px solid rgba(255,255,255,0.2)' : 'none',
+                        borderRight: index < (canvasData.ocrData.fieldSuggestions.invoice_table?.headers?.length || 0) - 1 ? '1px solid rgba(255,255,255,0.2)' : 'none',
                         whiteSpace: 'nowrap',
                         fontWeight: 'bold',
                         fontSize: '0.85rem'
@@ -1076,7 +1178,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
                   </tr>
                 </thead>
                 <tbody>
-                  {(canvasData.ocrData.fieldSuggestions.invoice_table?.value?.rows || []).map((row, rowIndex) => (
+                  {(canvasData.ocrData.fieldSuggestions.invoice_table?.rows || []).map((row, rowIndex) => (
                     <tr key={rowIndex} style={{ 
                       borderBottom: '1px solid var(--border)',
                       background: rowIndex % 2 === 0 ? 'white' : 'rgba(0,0,0,0.02)'

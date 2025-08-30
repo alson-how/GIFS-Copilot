@@ -26,13 +26,23 @@ const StrategicItemPermitInterface = ({
     const [permitStatus, setPermitStatus] = useState(null);
     const [exportValidation, setExportValidation] = useState(null);
     const [loading, setLoading] = useState(false); // Changed to false since we get data from props
-    const [uploadingPermit, setUploadingPermit] = useState(null);
     const [error, setError] = useState(null);
     const [hasLoadedFromAPI, setHasLoadedFromAPI] = useState(false);
+    const [uploadingPermit, setUploadingPermit] = useState(null);
+    const [uploadingInsurance, setUploadingInsurance] = useState(false);
+    const [uploadedPermits, setUploadedPermits] = useState({});
+    const [insuranceInfo, setInsuranceInfo] = useState(null);
 
-    // Reset hasLoadedFromAPI when shipmentId changes
+    // Reset all state when shipmentId changes to prevent stale data
     useEffect(() => {
+        console.log('🆔 StrategicItemPermitInterface: shipmentId changed to:', shipmentId);
         setHasLoadedFromAPI(false);
+        setStrategicStatus(null);
+        setPermitStatus(null);
+        setExportValidation(null);
+        setError(null);
+        setUploadedPermits({});
+        setInsuranceInfo(null);
     }, [shipmentId]);
 
     useEffect(() => {
@@ -190,6 +200,81 @@ const StrategicItemPermitInterface = ({
             urgency: 'MEDIUM',
             deadline: 'TBD'
         };
+    };
+
+    // Upload permit function
+    const uploadPermit = async (permitType, file) => {
+        try {
+            setUploadingPermit(permitType);
+            
+            const formData = new FormData();
+            formData.append('permit', file);
+            
+            const response = await fetch(`/api/uploads/permit/${shipmentId}/${permitType}`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                setUploadedPermits(prev => ({
+                    ...prev,
+                    [permitType]: result.data
+                }));
+                console.log(`✅ Permit ${permitType} uploaded successfully`);
+            } else {
+                throw new Error(result.error || 'Upload failed');
+            }
+        } catch (error) {
+            console.error(`❌ Error uploading permit ${permitType}:`, error);
+            setError(`Failed to upload ${permitType}: ${error.message}`);
+        } finally {
+            setUploadingPermit(null);
+        }
+    };
+
+    // Upload insurance document function
+    const uploadInsurance = async (file, insuranceValue = null) => {
+        try {
+            setUploadingInsurance(true);
+            
+            const formData = new FormData();
+            formData.append('insurance', file);
+            if (insuranceValue) {
+                formData.append('insuranceValue', insuranceValue);
+                formData.append('currency', 'USD');
+            }
+            
+            const response = await fetch(`/api/uploads/insurance/${shipmentId}`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                setInsuranceInfo(result.data);
+                console.log('✅ Insurance document uploaded successfully');
+            } else {
+                throw new Error(result.error || 'Upload failed');
+            }
+        } catch (error) {
+            console.error('❌ Error uploading insurance document:', error);
+            setError(`Failed to upload insurance document: ${error.message}`);
+        } finally {
+            setUploadingInsurance(false);
+        }
+    };
+
+    // Check if insurance is required (based on OCR data or commercial value)
+    const checkInsuranceRequired = () => {
+        if (typeof window !== 'undefined' && window.canvasData?.ocrData?.fieldSuggestions) {
+            const fieldSuggestions = window.canvasData.ocrData.fieldSuggestions;
+            const commercialValue = fieldSuggestions.commercial_value?.value || 0;
+            return commercialValue > 10000; // Insurance required for shipments > $10,000
+        }
+        return false;
     };
 
     if (loading || strategicDetectionLoading) {
@@ -369,40 +454,90 @@ const StrategicItemPermitInterface = ({
                 </div>
             )}
 
-            {/* Compliance Status Summary */}
-            {exportValidation && (
+
+            {/* Insurance Document Section */}
+            {checkInsuranceRequired() && (
                 <div style={{
                     padding: '1.5rem',
-                    border: `2px solid ${exportValidation.export_permitted ? '#00b894' : '#e17055'}`,
+                    border: '2px solid #74b9ff',
                     borderRadius: '8px',
-                    backgroundColor: exportValidation.export_permitted ? '#e8f5f0' : '#ffeaa7'
+                    backgroundColor: '#f8f9ff',
+                    marginTop: '1rem'
                 }}>
                     <h4 style={{ 
                         margin: '0 0 1rem 0',
-                        color: exportValidation.export_permitted ? '#00b894' : '#d63031'
+                        color: '#2d3436',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
                     }}>
-                        📊 Compliance Status: {exportValidation.compliance_score}%
+                        🛡️ Insurance Document Required
                     </h4>
                     
-                    {exportValidation.missing_permits.length > 0 && (
-                        <div style={{ marginBottom: '1rem' }}>
-                            <strong style={{ color: '#d63031' }}>Missing Permits:</strong>
-                            <ul style={{ margin: '0.5rem 0 0 1rem', color: '#d63031' }}>
-                                {exportValidation.missing_permits.map((permit, index) => (
-                                    <li key={index}>{permit}</li>
-                                ))}
-                            </ul>
+                    <p style={{ 
+                        margin: '0 0 1rem 0', 
+                        color: '#636e72',
+                        fontSize: '0.9rem'
+                    }}>
+                        High-value shipments require insurance documentation for export compliance.
+                    </p>
+                    
+                    {insuranceInfo ? (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '1rem',
+                            padding: '0.75rem',
+                            backgroundColor: '#e8f5e8',
+                            borderRadius: '4px',
+                            border: '1px solid #00b894'
+                        }}>
+                            <span style={{ color: '#00b894', fontWeight: 'bold' }}>
+                                ✅ Insurance Document Uploaded
+                            </span>
+                            <span style={{ color: '#636e72', fontSize: '0.8rem' }}>
+                                {insuranceInfo.filename} • {insuranceInfo.insurance_value ? `$${insuranceInfo.insurance_value} ${insuranceInfo.currency}` : 'No value specified'}
+                            </span>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <input
+                                type="file"
+                                id="insurance-upload"
+                                style={{ display: 'none' }}
+                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                onChange={(e) => {
+                                    const file = e.target.files[0];
+                                    if (file) {
+                                        uploadInsurance(file);
+                                    }
+                                }}
+                            />
+                            <button
+                                onClick={() => document.getElementById('insurance-upload').click()}
+                                disabled={uploadingInsurance}
+                                style={{
+                                    padding: '0.75rem 1.5rem',
+                                    backgroundColor: uploadingInsurance ? '#ccc' : '#74b9ff',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    cursor: uploadingInsurance ? 'not-allowed' : 'pointer',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 'bold',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem'
+                                }}
+                            >
+                                {uploadingInsurance ? (
+                                    <>⏳ Uploading...</>
+                                ) : (
+                                    <>📄 Upload Insurance Document</>
+                                )}
+                            </button>
                         </div>
                     )}
-                    
-                    <div style={{ fontSize: '0.9rem', color: '#666' }}>
-                        <strong>Next Steps:</strong>
-                        {exportValidation.export_permitted ? (
-                            <span style={{ color: '#00b894' }}> All permits validated - export approved</span>
-                        ) : (
-                            <span style={{ color: '#d63031' }}> Upload and validate all required permits above</span>
-                        )}
-                    </div>
                 </div>
             )}
         </div>

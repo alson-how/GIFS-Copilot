@@ -48,65 +48,140 @@ export default function AIQuery({ onOpenCanvas }) {
     setQuery(''); // Clear input immediately
     
     try {
+        console.log(uploadedFiles.length);
+        console.log(detectExportIntent(userMessage.content));
       // Check if user has files and wants to export/ship
       if (uploadedFiles.length > 0 && detectExportIntent(userMessage.content)) {
-        // Process files with OCR first
-        let ocrData = null;
+        // Use new Invoice Detection API
+        let invoiceProcessingResult = null;
         try {
-          console.log('🔍 Processing uploaded files with OCR...');
+          console.log('🔍 Processing uploaded files with Invoice Detection API...');
           
-          // Prepare files for OCR processing
+          // Only process the first file for now (Commercial Invoice detection)
+          const firstFile = uploadedFiles[0];
           const formData = new FormData();
-          uploadedFiles.forEach(fileData => {
-            formData.append('documents', fileData.file);
-          });
+          formData.append('document', firstFile.file);
+          formData.append('intent', userMessage.content);
           
-          // Call OCR API
-          const ocrResponse = await fetch(`${import.meta.env.VITE_API || 'http://localhost:8080'}/api/documents/upload`, {
+          // Call new Invoice Detection API
+          const invoiceResponse = await fetch(`${import.meta.env.VITE_API || 'http://localhost:8080'}/api/invoice-detection/upload`, {
             method: 'POST',
             body: formData
           });
           
-          if (ocrResponse.ok) {
-            ocrData = await ocrResponse.json();
-            console.log('✅ OCR processing completed:', ocrData);
+          if (invoiceResponse.ok) {
+            invoiceProcessingResult = await invoiceResponse.json();
+            console.log('✅ Invoice processing completed:', invoiceProcessingResult);
           } else {
-            console.warn('⚠️ OCR processing failed, continuing without OCR data');
+            const errorData = await invoiceResponse.json();
+            console.warn('⚠️ Invoice processing failed:', errorData);
+            
+            // If it's not a Commercial Invoice or wrong intent, show error to user
+            if (errorData.error) {
+              const botResponse = {
+                id: Date.now() + 1,
+                content: `❌ **${errorData.error}**\n\n${errorData.details?.reason || ''}\n\nPlease upload a valid Commercial Invoice and ensure your intent is to export/ship goods.`,
+                isUser: false,
+                timestamp: new Date()
+              };
+              setConversation(prev => [...prev, botResponse]);
+              setLoading(false);
+              return;
+            }
           }
         } catch (error) {
-          console.error('❌ OCR processing error:', error);
-          // Continue without OCR data
+          console.error('❌ Invoice processing error:', error);
+          const botResponse = {
+            id: Date.now() + 1,
+            content: '❌ **Error processing document**\n\nThere was an error processing your document. Please try again with a valid Commercial Invoice.',
+            isUser: false,
+            timestamp: new Date()
+          };
+          setConversation(prev => [...prev, botResponse]);
+          setLoading(false);
+          return;
         }
         
         // Extract information from query
         const extractedDate = extractDateFromQuery(userMessage.content);
         const extractedDestination = extractDestination(userMessage.content);
         
-        // Create canvas data with OCR results
+        // Create canvas data with invoice processing results
         const canvasData = {
           extractedDate,
           extractedDestination,
           files: uploadedFiles,
           originalQuery: userMessage.content,
-          ocrData: ocrData // Include OCR results
+          invoiceData: invoiceProcessingResult, // Include invoice processing results
+          shipmentId: invoiceProcessingResult?.data?.shipment_id, // Include shipment ID for tracking
+          // Map OCR data to expected format for frontend
+          ocrData: invoiceProcessingResult?.data?.extracted_fields ? {
+            fieldSuggestions: invoiceProcessingResult.data.extracted_fields
+          } : null
         };
-
-        // Create AI response with OCR summary
-        let ocrSummary = '';
-        if (ocrData && ocrData.documents && ocrData.documents.length > 0) {
-          const processedDocs = ocrData.documents.map(doc => 
-            `📄 ${doc.documentType} (${doc.confidence}% confidence)`
-          ).join('\n');
-          
-          ocrSummary = `\n\n🔍 **Document Analysis Complete:**\n${processedDocs}\n\n📊 **Auto-fill Data Extracted:** ${Object.keys(ocrData.fieldSuggestions || {}).length} fields detected`;
+        
+        // Debug logging for OCR data structure
+        if (invoiceProcessingResult?.data?.extracted_fields) {
+          console.log('🔍 Invoice OCR extracted_fields:', invoiceProcessingResult.data.extracted_fields);
+          console.log('🔍 Consignee name in extracted fields:', invoiceProcessingResult.data.extracted_fields.consignee_name);
+          console.log('🔍 Mapped to canvasData.ocrData.fieldSuggestions:', canvasData.ocrData.fieldSuggestions);
         }
 
-        const aiMessage = {
-          id: Date.now() + 1,
-          type: 'ai',
-          content: `🎯 **Export Request Detected!**
+        // Create AI response with invoice processing summary
+        let invoiceSummary = '';
+        if (invoiceProcessingResult && invoiceProcessingResult.success) {
+          if (invoiceProcessingResult.type === 'chatbot_response') {
+            // RAG chatbot fallback response
+            const docClass = invoiceProcessingResult.document_classification;
+            invoiceSummary = `\n\n**🤖 AI Assistant Response**
+📄 **Document Status**: ${docClass?.is_commercial_invoice ? 'Commercial Invoice' : 'Not a Commercial Invoice'} (${Math.round(docClass?.confidence * 100)}% confidence)
+💬 **Response**: ${invoiceProcessingResult.message}
 
-I see you want to export/ship items${extractedDestination ? ` to **${extractedDestination}**` : ''}${extractedDate ? ` on **${extractedDate}**` : ''}.${ocrSummary}
+**AI Answer:**
+${invoiceProcessingResult.chatbot_response}`;
+          } else if (invoiceProcessingResult.type === 'general_response') {
+            // General response for non-export intents
+            invoiceSummary = `\n\n**🤖 General Inquiry Response**
+💬 **Message**: ${invoiceProcessingResult.message}
+
+**Suggestions:**
+${invoiceProcessingResult.suggestions?.map(suggestion => `• ${suggestion}`).join('\n') || ''}`;
+          } else {
+            // Successful Commercial Invoice processing
+            const data = invoiceProcessingResult.data;
+            invoiceSummary = `\n\n**✅ Commercial Invoice Processed Successfully!**
+📄 **Document**: Commercial Invoice (${data.classification?.confidence * 100}% confidence)
+🆔 **Shipment ID**: ${data.shipment_id}
+🌍 **Destination**: ${data.destination}
+💰 **Value**: ${data.extracted_fields?.currency} ${data.extracted_fields?.commercial_value?.toLocaleString()}
+🏢 **Consignee**: ${data.extracted_fields?.consignee_name}
+📦 **Items**: ${data.product_items?.length || 0} product(s)
+
+**Next Steps:**
+${data.next_steps?.map(step => `• ${step}`).join('\n') || '• Review and proceed with shipment processing'}`;
+          }
+        } else if (invoiceProcessingResult && !invoiceProcessingResult.success) {
+          // Error response
+          invoiceSummary = `\n\n**❌ Processing Error**
+**Error**: ${invoiceProcessingResult.error}
+${invoiceProcessingResult.details ? `**Details**: ${typeof invoiceProcessingResult.details === 'string' ? invoiceProcessingResult.details : JSON.stringify(invoiceProcessingResult.details)}` : ''}`;
+        }
+
+        // Determine if this should open the workflow canvas (only for successful Commercial Invoice processing)
+        const shouldOpenCanvas = invoiceProcessingResult?.success && 
+                                 invoiceProcessingResult?.data && 
+                                 !invoiceProcessingResult?.type; // type exists for chatbot responses, not for successful processing
+
+        let aiMessage;
+        
+        if (shouldOpenCanvas) {
+          // Successful Commercial Invoice processing - open workflow canvas
+          aiMessage = {
+            id: Date.now() + 1,
+            type: 'ai',
+            content: `🎯 **Export Request Detected!**
+
+I see you want to export/ship items${extractedDestination ? ` to **${extractedDestination}**` : ''}${extractedDate ? ` on **${extractedDate}**` : ''}.${invoiceSummary}
 
 I've opened the **Shipment Canvas** on the right where you can:
 ✅ Configure your shipment details
@@ -115,21 +190,44 @@ I've opened the **Shipment Canvas** on the right where you can:
 ✅ Ensure compliance requirements
 
 The canvas will guide you through the complete export process step by step.`,
-          sources: [{
-            title: 'Export Intent Detected',
-            section: 'Workflow Automation',
-            similarity_score: 1.0,
-            preview: `Detected export intent with ${uploadedFiles.length} file(s)${ocrData ? ` - OCR processed ${ocrData.documents?.length || 0} documents` : ''}`
-          }],
-          timestamp: new Date(),
-          isCanvasOpener: true,
-          ocrData: ocrData // Include OCR data in AI message
-        };
+            sources: [{
+              title: 'Export Intent Detected',
+              section: 'Workflow Automation',
+              similarity_score: 1.0,
+              preview: `Detected export intent with ${uploadedFiles.length} file(s) - Document processed successfully`
+            }],
+            timestamp: new Date(),
+            isCanvasOpener: true,
+            invoiceData: invoiceProcessingResult
+          };
+        } else {
+          // RAG chatbot response or error - don't open workflow canvas
+          aiMessage = {
+            id: Date.now() + 1,
+            type: 'ai',
+            content: `🤖 **AI Assistant Response**
+
+${invoiceProcessingResult?.message || 'I\'ve processed your query and provided information below.'}${invoiceSummary}
+
+${invoiceProcessingResult?.chatbot_response ? `**Answer:**\n${invoiceProcessingResult.chatbot_response}` : ''}
+
+${invoiceProcessingResult?.suggestions ? `**Suggestions:**\n${invoiceProcessingResult.suggestions.map(s => `• ${s}`).join('\n')}` : ''}`,
+            sources: invoiceProcessingResult?.sources || [{
+              title: 'AI Assistant',
+              section: 'General Inquiry',
+              similarity_score: 1.0,
+              preview: `Processed query with ${uploadedFiles.length} file(s)`
+            }],
+            timestamp: new Date(),
+            isCanvasOpener: false,
+            invoiceData: invoiceProcessingResult
+          };
+        }
 
         setConversation(prev => [...prev, aiMessage]);
         
-        // Open canvas with extracted data
-        if (onOpenCanvas) {
+        // Only open canvas for successful Commercial Invoice processing
+        if (shouldOpenCanvas && onOpenCanvas) {
           onOpenCanvas(canvasData);
         }
         
