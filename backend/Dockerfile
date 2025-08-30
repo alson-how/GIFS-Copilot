@@ -6,10 +6,18 @@ WORKDIR /app
 COPY backend/package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN echo "registry=https://registry.npmjs.org/" > .npmrc && \
+    echo "strict-ssl=false" >> .npmrc && \
+    rm -f package-lock.json && \
+    npm install && \
+    mkdir -p ./test/data && \
+    echo "%PDF-1.4" > ./test/data/05-versions-space.pdf
 
 # Copy backend source code
 COPY backend/ .
+
+# Copy config folder
+COPY config/ /config/
 
 # Copy knowledge folder
 COPY knowledge/ /knowledge/

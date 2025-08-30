@@ -110,18 +110,64 @@ router.get('/:shipment_id', async (req, res) => {
 
 /**
  * GET /api/shipments
- * List all shipments with pagination
+ * List all shipments with pagination and filtering
+ * Query params: page, limit, shipmentId, status, endUser
  */
 router.get('/', async (req, res) => {
-  const { limit = 50, offset = 0 } = req.query;
+  const { 
+    page = 1, 
+    limit = 50, 
+    shipmentId = '', 
+    status = '', 
+    endUser = '' 
+  } = req.query;
 
   try {
-    const result = await req.db.query(
-      'SELECT * FROM shipments ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-      [parseInt(limit), parseInt(offset)]
-    );
+    // Calculate offset from page number
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const offset = (pageNum - 1) * limitNum;
 
-    const countResult = await req.db.query('SELECT COUNT(*) FROM shipments');
+    // Build WHERE clause based on filters
+    const conditions = [];
+    const params = [];
+    let paramCount = 0;
+
+    if (shipmentId && shipmentId.trim()) {
+      paramCount++;
+      conditions.push(`shipment_id::text ILIKE $${paramCount}`);
+      params.push(`%${shipmentId.trim()}%`);
+    }
+
+    if (status && status.trim()) {
+      paramCount++;
+      conditions.push(`step1_status = $${paramCount}`);
+      params.push(status.trim());
+    }
+
+    if (endUser && endUser.trim()) {
+      paramCount++;
+      conditions.push(`end_user_name ILIKE $${paramCount}`);
+      params.push(`%${endUser.trim()}%`);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Query for shipments with filters
+    const queryText = `
+      SELECT * FROM shipments 
+      ${whereClause}
+      ORDER BY created_at DESC 
+      LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+    `;
+    params.push(limitNum, offset);
+
+    const result = await req.db.query(queryText, params);
+
+    // Count total matching records
+    const countQueryText = `SELECT COUNT(*) FROM shipments ${whereClause}`;
+    const countParams = params.slice(0, paramCount); // Remove LIMIT and OFFSET params
+    const countResult = await req.db.query(countQueryText, countParams);
     const total = parseInt(countResult.rows[0].count);
 
     return res.json({ 
@@ -129,11 +175,40 @@ router.get('/', async (req, res) => {
       shipments: result.rows,
       pagination: {
         total,
-        limit: parseInt(limit),
-        offset: parseInt(offset)
+        limit: limitNum,
+        offset: offset,
+        page: pageNum,
+        totalPages: Math.ceil(total / limitNum)
       }
     });
   } catch (e) {
+    console.error('Error fetching shipments:', e);
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /api/shipments/:id
+ * Get a single shipment by ID
+ */
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  if (!id) {
+    return res.status(400).json({ ok: false, error: 'Shipment ID is required' });
+  }
+
+  try {
+    const query = 'SELECT * FROM shipments WHERE shipment_id = $1';
+    const result = await req.db.query(query, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ ok: false, error: 'Shipment not found' });
+    }
+    
+    return res.json(result.rows[0]);
+  } catch (e) {
+    console.error('Error fetching shipment:', e);
     return res.status(500).json({ ok: false, error: e.message });
   }
 });

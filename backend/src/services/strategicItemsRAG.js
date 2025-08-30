@@ -18,7 +18,30 @@ class StrategicItemsRAG {
         this.openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY
         });
+    }
+
+    /**
+     * Generate permit details for a list of permit types
+     * @param {string[]} permitTypes - Array of permit type IDs
+     * @returns {object} Permit details object
+     */
+    generatePermitDetails(permitTypes) {
+        const permitConfig = {
+            'STA_2010': { deadline_days: 30, authority: 'MITI', mandatory: true },
+            'AICA': { deadline_days: 14, authority: 'MCMC', mandatory: true },
+            'TechDocs': { deadline_days: 7, authority: 'Internal', mandatory: true },
+            'SIRIM': { deadline_days: 21, authority: 'SIRIM', mandatory: true },
+            'CyberSecurity': { deadline_days: 21, authority: 'CyberSecurity Malaysia', mandatory: true }
+        };
         
+        const permitDetails = {};
+        for (const permitType of permitTypes) {
+            permitDetails[permitType] = permitConfig[permitType] || { deadline_days: 30, authority: 'Unknown', mandatory: true };
+        }
+        return permitDetails;
+    }
+
+    initializeStrategicItems() {
         // Detection layer configurations
         this.detectionLayers = {
             RAG_EXACT_MATCH: { order: 1, confidence: 95 },
@@ -71,11 +94,7 @@ class StrategicItemsRAG {
                 },
                 keywords: ['computer', 'processor', 'AI accelerator', 'neural processing', 'machine learning'],
                 required_permits: ['STA_2010', 'AICA', 'TechDocs'],
-                permit_details: {
-                    'STA_2010': { deadline_days: 30, authority: 'MITI', mandatory: true },
-                    'AICA': { deadline_days: 14, authority: 'MCMC', mandatory: true },
-                    'TechDocs': { deadline_days: 7, authority: 'Internal', mandatory: true }
-                },
+                permit_details: this.generatePermitDetails(['STA_2010', 'AICA', 'TechDocs']),
                 control_list_source: 'Malaysia_Strategic_2025'
             },
             {
@@ -89,11 +108,7 @@ class StrategicItemsRAG {
                 },
                 keywords: ['digital computer', 'electronic assembly', 'processing unit', 'computing system'],
                 required_permits: ['STA_2010', 'AICA', 'TechDocs'],
-                permit_details: {
-                    'STA_2010': { deadline_days: 30, authority: 'MITI', mandatory: true },
-                    'AICA': { deadline_days: 14, authority: 'MCMC', mandatory: true },
-                    'TechDocs': { deadline_days: 7, authority: 'Internal', mandatory: true }
-                },
+                permit_details: this.generatePermitDetails(['STA_2010', 'AICA', 'TechDocs']),
                 control_list_source: 'Malaysia_Strategic_2025'
             },
             // Network Equipment
@@ -108,10 +123,7 @@ class StrategicItemsRAG {
                 },
                 keywords: ['network switch', 'router', 'telecommunications', 'high-speed', 'switching'],
                 required_permits: ['STA_2010', 'SIRIM'],
-                permit_details: {
-                    'STA_2010': { deadline_days: 30, authority: 'MITI', mandatory: true },
-                    'SIRIM': { deadline_days: 21, authority: 'SIRIM', mandatory: true }
-                },
+                permit_details: this.generatePermitDetails(['STA_2010', 'SIRIM']),
                 control_list_source: 'Malaysia_Strategic_2025'
             },
             // Memory & Storage
@@ -127,9 +139,7 @@ class StrategicItemsRAG {
                 },
                 keywords: ['memory module', 'RAM', 'server memory', 'high-capacity', 'DDR'],
                 required_permits: ['STA_2010'],
-                permit_details: {
-                    'STA_2010': { deadline_days: 30, authority: 'MITI', mandatory: true }
-                },
+                permit_details: this.generatePermitDetails(['STA_2010']),
                 control_list_source: 'Malaysia_Strategic_2025'
             },
             // Fiber Optics
@@ -144,9 +154,7 @@ class StrategicItemsRAG {
                 },
                 keywords: ['fiber optic', 'optical cable', 'high-speed transmission', 'data communication'],
                 required_permits: ['STA_2010'],
-                permit_details: {
-                    'STA_2010': { deadline_days: 30, authority: 'MITI', mandatory: true }
-                },
+                permit_details: this.generatePermitDetails(['STA_2010']),
                 control_list_source: 'Malaysia_Strategic_2025'
             },
             // Software & Encryption
@@ -161,11 +169,7 @@ class StrategicItemsRAG {
                 },
                 keywords: ['encryption software', 'cryptographic', 'security software', 'information security'],
                 required_permits: ['STA_2010', 'AICA', 'CyberSecurity'],
-                permit_details: {
-                    'STA_2010': { deadline_days: 30, authority: 'MITI', mandatory: true },
-                    'AICA': { deadline_days: 14, authority: 'MCMC', mandatory: true },
-                    'CyberSecurity': { deadline_days: 21, authority: 'CyberSecurity', mandatory: true }
-                },
+                permit_details: this.generatePermitDetails(['STA_2010', 'AICA', 'CyberSecurity']),
                 control_list_source: 'Malaysia_Strategic_2025'
             }
         ];

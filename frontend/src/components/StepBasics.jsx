@@ -389,37 +389,17 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     const totalValue = items.reduce((sum, item) => sum + (parseFloat(item.commercialValue) || 0), 0);
     console.log('items', items);
 		console.log('hasStrategicItems', hasStrategicItems);
-    // Strategic items require technical documentation (mandatory)
-    if (hasStrategicItems) {
+        // High-value shipments (>$224K) require insurance certificate
+    if (totalValue > 100000) {
+      console.log('🛡️ HIGH-VALUE DETECTED: Adding insurance requirement for $', totalValue);
       requirements.push({
-        id: 'technical_docs',
-        type: 'Technical Documentation',
-        description: 'Product specifications required for strategic items',
-        mandatory: true,
-        reason: 'Strategic Items Detected'
-      });
-      
-      // Also check if import permit is available
-      requirements.push({
-        id: 'import_permit',
-        type: 'Import Permit STA 2010',
-        description: 'If you have it (strategic trade authorization)',
+        id: 'insurance_cert',
+        type: 'Insurance Certificate',
+        description: 'For coverage protection on high-value shipment',
         mandatory: false,
-        reason: 'Strategic Items Detected'
+        reason: 'High-Value Shipment (>$224K)'
       });
     }
-    
-          // High-value shipments recommend insurance
-      if (totalValue > 100000) {
-        console.log('🛡️ HIGH-VALUE DETECTED: Adding insurance requirement for $', totalValue);
-        requirements.push({
-          id: 'insurance_cert',
-          type: 'Insurance Certificate',
-          description: 'For coverage protection on high-value shipment',
-          mandatory: false,
-          reason: 'High-Value Shipment (>$100K)'
-        });
-      }
     
     setRequiredDocuments(requirements);
     
@@ -814,11 +794,22 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       let statusMessage = `✅ Shipment basics saved successfully (${itemCount} product${itemCount > 1 ? 's' : ''})`;
       if (strategicCount > 0) statusMessage += ` - ${strategicCount} strategic item${strategicCount > 1 ? 's' : ''}`;
       if (aiChipCount > 0) statusMessage += ` - ${aiChipCount} AI chip${aiChipCount > 1 ? 's' : ''}`;
+      statusMessage += ` - Proceeding to next step...`;
       
       setStatus(statusMessage);
       const id = res?.shipment_id || shipmentId;
       if (!shipmentId) setShipmentId(id);
-      onSaved?.(id, { exportDate, mode, productItems, destination, endUser });
+      
+      // Include productType for navigation logic in handleStepComplete
+      const primaryItem = productItems[0] || {};
+      onSaved?.(id, { 
+        exportDate, 
+        mode, 
+        productItems, 
+        destination, 
+        endUser,
+        productType: primaryItem.semiconductorCategory
+      });
     } catch (e) {
       setStatus(`❌ Error: ${e.message}`);
     } finally {
@@ -832,7 +823,14 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     return 'status status-success show';
   };
 
-  const isFormValid = exportDate && mode && destination && endUser && incoterms;
+  // Robust validation with trimming and meaningful value checks
+  const isFormValid = Boolean(
+    exportDate?.trim() && 
+    mode?.trim() && 
+    destination?.trim() && 
+    endUser?.trim() && 
+    incoterms?.trim()
+  );
 
   return (
     <section className={`card ${isCanvas ? '' : 'fade-in'}`} style={isCanvas ? {
@@ -1320,7 +1318,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
             className={`btn ${isFormValid ? 'btn-primary' : 'btn-disabled'}`}
             disabled={loading || !isFormValid}
           >
-            {loading ? '⏳ Saving...' : '💾 Save Basics'}
+            {loading ? '⏳ Saving...' : '➡️ Proceed to Next Step'}
           </button>
           
           {!isFormValid && (

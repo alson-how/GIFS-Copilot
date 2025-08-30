@@ -63,18 +63,45 @@ const upload = multer({
  */
 async function extractTextFromFile(filePath, mimeType) {
   try {
+
+    console.log(`🔍 Extracting text from file: ${filePath} (${mimeType})`);
+    
     if (mimeType === 'application/pdf') {
       const dataBuffer = fs.readFileSync(filePath);
+      console.log(`📄 PDF file size: ${dataBuffer.length} bytes`);
+      
       const data = await pdfParse(dataBuffer);
+      console.log(`📝 Extracted text length: ${data.text.length} characters`);
+      console.log(`📄 PDF pages: ${data.numpages}`);
+      
+      if (data.text.length < 50) {
+        console.log('⚠️ Very short text extracted, might be image-based PDF');
+        console.log('📝 Extracted text preview:', JSON.stringify(data.text.substring(0, 200)));
+      } else {
+        console.log('📝 Text extraction successful, preview:', data.text.substring(0, 200) + '...');
+      }
+      
       return data.text;
     }
     
     // For other file types, you might want to add more extraction logic
     // For now, return empty string for non-PDF files
+    console.log(`⚠️ Unsupported file type: ${mimeType}`);
     return '';
   } catch (error) {
     console.error('❌ Error extracting text from file:', error);
     console.log('⚠️ PDF extraction failed, document might be corrupted or unsupported format');
+    console.log('📁 File path:', filePath);
+    console.log('📄 MIME type:', mimeType);
+    
+    // Check if file exists
+    if (fs.existsSync(filePath)) {
+      const stats = fs.statSync(filePath);
+      console.log('📊 File stats:', { size: stats.size, isFile: stats.isFile() });
+    } else {
+      console.log('❌ File does not exist at path:', filePath);
+    }
+    
     // Return empty string instead of throwing - let the system handle this gracefully
     return '';
   }
@@ -141,16 +168,16 @@ async function saveDocumentResults(shipmentId, documentData, ocrData, classifica
       INSERT INTO uploaded_documents (
         shipment_id, original_filename, file_path, document_type, 
         confidence_score, ocr_results, file_size, mime_type,
-        ocr_status, extracted_text
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ocr_status, extracted_text, uploaded_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
       RETURNING document_id
     `, [
       shipmentId,
       documentData.filename,
       documentData.filePath,
       classificationResult.is_commercial_invoice ? 'Commercial Invoice' : 'Unknown',
-      classificationResult.confidence,
-      JSON.stringify(ocrData),
+      classificationResult.confidence, // Keep as decimal for DECIMAL(3,2)
+      ocrData,
       documentData.fileSize,
       documentData.mimeType,
       'completed',
@@ -221,9 +248,17 @@ router.post('/upload', upload.single('document'), async (req, res) => {
     
     console.log(`📄 Processing invoice upload: ${file.originalname}`);
     console.log(`📝 User intent: ${intent}`);
+    console.log(`📁 File details:`, {
+      path: file.path,
+      mimetype: file.mimetype,
+      size: file.size,
+      originalname: file.originalname
+    });
     
     // Step 1: Extract text from uploaded document
     const extractedText = await extractTextFromFile(file.path, file.mimetype);
+    
+    console.log(`📝 Text extraction result: ${extractedText ? extractedText.length : 0} characters`);
     
     if (!extractedText || extractedText.trim().length < 50) {
       // Clean up temp file
@@ -583,7 +618,7 @@ router.get('/:shipmentId', async (req, res) => {
         d.document_type,
         d.confidence_score as confidence,
         d.ocr_results as extracted_fields,
-        d.processed_at as processing_date
+        d.uploaded_at as processing_date
       FROM shipments s
       LEFT JOIN uploaded_documents d ON s.shipment_id = d.shipment_id
       WHERE s.shipment_id = $1

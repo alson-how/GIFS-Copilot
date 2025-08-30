@@ -334,19 +334,19 @@ async function storeDocumentRecord(db, data) {
   } = data;
   
   const query = `
-    INSERT INTO document_extractions (
+    INSERT INTO uploaded_documents (
       document_id,
       shipment_id,
-      filename,
+      original_filename,
       file_size,
       mime_type,
       document_type,
-      confidence,
-      extraction_method,
-      extracted_fields,
-      raw_text,
-      processing_date
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      confidence_score,
+      ocr_status,
+      ocr_results,
+      extracted_text,
+      uploaded_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
     RETURNING *
   `;
   
@@ -356,12 +356,11 @@ async function storeDocumentRecord(db, data) {
     filename,
     fileSize,
     mimeType,
-    parseResult.documentType,
-    parseResult.confidence,
-    parseResult.extractionMethod,
-    JSON.stringify(parseResult.extractedFields),
-    parseResult.rawText,
-    parseResult.processingDate
+    parseResult.documentType || 'Unknown',
+    parseResult.confidence || 0.8, // Keep as decimal for DECIMAL(3,2)
+    'completed', // ocr_status
+    parseResult.extractedFields || {},
+    parseResult.rawText || ''
   ];
   
   const result = await db.query(query, values);
@@ -554,10 +553,11 @@ router.post('/upload-supporting', upload.single('document'), async (req, res) =>
     const documentId = uuidv4();
     const query = `
       INSERT INTO uploaded_documents (
-        document_id, shipment_id, document_type, filename, 
-        file_size, mime_type, upload_date, file_path
-      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
-      RETURNING document_id, filename, upload_date
+        document_id, shipment_id, document_type, original_filename, 
+        file_size, mime_type, uploaded_at, file_path,
+        confidence_score, ocr_status, ocr_results, extracted_text
+      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10, $11)
+      RETURNING document_id, original_filename, uploaded_at
     `;
     
     const values = [
@@ -567,7 +567,11 @@ router.post('/upload-supporting', upload.single('document'), async (req, res) =>
       req.file.originalname,
       req.file.size,
       req.file.mimetype,
-      req.file.path
+      req.file.path,
+      1.0, // confidence_score - default to 1.0 for manually uploaded documents (DECIMAL(3,2))
+      'completed', // ocr_status
+      {}, // ocr_results - empty JSON object
+      '' // extracted_text - empty for now
     ];
     
     const result = await req.db.query(query, values);
@@ -577,7 +581,7 @@ router.post('/upload-supporting', upload.single('document'), async (req, res) =>
       document_id: documentId,
       filename: req.file.originalname,
       document_type,
-      upload_date: result.rows[0].upload_date
+      upload_date: result.rows[0].uploaded_at
     });
     
   } catch (error) {

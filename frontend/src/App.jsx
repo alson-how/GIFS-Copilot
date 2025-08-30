@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import StepBasics from './components/StepBasics.jsx';
 import StepSTA from './components/StepSTA.jsx';
 import StepAI from './components/StepAI.jsx';
@@ -7,8 +8,11 @@ import StepDocs from './components/StepDocs.jsx';
 import AIQuery from './components/AIQuery.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import EnhancedWorkflow from './components/EnhancedWorkflow.jsx';
+import ShipmentOrdersList from './components/ShipmentOrdersList.jsx';
+import ShipmentDetails from './components/ShipmentDetails.jsx';
 
-export default function App(){
+// Main App component with routing
+function AppWithRouter() {
   // Navigation state
   const [currentView, setCurrentView] = useState('enhanced-workflow');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -75,6 +79,14 @@ export default function App(){
   // Handle returning to canvas from chat-only view
   const handleReturnToCanvas = () => {
     setShowChatOnly(false);
+  };
+
+  // Handle shipment selection from the orders list
+  const navigate = useNavigate();
+  
+  const handleShipmentSelect = (selectedShipmentId) => {
+    // Navigate to the dedicated shipment details route
+    navigate(`/shipment/${selectedShipmentId}`);
   };
 
   // Handle step progression after saving
@@ -435,10 +447,7 @@ export default function App(){
   );
 
   const renderShipments = () => (
-    <div style={{ padding: '2rem', textAlign: 'center' }}>
-      <h2>📦 Shipments</h2>
-      <p>Shipment management interface coming soon...</p>
-    </div>
+    <ShipmentOrdersList />
   );
 
   const renderDocuments = () => (
@@ -490,5 +499,17 @@ export default function App(){
         {renderCurrentView()}
       </div>
     </div>
+  );
+}
+
+// Wrapper component with Router
+export default function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<AppWithRouter />} />
+        <Route path="/shipment/:shipmentId" element={<ShipmentDetails />} />
+      </Routes>
+    </Router>
   );
 }
