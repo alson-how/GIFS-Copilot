@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kastam No.1 - Import Declaration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 9px;
+            line-height: 1.2;
+            background: white;
+        }
+        
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 10mm;
+            margin: 0 auto;
+            background: white;
+            border: 1px solid #000;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 5px;
+        }
+        
+        .header h1 {
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+        
+        .header .subtitle {
+            font-size: 10px;
+            font-style: italic;
+        }
+        
+        .form-number {
+            position: absolute;
+            right: 10mm;
+            top: 10mm;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .section {
+            border: 1px solid #000;
+            margin-bottom: 2px;
+            position: relative;
+        }
+        
+        .field-group {
+            display: flex;
+            border-bottom: 1px solid #000;
+        }
+        
+        .field-group:last-child {
+            border-bottom: none;
+        }
+        
+        .field {
+            padding: 2px 4px;
+            border-right: 1px solid #000;
+            position: relative;
+            min-height: 20px;
+        }
+        
+        .field:last-child {
+            border-right: none;
+        }
+        
+        .field-label {
+            font-size: 8px;
+            font-weight: normal;
+            margin-bottom: 2px;
+        }
+        
+        .field-label-bilingual {
+            font-size: 8px;
+        }
+        
+        .field-label-bilingual .malay {
+            font-weight: normal;
+        }
+        
+        .field-label-bilingual .english {
+            font-style: italic;
+            color: #333;
+        }
+        
+        .field-value {
+            min-height: 15px;
+            padding: 2px;
+            background: #f9f9f9;
+            border: 1px solid #ccc;
+            margin-top: 2px;
+        }
+        
+        .field-number {
+            position: absolute;
+            left: 2px;
+            top: 2px;
+            font-size: 8px;
+            font-weight: bold;
+        }
+        
+        .checkbox-group {
+            display: inline-flex;
+            align-items: center;
+            margin-right: 10px;
+        }
+        
+        .checkbox {
+            width: 10px;
+            height: 10px;
+            border: 1px solid #000;
+            margin-right: 3px;
+        }
+        
+        .table-section {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table-section th {
+            background: #e0e0e0;
+            border: 1px solid #000;
+            padding: 2px;
+            font-size: 8px;
+            font-weight: normal;
+            text-align: left;
+        }
+        
+        .table-section td {
+            border: 1px solid #000;
+            padding: 2px;
+            font-size: 8px;
+            min-height: 20px;
+        }
+        
+        .official-use {
+            background: #f0f0f0;
+            border: 2px solid #000;
+            padding: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .official-use-title {
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 5px;
+            font-size: 9px;
+        }
+        
+        .row {
+            display: flex;
+            width: 100%;
+        }
+        
+        .col-1 { width: 8.33%; }
+        .col-2 { width: 16.66%; }
+        .col-3 { width: 25%; }
+        .col-4 { width: 33.33%; }
+        .col-5 { width: 41.66%; }
+        .col-6 { width: 50%; }
+        .col-7 { width: 58.33%; }
+        .col-8 { width: 66.66%; }
+        .col-9 { width: 75%; }
+        .col-10 { width: 83.33%; }
+        .col-11 { width: 91.66%; }
+        .col-12 { width: 100%; }
+        
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #000;
+        }
+        
+        .signature-box {
+            width: 45%;
+        }
+        
+        .signature-line {
+            border-bottom: 1px solid #000;
+            margin-top: 20px;
+            margin-bottom: 5px;
+        }
+        
+        .footer-note {
+            margin-top: 10px;
+            padding: 5px;
+            font-size: 8px;
+            font-style: italic;
+            text-align: center;
+        }
+        
+        @media print {
+            .page {
+                margin: 0;
+                border: none;
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="form-number">Kastam No.1<br>Customs No.1</div>
+        
+        <div class="header">
+            <h1>JABATAN KASTAM DIRAJA MALAYSIA / ROYAL MALAYSIAN CUSTOMS DEPARTMENT</h1>
+            <div class="subtitle">PERAKUAN BARANG YANG DIIMPORT / DECLARATION OF GOODS IMPORTED</div>
+        </div>
+
+        <!-- Row 1: Consignor/Exporter -->
+        <div class="section">
+            <div class="field-group">
+                <div class="field col-8">
+                    <span class="field-number">1.</span>
+                    <div class="field-label-bilingual">
+                        <div class="malay">Konsainor/Pengeksport (Nama dan Alamat)</div>
+                        <div class="english">Consignor/Exporter (Name and Address)</div>
+                    </div>
+                    <div class="field-value" style="min-height: 50px;">[EXPORTER_NAME_ADDRESS]</div>
+                </div>
+                <div class="field col-4">
+                    <div class="official-use">
+                        <div class="official-use-title">UNTUK KEGUNAAN RASMI<br>FOR OFFICIAL USE</div>
+                        <div style="margin-bottom: 5px;">
+                            <div class="field-label">Tarikh dan Waktu Terima<br>Date and Time of Receipt</div>
+                            <div class="field-value">[RECEIPT_DATETIME]</div>
+                        </div>
+                        <div>
+                            <div class="field-label">No. Pendaftaran<br>Registration No.</div>
+                            <div class="field-value">[REGISTRATION_NO]</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Consignee/Importer -->
+        <div class="section">
+            <div class="field-group">
+                <div class="field col-8">
+                    <span class="field-number">2.</span>
+                    <div class="field-label-bilingual">
+                        <div class="malay">Konsaini/Pengimport (Nama dan Alamat)</div>
+                        <div class="english">Consignee/Importer (Name and Address)</div>
+                    </div>
+                    <div class="field-value" style="min-height: 40px;">[IMPORTER_NAME_ADDRESS]</div>
+                    <div class="row" style="margin-top: 5px;">
+                        <div class="field col-6">
+                            <div class="field-label">i) Kod pengimport/Importer Code</div>
+                            <div class="field-value">[IMPORTER_CODE]</div>
+                        </div>
+                        <div class="field col-6">
+                            <div class="field-label">ii) No. Pendaftaran Cukai Jualan/Sales Tax Registration No.*</div>
+                            <div class="field-value">[SALES_TAX_REG_NO]</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="field col-4">
+                    <div class="field-label">Stesen/Station</div>
+                    <div class="field-value">[STATION]</div>
+                    <div class="field-label" style="margin-top: 5px;">Kod/Code</div>
+                    <div class="field-value">[STATION_CODE]</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 3: Authorized Agent -->
+        <div class="section">
+            <div class="field-group">
+                <div class="field col-8">
+                    <span class="field-number">3.</span>
+                    <div class="field-label-bilingual">
+                        <div class="malay">Nama dan Alamat Ejen Yang Diberikuasa</div>
+                        <div class="english">Name and Address of Authorized Agent</div>
+                    </div>
+                    <div class="field-value" style="min-height: 30px;">[AGENT_NAME_ADDRESS]</div>
+                    <div class="field-label" style="margin-top: 5px;">i) Kod Ejen/Agent Code</div>
+                    <div class="field-value">[AGENT_CODE]</div>
+                </div>
+                <div class="field col-4">
+                    <div class="row">
+                        <div class="field col-6">
+                            <span class="field-number">12.</span>
+                            <div class="field-label">No. Permit Import<br>Import Permit No.</div>
+                            <div class="field-value">[IMPORT_PERMIT_NO]</div>
+                        </div>
+                        <div class="field col-6">
+                            <span class="field-number">13.</span>
+                            <div class="field-label">Tarikh Luput<br>Expiry Date</div>
+                            <div class="field-value">[EXPIRY_DATE]</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transport Mode Section -->
+        <div class="section">
+            <div class="field-group">
+                <div class="field col-4">
+                    <span class="field-number">4.</span>
+                    <div class="field-label">Mod Pengangkutan/Mode of Transport</div>
+                    <div style="margin-top: 5px;">
+                        <div class="checkbox-group">
+                            <div class="checkbox"></div>
+                            <span>1. Laut/Sea</span>
+                        </div>
+                        <div class="checkbox-group">
+                            <div class="checkbox"></div>
+                            <span>2. Keretapi/Rail</span>
+                        </div>
+                        <div class="checkbox-group">
+                            <div class="checkbox"></div>
+                            <span>3. Jalan Raya/Road</span>
+                        </div>
+                        <div class="checkbox-group">
+                            <div class="checkbox"></div>
+                            <span>4. Udara/Air</span>
+                        </div>
+                        <div class="checkbox-group">
+                            <div class="checkbox"></div>
+                            <span>5. Lain-lain/Others: _________</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="field col-2">
+                    <span class="field-number">5.</span>
+                    <div class="field-label">Tarikh import<br>Import Date</div>
+                    <div class="field-value">[IMPORT_DATE]</div>
+                </div>
+                <div class="field col-3">
+                    <span class="field-number">18.</span>
+                    <div class="field-label">Layanan Khas<br>Special Treatment</div>
+                    <div class="field-value">[SPECIAL_TREATMENT]</div>
+                </div>
+                <div class="field col-3">
+                    <span class="field-number">19.</span>
+                    <div class="field-label">Insurans/Insurance RM</div>
+                    <div class="field-value">[INSURANCE_AMOUNT]</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vessel/Flight Information -->
+        <div class="section">
+            <div class="field-group">
+                <div class="field col-4">
+                    <span class="field-number">6.</span>
+                    <div class="field-label">No./Nama Kapal/Penerbangan/Kenderaan<br>No./Name of Vessel/Flight/Conveyance</div>
+                    <div class="field-value">[VESSEL_NAME]</div>
+                </div>
+                <div class="field col-3">
+                    <span class="field-number">7.</span>
+                    <div class="field-label">Pelabuhan/Tempat Import<br>Port/Place of Import</div>
+                    <div class="field-value">[PORT_OF_IMPORT]</div>
+                </div>
+                <div class="field col-3">
+                    <span class="field-number">20.</span>
+                    <div class="field-label">Caj Lain/Other charges RM</div>
+                    <div class="field-value">[OTHER_CHARGES]</div>
+                </div>
+                <div class="field col-2">
+                    <span class="field-number">21.</span>
+                    <div class="field-label">Nilai CIF RM<br>CIF Value</div>
+                    <div class="field-value">[CIF_VALUE]</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Goods Table -->
+        <table class="table-section">
+            <thead>
+                <tr>
+                    <th rowspan="2" style="width: 15%;">26. Tanda dan No./No. Kontena<br>Marks and Nos/Container No.</th>
+                    <th rowspan="2" style="width: 3%;">27. Bil<br>No.</th>
+                    <th rowspan="2" style="width: 10%;">28. No. Dan Jenis Bungkusan<br>No and Type of Packages</th>
+                    <th rowspan="2" style="width: 20%;">29. Perihal Barang<br>Description of Goods</th>
+                    <th colspan="2">Tarif Kastam Malaysia<br>Malaysian Customs Tariff</th>
+                    <th rowspan="2" style="width: 8%;">32. No. Invois<br>Invoice No.</th>
+                    <th rowspan="2" style="width: 5%;">33. Kod Negara Asal<br>Country of Origin</th>
+                    <th rowspan="2" style="width: 8%;">34. Kuantiti<br>Quantity</th>
+                </tr>
+                <tr>
+                    <th style="width: 10%;">30. No. Kod<br>Code No.</th>
+                    <th style="width: 5%;">31. Unit</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="height: 40px;">[MARKS_NOS]</td>
+                    <td>[LINE_NO]</td>
+                    <td>[PACKAGE_INFO]</td>
+                    <td>[GOODS_DESCRIPTION]</td>
+                    <td>[HS_CODE]</td>
+                    <td>[UNIT]</td>
+                    <td>[INVOICE_NO]</td>
+                    <td>[ORIGIN_CODE]</td>
+                    <td>[QUANTITY]</td>
+                </tr>
+                <!-- Additional rows as needed -->
+            </tbody>
+        </table>
+
+        <!-- Value and Duty Table -->
+        <table class="table-section" style="margin-top: 5px;">
+            <thead>
+                <tr>
+                    <th colspan="2">Nilai/Value</th>
+                    <th colspan="2">Duti Import/Import Duty</th>
+                    <th colspan="2">Duti Eksais/Excise Duty</th>
+                    <th colspan="2">Cukai Jualan/Sales Tax</th>
+                    <th colspan="3">Cukai Lain/Other Tax</th>
+                </tr>
+                <tr>
+                    <th>35. Satu Unit<br>Per Unit</th>
+                    <th>36. Jumlah<br>Total</th>
+                    <th>37. Kadar<br>Rate</th>
+                    <th>38. Amaun (RM)<br>Amount</th>
+                    <th>39. Kadar<br>Rate</th>
+                    <th>40. Amaun (RM)<br>Amount</th>
+                    <th>41. Kadar<br>Rate</th>
+                    <th>42. Amaun (RM)<br>Amount</th>
+                    <th>43. Jenis<br>Type</th>
+                    <th>44. Kadar<br>Rate</th>
+                    <th>45. Amaun (RM)<br>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="height: 30px;">[UNIT_VALUE]</td>
+                    <td>[TOTAL_VALUE]</td>
+                    <td>[IMPORT_DUTY_RATE]</td>
+                    <td>[IMPORT_DUTY_AMOUNT]</td>
+                    <td>[EXCISE_DUTY_RATE]</td>
+                    <td>[EXCISE_DUTY_AMOUNT]</td>
+                    <td>[SALES_TAX_RATE]</td>
+                    <td>[SALES_TAX_AMOUNT]</td>
+                    <td>[OTHER_TAX_TYPE]</td>
+                    <td>[OTHER_TAX_RATE]</td>
+                    <td>[OTHER_TAX_AMOUNT]</td>
+                </tr>
+                <tr style="background: #f0f0f0; font-weight: bold;">
+                    <td colspan="2" style="text-align: right;">TOTAL</td>
+                    <td>46.</td>
+                    <td>[TOTAL_IMPORT_DUTY]</td>
+                    <td>47.</td>
+                    <td>[TOTAL_EXCISE_DUTY]</td>
+                    <td>48.</td>
+                    <td>[TOTAL_SALES_TAX]</td>
+                    <td>49.</td>
+                    <td>50.</td>
+                    <td>[TOTAL_OTHER_TAX]</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Declaration Section -->
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="field">
+                    <span class="field-number">51.</span>
+                    <div class="field-label">Nama Pembuat Perakuan<br>Name of Declarant</div>
+                    <div class="field-value">[DECLARANT_NAME]</div>
+                </div>
+                <div class="field" style="margin-top: 5px;">
+                    <span class="field-number">52.</span>
+                    <div class="field-label">No. Kad Pengenalan/Pasport<br>Identification Card/Passport</div>
+                    <div class="field-value">[ID_PASSPORT_NO]</div>
+                </div>
+                <div class="field" style="margin-top: 5px;">
+                    <span class="field-number">53.</span>
+                    <div class="field-label">Jawatan/Designation</div>
+                    <div class="field-value">[DESIGNATION]</div>
+                </div>
+                <div class="field" style="margin-top: 10px;">
+                    <span class="field-number">54.</span>
+                    <div class="field-label">Saya memperakui perakuan ini benar dan lengkap<br>I hereby certify that this declaration is true and complete</div>
+                    <div style="margin-top: 20px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <div>
+                                <div class="signature-line" style="width: 100px;"></div>
+                                <div class="field-label">Tarikh/Date</div>
+                            </div>
+                            <div>
+                                <div class="signature-line" style="width: 150px;"></div>
+                                <div class="field-label">Tandatangan/Signature</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="signature-box">
+                <div class="official-use">
+                    <div class="official-use-title">UNTUK KEGUNAAN RASMI<br>FOR OFFICIAL USE</div>
+                    <div class="field">
+                        <div class="field-label">Jumlah Amaun Kena Dibayar<br>Total Amount Payable RM</div>
+                        <div class="field-value" style="font-size: 12px; font-weight: bold;">[TOTAL_PAYABLE]</div>
+                    </div>
+                    <div class="field" style="margin-top: 10px;">
+                        <div class="field-label">Pelepasan daripada Kawalan Kastam dibenarkan oleh:<br>Release from Customs Control authorized by:</div>
+                        <div style="margin-top: 20px;">
+                            <div class="signature-line"></div>
+                            <div class="field-label">Pegawai Kastam yang Hak<br>Proper Officer of Customs</div>
+                        </div>
+                    </div>
+                    <div class="field" style="margin-top: 10px;">
+                        <div class="field-label">No. Resit Manuskrip (jika berkenaan)<br>Manuscript Receipt No. (if applicable)</div>
+                        <div class="field-value">[RECEIPT_NO]</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-note">
+            Nota: Perakuan ini dikehendaki di bawah dan mengikut Akta Kastam 1967, Akta Eksais 1976 dan Akta Cukai Jualan 2018<br>
+            Note: This declaration is required under and in accordance with the Customs Act 1967, Excise Act 1976 and Sales Tax Act 2018<br>
+            *Jika berkenaan/If applicable
+        </div>
+    </div>
+</body>
+</html>

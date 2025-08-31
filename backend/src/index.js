@@ -18,6 +18,8 @@ import comprehensiveScreeningRouter from './routes/comprehensiveScreening.js';
 import strategicItemsRouter from './routes/strategicItems.js';
 import permitUploadsRouter from './routes/permitUploads.js';
 import processInvoiceDetectionRouter from './routes/processInvoiceDetection.js';
+import permitDocumentsRouter from './routes/permitDocuments.js';
+import documentGenerationRouter from './routes/documentGeneration.js';
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -52,6 +54,8 @@ app.use('/api/comprehensive-screening', comprehensiveScreeningRouter);
 app.use('/api/strategic', strategicItemsRouter);
 app.use('/api/uploads', permitUploadsRouter);
 app.use('/api/invoice-detection', processInvoiceDetectionRouter);
+app.use('/api/permit-documents', permitDocumentsRouter);
+app.use('/api/document-generation', documentGenerationRouter);
 
 // Static file serving for uploaded files
 app.use('/files', express.static(path.join(process.cwd(), 'uploads')));

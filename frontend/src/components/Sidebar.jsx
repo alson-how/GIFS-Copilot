@@ -38,6 +38,14 @@ export default function Sidebar({ currentView, onViewChange, isCollapsed, onTogg
       badge: null
     },
     {
+      id: 'permit-documents',
+      title: 'Permit Documents',
+      icon: '📋',
+      description: 'Upload & manage permits',
+      badge: 'OCR',
+      badgeColor: '#2563eb'
+    },
+    {
       id: 'documents',
       title: 'Documents',
       icon: '📄',

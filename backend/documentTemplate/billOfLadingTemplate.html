@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill of Lading</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 10px;
+            line-height: 1.3;
+            color: #000;
+        }
+        
+        .container {
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 5mm;
+            background: white;
+        }
+        
+        .bl-header {
+            border: 2px solid #000;
+            margin-bottom: 10px;
+        }
+        
+        .bl-title-section {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            border-bottom: 1px solid #000;
+        }
+        
+        .carrier-logo {
+            padding: 10px;
+            border-right: 1px solid #000;
+            text-align: center;
+        }
+        
+        .carrier-name {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: #003d7a;
+        }
+        
+        .carrier-info {
+            font-size: 8px;
+            line-height: 1.2;
+        }
+        
+        .bl-title {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            border-right: 1px solid #000;
+        }
+        
+        .bl-main-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+        
+        .bl-subtitle {
+            font-size: 9px;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        
+        .bl-type {
+            font-size: 10px;
+            font-weight: bold;
+            color: #003d7a;
+        }
+        
+        .bl-number-section {
+            padding: 10px;
+            font-size: 9px;
+        }
+        
+        .bl-number-label {
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+        
+        .bl-number {
+            font-size: 12px;
+            font-weight: bold;
+            color: #003d7a;
+            margin-bottom: 5px;
+        }
+        
+        .bl-body {
+            border: 1px solid #000;
+            border-top: none;
+        }
+        
+        .row {
+            display: grid;
+            border-bottom: 1px solid #000;
+        }
+        
+        .row:last-child {
+            border-bottom: none;
+        }
+        
+        .field-box {
+            padding: 5px;
+            border-right: 1px solid #000;
+            min-height: 40px;
+        }
+        
+        .field-box:last-child {
+            border-right: none;
+        }
+        
+        .field-label {
+            font-size: 7px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+            color: #666;
+        }
+        
+        .field-value {
+            font-size: 10px;
+            line-height: 1.3;
+            white-space: pre-line;
+        }
+        
+        .field-value.bold {
+            font-weight: bold;
+        }
+        
+        .parties-row {
+            grid-template-columns: 1fr 1fr;
+        }
+        
+        .single-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .three-col-row {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+        
+        .four-col-row {
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+        }
+        
+        .ports-row {
+            grid-template-columns: 2fr 1fr 2fr 1fr;
+        }
+        
+        .cargo-details-section {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 3fr 1fr 1fr 1fr;
+            min-height: 200px;
+        }
+        
+        .marks-numbers {
+            padding: 5px;
+            border-right: 1px solid #000;
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+        }
+        
+        .container-packages {
+            padding: 5px;
+            border-right: 1px solid #000;
+        }
+        
+        .description-goods {
+            padding: 5px;
+            border-right: 1px solid #000;
+        }
+        
+        .gross-weight {
+            padding: 5px;
+            border-right: 1px solid #000;
+            text-align: right;
+        }
+        
+        .measurement {
+            padding: 5px;
+            text-align: right;
+        }
+        
+        .freight-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            border-bottom: 1px solid #000;
+        }
+        
+        .declared-value-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-bottom: 1px solid #000;
+        }
+        
+        .bottom-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+        }
+        
+        .place-date-section {
+            padding: 10px;
+            border-right: 1px solid #000;
+        }
+        
+        .signature-section {
+            padding: 10px;
+        }
+        
+        .signature-line {
+            margin-top: 30px;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+            text-align: center;
+            font-size: 9px;
+        }
+        
+        .terms-conditions {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background: #f9f9f9;
+        }
+        
+        .terms-title {
+            font-weight: bold;
+            font-size: 9px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .terms-content {
+            font-size: 7px;
+            line-height: 1.3;
+            text-align: justify;
+            column-count: 2;
+            column-gap: 20px;
+        }
+        
+        .shipper-load-count {
+            background: #fffacd;
+            padding: 3px 5px;
+            font-weight: bold;
+            font-size: 9px;
+            text-align: center;
+            margin: 5px 0;
+        }
+        
+        .container-details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+            font-size: 9px;
+        }
+        
+        .container-details-table th {
+            background: #f0f0f0;
+            padding: 3px;
+            border: 1px solid #ccc;
+            font-size: 8px;
+            text-align: left;
+        }
+        
+        .container-details-table td {
+            padding: 3px;
+            border: 1px solid #ccc;
+        }
+        
+        .shipped-board-notation {
+            margin-top: 10px;
+            padding: 5px;
+            border: 2px solid #000;
+            text-align: center;
+        }
+        
+        .notation-title {
+            font-weight: bold;
+            font-size: 10px;
+            margin-bottom: 5px;
+        }
+        
+        .notation-details {
+            font-size: 9px;
+        }
+        
+        .footer-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            font-size: 8px;
+            text-align: center;
+            color: #666;
+        }
+        
+        @media print {
+            body {
+                margin: 0;
+            }
+            .container {
+                padding: 0;
+            }
+            .terms-content {
+                column-count: 3;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- B/L Header -->
+        <div class="bl-header">
+            <div class="bl-title-section">
+                <div class="carrier-logo">
+                    <div class="carrier-name">{{carrier_name}}</div>
+                    <div class="carrier-info">
+                        {{carrier_address}}
+                    </div>
+                </div>
+                <div class="bl-title">
+                    <div class="bl-main-title">BILL OF LADING</div>
+                    <div class="bl-subtitle">FOR COMBINED TRANSPORT OR PORT TO PORT SHIPMENT</div>
+                    <div class="bl-type">{{bl_type}}</div>
+                </div>
+                <div class="bl-number-section">
+                    <div class="bl-number-label">B/L Number:</div>
+                    <div class="bl-number">{{bl_number}}</div>
+                    <div style="font-size: 8px; margin-top: 5px;">
+                        <div>Reference: {{booking_reference}}</div>
+                        <div>Export Ref: {{export_reference}}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- B/L Body -->
+        <div class="bl-body">
+            <!-- Shipper and Consignee -->
+            <div class="row parties-row">
+                <div class="field-box">
+                    <div class="field-label">Shipper</div>
+                    <div class="field-value bold">{{shipper_name}}
+{{shipper_address}}
+{{#if shipper_contact}}CONTACT: {{shipper_contact}}{{/if}}
+{{#if shipper_phone}}TEL: {{shipper_phone}}{{/if}}
+{{#if shipper_email}}EMAIL: {{shipper_email}}{{/if}}</div>
+                </div>
+                <div class="field-box">
+                    <div class="field-label">Consignee (negotiable if "TO ORDER")</div>
+                    <div class="field-value bold">{{#if consignee_to_order}}TO THE ORDER OF
+{{consignee_order_party}}{{else}}{{consignee_name}}
+{{consignee_address}}
+{{#if consignee_contact}}CONTACT: {{consignee_contact}}{{/if}}
+{{#if consignee_phone}}TEL: {{consignee_phone}}{{/if}}
+{{#if consignee_email}}EMAIL: {{consignee_email}}{{/if}}{{/if}}</div>
+                </div>
+            </div>
+            
+            <!-- Notify Party -->
+            <div class="row parties-row">
+                <div class="field-box">
+                    <div class="field-label">Notify Party (No claim shall attach for failure to notify)</div>
+                    <div class="field-value">{{notify_party_name}}
+{{notify_party_address}}
+{{#if notify_party_contact}}CONTACT: {{notify_party_contact}}{{/if}}
+{{#if notify_party_phone}}TEL: {{notify_party_phone}}{{/if}}
+{{#if notify_party_email}}EMAIL: {{notify_party_email}}{{/if}}</div>
+                </div>
+                <div class="field-box">
+                    <div class="field-label">Also Notify</div>
+                    <div class="field-value">{{#if also_notify_name}}{{also_notify_name}}
+{{also_notify_address}}
+{{#if also_notify_phone}}TEL: {{also_notify_phone}}{{/if}}{{/if}}</div>
+                </div>
+            </div>
+            
+            <!-- Vessel and Voyage -->
+            <div class="row four-col-row">
+                <div class="field-box">
+                    <div class="field-label">Pre-carriage By</div>
+                    <div class="field-value">{{pre_carriage_by}}</div>
+                </div>
+                <div class="field-box">
+                    <div class="field-label">Place of Receipt</div>
+                    <div class="field-value">{{place_of_receipt}}</div>
+                </div>
+                <div class="field-box">
+                    <div class="field-label">Ocean Vessel / Voyage No.</div>
+                    <div class="field-value bold">{{vessel_name}} / {{voyage_number}}</div>
+                </div>
+                <div class="field-box">
+                    <div class="field-label">Flag</div>
+                    <div class="field-value">{{vessel_flag}}</div>
+                </div>
+            </div>
+            
+            <!-- Ports -->
+            <div class="row ports-row">
+                <div class="field-box">
+                    <div class="field-label">Port of Loading</div>
+                    <div class="field-value bold">{{port_of_loading}} ({{port_of_loading_code}})</div>
+                </div>
+                <div class="field-box">
+                    <div class="field-label">Port of Transshipment</div>
+                    <div class="field-value">{{transshipment_port}}</div>
+                </div>
+                <div class="field-box">
+                    <div class="field-label">Port of Discharge</div>
+                    <div class="field-value bold">{{port_of_discharge}} ({{port_of_discharge_code}})</div>
+                </div>
+                <div class="field-box">
+                    <div class="field-label">Place of Delivery</div>
+                    <div class="field-value">{{place_of_delivery}}</div>
+                </div>
+            </div>
+            
+            <!-- Cargo Details -->
+            <div class="row single-row">
+                <div class="cargo-details-section">
+                    <div class="marks-numbers">
+                        <div class="field-label">Marks & Numbers</div>
+                        <div style="margin-top: 10px; font-size: 9px;">
+{{marks_and_numbers}}
+                        </div>
+                    </div>
+                    <div class="container-packages">
+                        <div class="field-label">No. of Containers or Packages</div>
+                        <div style="margin-top: 10px;">
+                            <div class="field-value bold">{{container_quantity}} x {{container_type}}</div>
+                            <div class="field-value" style="margin-top: 10px;">{{total_packages}}</div>
+                            <div class="field-value">SAID TO CONTAIN:</div>
+                        </div>
+                    </div>
+                    <div class="description-goods">
+                        <div class="field-label">Description of Goods</div>
+                        <div style="margin-top: 10px;">
+                            <div class="shipper-load-count">SHIPPER'S LOAD, STOW AND COUNT</div>
+                            <div class="field-value">
+{{goods_description}}
+
+HS CODES: {{hs_codes}}
+                            </div>
+                            <table class="container-details-table">
+                                <tr>
+                                    <th>Container No.</th>
+                                    <th>Seal No.</th>
+                                    <th>Size/Type</th>
+                                    <th>Packages</th>
+                                </tr>
+                                {{#each containers}}
+                                <tr>
+                                    <td>{{this.container_number}}</td>
+                                    <td>{{this.seal_number}}</td>
+                                    <td>{{this.size_type}}</td>
+                                    <td>{{this.packages}}</td>
+                                </tr>
+                                {{/each}}
+                            </table>
+                            <div style="margin-top: 10px; font-weight: bold; font-size: 9px;">
+                                {{freight_payment_terms}}<br>
+                                {{service_type}}<br>
+                                {{shipped_status}}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="gross-weight">
+                        <div class="field-label">Gross Weight</div>
+                        <div style="margin-top: 10px;">
+                            <div class="field-value bold">{{gross_weight}}</div>
+                            <div class="field-value">{{weight_unit}}</div>
+                        </div>
+                    </div>
+                    <div class="measurement">
+                        <div class="field-label">Measurement</div>
+                        <div style="margin-top: 10px;">
+                            <div class="field-value bold">{{total_measurement}}</div>
+                            <div class="field-value">{{measurement_unit}}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Freight and Charges -->
+            <div class="freight-section">
+                <div class="field-box">
+                    <div class="field-label">Freight & Charges</div>
+                    <div class="field-value">{{freight_charges}}</div>
+                </div>
+                <div class="field-box">
+                    <div class="field-label">Revenue Tons</div>
+                    <div class="field-value">{{revenue_tons}}</div>
+                </div>
+                <div class="field-box">
+                    <div class="field-label">Rate / Freight Payable at</div>
+                    <div class="field-value bold">{{freight_payment_terms}}<br>{{freight_payable_at}}</div>
+                </div>
+            </div>
+            
+            <!-- Declared Value -->
+            <div class="declared-value-section">
+                <div class="field-box">
+                    <div class="field-label">Declared Value for Carriage</div>
+                    <div class="field-value">{{declared_value_carriage}}</div>
+                </div>
+                <div class="field-box">
+                    <div class="field-label">Declared Value for Customs</div>
+                    <div class="field-value">{{currency}} {{declared_value_customs}}</div>
+                </div>
+            </div>
+            
+            <!-- Bottom Section -->
+            <div class="bottom-section">
+                <div class="place-date-section">
+                    <div class="field-label">Place and Date of Issue</div>
+                    <div class="field-value bold">{{place_of_issue}}, {{date_of_issue}}</div>
+                    <div style="margin-top: 10px;">
+                        <div class="field-label">Number of Original B/Ls</div>
+                        <div class="field-value bold">{{number_of_originals}} ORIGINALS</div>
+                    </div>
+                </div>
+                <div class="signature-section">
+                    <div class="field-label">Signed for the Carrier</div>
+                    <div class="field-value bold">{{carrier_name}}</div>
+                    <div class="field-value">As Carrier</div>
+                    <div class="signature-line">
+                        Authorized Signature
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Shipped on Board Notation -->
+        <div class="shipped-board-notation">
+            <div class="notation-title">SHIPPED ON BOARD</div>
+            <div class="notation-details">
+                The goods described above have been shipped on board the vessel<br>
+                <strong>{{vessel_name}}</strong> at the Port of <strong>{{port_of_loading}}</strong><br>
+                Date: <strong>{{shipped_on_board_date}}</strong>
+            </div>
+        </div>
+        
+        <!-- Terms and Conditions -->
+        <div class="terms-conditions">
+            <div class="terms-title">Terms and Conditions (Abbreviated)</div>
+            <div class="terms-content">
+                {{bl_terms_conditions}}
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer-info">
+            ORIGINAL BILL OF LADING - {{original_number}} OF {{number_of_originals}} ({{original_number}}/{{number_of_originals}})<br>
+            When surrendering this Bill of Lading, all originals must be presented<br>
+            © {{current_year}} {{carrier_name}} - All Rights Reserved
+        </div>
+    </div>
+</body>
+</html>

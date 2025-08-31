@@ -30,8 +30,8 @@ export default function ShipmentDetails() {
       
       // Fetch both shipment metadata and invoice processing data
       const [shipmentResponse, invoiceResponse] = await Promise.all([
-        fetch(`http://localhost:8080/api/shipments/${id}`),
-        fetch(`http://localhost:8080/api/invoice-detection/${id}`)
+        fetch(`/api/shipments/${id}`),
+        fetch(`/api/invoice-detection/${id}`)
       ]);
       
       if (!shipmentResponse.ok) {

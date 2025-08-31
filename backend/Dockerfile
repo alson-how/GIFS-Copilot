@@ -2,6 +2,31 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Install system dependencies for OCR, PDF processing, and Puppeteer
+RUN apk add --no-cache \
+    poppler-utils \
+    tesseract-ocr \
+    tesseract-ocr-data-eng \
+    imagemagick \
+    ghostscript \
+    python3 \
+    make \
+    g++ \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    && rm -rf /var/cache/apk/*
+
+# No additional dependencies needed for PDFKit-only approach
+
+# Set Puppeteer to use installed Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
 # Copy package files
 COPY backend/package*.json ./
 

@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Export Customs Declaration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #000;
+            background: white;
+        }
+        
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 15mm;
+            margin: 0 auto;
+            background: white;
+        }
+        
+        .header {
+            border-bottom: 3px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+        
+        .logo-section {
+            flex: 1;
+        }
+        
+        .document-info {
+            text-align: right;
+            flex: 1;
+        }
+        
+        h1 {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #000;
+        }
+        
+        h2 {
+            font-size: 14px;
+            font-weight: bold;
+            margin: 15px 0 8px 0;
+            padding: 5px;
+            background: #f0f0f0;
+            border-left: 4px solid #333;
+        }
+        
+        .doc-number {
+            font-size: 14px;
+            font-weight: bold;
+            color: #d00;
+        }
+        
+        .doc-date {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .section {
+            margin-bottom: 15px;
+        }
+        
+        .row {
+            display: flex;
+            margin-bottom: 8px;
+        }
+        
+        .col-6 {
+            flex: 1;
+            padding-right: 10px;
+        }
+        
+        .col-4 {
+            width: 33.33%;
+            padding-right: 10px;
+        }
+        
+        .col-3 {
+            width: 25%;
+            padding-right: 10px;
+        }
+        
+        .col-8 {
+            width: 66.66%;
+            padding-right: 10px;
+        }
+        
+        .field-label {
+            font-weight: bold;
+            font-size: 10px;
+            color: #333;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+        
+        .field-value {
+            padding: 5px;
+            border: 1px solid #ccc;
+            background: #fafafa;
+            min-height: 25px;
+        }
+        
+        .party-box {
+            border: 2px solid #333;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+        }
+        
+        .party-title {
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 8px;
+            color: #000;
+            text-transform: uppercase;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 3px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        
+        th {
+            background: #333;
+            color: white;
+            padding: 8px;
+            text-align: left;
+            font-size: 10px;
+            font-weight: normal;
+        }
+        
+        td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            font-size: 10px;
+        }
+        
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        .total-row {
+            font-weight: bold;
+            background: #e0e0e0 !important;
+        }
+        
+        .declaration-box {
+            border: 2px solid #000;
+            padding: 15px;
+            margin-top: 20px;
+            background: #f5f5f5;
+        }
+        
+        .declaration-title {
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        
+        .declaration-text {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+        
+        .signature-box {
+            width: 45%;
+            border-top: 2px solid #000;
+            padding-top: 5px;
+            text-align: center;
+        }
+        
+        .stamp-box {
+            border: 2px dashed #999;
+            padding: 20px;
+            text-align: center;
+            margin: 10px 0;
+            color: #999;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            padding-top: 10px;
+            border-top: 1px solid #ccc;
+            font-size: 9px;
+            color: #666;
+            text-align: center;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        
+        .badge-success {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .badge-warning {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .badge-danger {
+            background: #f44336;
+            color: white;
+        }
+        
+        .highlight {
+            background: #ffeb3b;
+            padding: 2px;
+        }
+        
+        .regulatory-box {
+            border: 1px solid #ff5722;
+            background: #fff3e0;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        
+        .regulatory-title {
+            color: #ff5722;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        @media print {
+            .page {
+                margin: 0;
+                border: initial;
+                border-radius: initial;
+                width: initial;
+                min-height: initial;
+                box-shadow: initial;
+                background: initial;
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-top">
+                <div class="logo-section">
+                    <h1>EXPORT CUSTOMS DECLARATION</h1>
+                    <div style="font-size: 10px; color: #666;">Electronic Export Information (EEI)</div>
+                </div>
+                <div class="document-info">
+                    <div class="doc-number">EXP-20240115-0847</div>
+                    <div class="doc-date">Date: January 15, 2024</div>
+                    <div style="margin-top: 5px;">
+                        <span class="badge badge-success">FORMAL</span>
+                        <span class="badge badge-warning">PENDING REVIEW</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Exporter Details -->
+        <div class="section">
+            <h2>1. PRINCIPAL PARTIES IN TRANSACTION</h2>
+            
+            <div class="party-box">
+                <div class="party-title">EXPORTER (Principal or Seller - Licensee)</div>
+                <div class="row">
+                    <div class="col-8">
+                        <div class="field-label">Name and Address</div>
+                        <div class="field-value">
+                            GLOBAL TECH SOLUTIONS INC.<br>
+                            123 Export Boulevard, Suite 500<br>
+                            Los Angeles, CA 90001<br>
+                            UNITED STATES
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="field-label">EIN/Tax ID</div>
+                        <div class="field-value">12-3456789</div>
+                        <div class="field-label" style="margin-top: 5px;">Exporter Type</div>
+                        <div class="field-value">MANUFACTURER</div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-4">
+                        <div class="field-label">Contact Person</div>
+                        <div class="field-value">John Smith</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="field-label">Phone</div>
+                        <div class="field-value">+1 (555) 123-4567</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="field-label">Email</div>
+                        <div class="field-value">export@globaltech.com</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="party-box">
+                <div class="party-title">ULTIMATE CONSIGNEE (Purchaser or End User)</div>
+                <div class="row">
+                    <div class="col-8">
+                        <div class="field-label">Name and Address</div>
+                        <div class="field-value">
+                            SINGAPORE ELECTRONICS PTE LTD<br>
+                            456 Jurong Industrial Estate<br>
+                            Singapore 629345<br>
+                            SINGAPORE
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="field-label">Tax ID</div>
+                        <div class="field-value">SG987654321</div>
+                        <div class="field-label" style="margin-top: 5px;">Relationship</div>
+                        <div class="field-value">UNRELATED</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Commodity Details -->
+        <div class="section">
+            <h2>2. COMMODITY INFORMATION</h2>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">Line</th>
+                        <th style="width: 10%;">HS Code</th>
+                        <th style="width: 25%;">Description</th>
+                        <th style="width: 8%;">Qty</th>
+                        <th style="width: 8%;">Unit</th>
+                        <th style="width: 10%;">Unit Value</th>
+                        <th style="width: 10%;">Total Value</th>
+                        <th style="width: 8%;">Origin</th>
+                        <th style="width: 8%;">License</th>
+                        <th style="width: 8%;">ECCN</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>8471.30</td>
+                        <td>
+                            <strong>Laptop Computers</strong><br>
+                            Model: TechBook Pro X1<br>
+                            Brand: GlobalTech
+                        </td>
+                        <td>500</td>
+                        <td>PCS</td>
+                        <td>$1,200.00</td>
+                        <td>$600,000.00</td>
+                        <td>US</td>
+                        <td>NLR</td>
+                        <td>5A992</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>8471.60</td>
+                        <td>
+                            <strong>Computer Keyboards</strong><br>
+                            Model: MechKey 2000<br>
+                            Wireless, RGB Backlit
+                        </td>
+                        <td>1000</td>
+                        <td>PCS</td>
+                        <td>$85.00</td>
+                        <td>$85,000.00</td>
+                        <td>US</td>
+                        <td>NLR</td>
+                        <td>EAR99</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>8471.60</td>
+                        <td>
+                            <strong>Computer Mouse</strong><br>
+                            Model: ProMouse Wireless<br>
+                            Optical, 5000 DPI
+                        </td>
+                        <td>1000</td>
+                        <td>PCS</td>
+                        <td>$45.00</td>
+                        <td>$45,000.00</td>
+                        <td>US</td>
+                        <td>NLR</td>
+                        <td>EAR99</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td colspan="6">TOTAL DECLARED VALUE (FOB)</td>
+                        <td colspan="4">USD $730,000.00</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="regulatory-box">
+                <div class="regulatory-title">⚠ EXPORT CONTROL CLASSIFICATION</div>
+                <div>
+                    • Items classified under ECCN 5A992 - Mass market encryption commodities<br>
+                    • License Exception ENC authorized for civil end-users<br>
+                    • No license required (NLR) for Singapore under current regulations
+                </div>
+            </div>
+        </div>
+
+        <!-- Transportation Details -->
+        <div class="section">
+            <h2>3. TRANSPORTATION INFORMATION</h2>
+            
+            <div class="row">
+                <div class="col-3">
+                    <div class="field-label">Mode of Transport</div>
+                    <div class="field-value">SEA FREIGHT</div>
+                </div>
+                <div class="col-3">
+                    <div class="field-label">Carrier Name</div>
+                    <div class="field-value">MAERSK LINE</div>
+                </div>
+                <div class="col-3">
+                    <div class="field-label">Vessel Name</div>
+                    <div class="field-value">MAERSK ATLANTA</div>
+                </div>
+                <div class="col-3">
+                    <div class="field-label">Voyage Number</div>
+                    <div class="field-value">V.124W</div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-4">
+                    <div class="field-label">Port of Export</div>
+                    <div class="field-value">Los Angeles, CA (USLAX)</div>
+                </div>
+                <div class="col-4">
+                    <div class="field-label">Port of Unlading</div>
+                    <div class="field-value">Singapore (SGSIN)</div>
+                </div>
+                <div class="col-4">
+                    <div class="field-label">Container Numbers</div>
+                    <div class="field-value">MSKU1234567, MSKU7654321</div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-3">
+                    <div class="field-label">Export Date</div>
+                    <div class="field-value">January 20, 2024</div>
+                </div>
+                <div class="col-3">
+                    <div class="field-label">B/L Number</div>
+                    <div class="field-value">MAEU123456789</div>
+                </div>
+                <div class="col-3">
+                    <div class="field-label">Incoterms</div>
+                    <div class="field-value">CIF Singapore</div>
+                </div>
+                <div class="col-3">
+                    <div class="field-label">Freight</div>
+                    <div class="field-value">PREPAID</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Valuation Details -->
+        <div class="section">
+            <h2>4. VALUATION & CHARGES</h2>
+            
+            <table>
+                <tr>
+                    <td style="width: 60%;"><strong>Commercial Invoice Value (FOB)</strong></td>
+                    <td style="text-align: right;">$730,000.00</td>
+                </tr>
+                <tr>
+                    <td>Inland Freight & Insurance to Port</td>
+                    <td style="text-align: right;">$2,500.00</td>
+                </tr>
+                <tr>
+                    <td>International Ocean Freight</td>
+                    <td style="text-align: right;">$8,500.00</td>
+                </tr>
+                <tr>
+                    <td>Marine Insurance (0.5% of FOB)</td>
+                    <td style="text-align: right;">$3,650.00</td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>TOTAL CIF VALUE</strong></td>
+                    <td style="text-align: right;"><strong>$744,650.00</strong></td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Regulatory Compliance -->
+        <div class="section">
+            <h2>5. REGULATORY COMPLIANCE</h2>
+            
+            <div class="row">
+                <div class="col-6">
+                    <div class="party-box">
+                        <div class="field-label">AES/ITN Filing</div>
+                        <div class="field-value">
+                            <strong>ITN: AES X20240115123456</strong><br>
+                            Filing Option: Option 4 - Post Departure
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="party-box">
+                        <div class="field-label">Licenses & Permits</div>
+                        <div class="field-value">
+                            ✓ No License Required (NLR)<br>
+                            ✓ License Exception ENC applicable<br>
+                            ✓ Destination Control Statement included
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="party-box">
+                <div class="field-label">Required Statements</div>
+                <div class="field-value">
+                    <strong>DESTINATION CONTROL STATEMENT:</strong><br>
+                    These commodities, technology or software were exported from the United States in accordance with the Export Administration Regulations. Diversion contrary to U.S. law prohibited.
+                </div>
+            </div>
+        </div>
+
+        <!-- Declaration Section -->
+        <div class="declaration-box">
+            <div class="declaration-title">6. EXPORTER'S DECLARATION</div>
+            <div class="declaration-text">
+                I hereby declare that the information on this declaration and in any document attached hereto is true and correct. I understand that civil and criminal penalties, including forfeiture and sale, may be imposed for making false or fraudulent statements or for violation of U.S. laws.
+            </div>
+            <div class="declaration-text">
+                I certify that all statements made and all information contained herein are true and correct and that I have complied with all the terms and conditions of any applicable license or authorization.
+            </div>
+            
+            <div class="signature-section">
+                <div>
+                    <div style="margin-bottom: 5px;">
+                        <strong>Authorized Signature:</strong> _______________________
+                    </div>
+                    <div style="margin-bottom: 5px;">
+                        <strong>Name:</strong> John Smith
+                    </div>
+                    <div style="margin-bottom: 5px;">
+                        <strong>Title:</strong> Export Compliance Manager
+                    </div>
+                    <div>
+                        <strong>Date:</strong> January 15, 2024
+                    </div>
+                </div>
+                <div class="stamp-box">
+                    COMPANY SEAL<br>
+                    OR<br>
+                    STAMP
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div>Form EXP-2024 | Page 1 of 1 | Electronic Copy - Valid Without Signature When Filed Electronically</div>
+            <div style="margin-top: 5px;">Generated: 2024-01-15 14:30:00 UTC | System: Global Trade Compliance System v2.0</div>
+        </div>
+    </div>
+</body>
+</html>

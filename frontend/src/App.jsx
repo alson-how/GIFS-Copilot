@@ -10,6 +10,7 @@ import Sidebar from './components/Sidebar.jsx';
 import EnhancedWorkflow from './components/EnhancedWorkflow.jsx';
 import ShipmentOrdersList from './components/ShipmentOrdersList.jsx';
 import ShipmentDetails from './components/ShipmentDetails.jsx';
+import PermitDocument from './components/PermitDocument.jsx';
 
 // Main App component with routing
 function AppWithRouter() {
@@ -126,6 +127,9 @@ function AppWithRouter() {
       case 'shipments':
         return renderShipments();
       
+      case 'permit-documents':
+        return renderPermitDocuments();
+      
       case 'documents':
         return renderDocuments();
       
@@ -146,19 +150,7 @@ function AppWithRouter() {
   // Traditional workflow component (existing functionality)
   const renderTraditionalWorkflow = () => (
     <div className="traditional-workflow">
-      {/* Header Section - Hide when canvas is fullscreen */}
-      {!showCanvas && (
-        <header className="header" style={{ marginLeft: 0, padding: '2rem' }}>
-          <h1 className="app-title">Traditional Workflow</h1>
-          <p className="app-subtitle">Step-by-step manual shipment processing</p>
-          {shipmentId && (
-            <div className="shipment-id">
-              <strong>Active Shipment:</strong> {shipmentId}
-            </div>
-          )}
-        </header>
-      )}
-
+      
       {/* Main Content Area */}
       <div className="main-content" style={{
         display: 'flex',
@@ -450,6 +442,10 @@ function AppWithRouter() {
     <ShipmentOrdersList />
   );
 
+  const renderPermitDocuments = () => (
+    <PermitDocument />
+  );
+
   const renderDocuments = () => (
     <div style={{ padding: '2rem', textAlign: 'center' }}>
       <h2>📄 Documents</h2>
@@ -509,6 +505,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<AppWithRouter />} />
         <Route path="/shipment/:shipmentId" element={<ShipmentDetails />} />
+        <Route path="/permit-document" element={<PermitDocument />} />
       </Routes>
     </Router>
   );

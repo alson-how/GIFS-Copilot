@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Confirmation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #000;
+            background: white;
+        }
+        
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 15mm;
+            margin: 0 auto;
+            background: white;
+        }
+        
+        .header {
+            position: relative;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            border-bottom: 4px solid #003d7a;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+        }
+        
+        .company-info {
+            flex: 1;
+        }
+        
+        .company-logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #003d7a;
+            margin-bottom: 5px;
+        }
+        
+        .company-tagline {
+            font-size: 11px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .company-details {
+            margin-top: 10px;
+            font-size: 10px;
+            color: #333;
+            line-height: 1.3;
+        }
+        
+        .booking-header {
+            text-align: right;
+            flex: 1;
+        }
+        
+        .booking-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #003d7a;
+            margin-bottom: 5px;
+        }
+        
+        .booking-number {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ff6b00;
+            margin-bottom: 3px;
+        }
+        
+        .booking-date {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 15px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+        }
+        
+        .section-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #fff;
+            background: #003d7a;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        
+        .section-title:after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 50px;
+            height: 3px;
+            background: #ff6b00;
+        }
+        
+        .info-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .info-box {
+            flex: 1;
+            min-width: 200px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: #f9f9f9;
+        }
+        
+        .info-box-title {
+            font-size: 10px;
+            font-weight: bold;
+            color: #003d7a;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .info-box-content {
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        
+        .highlight-box {
+            background: #fff4e5;
+            border: 2px solid #ff6b00;
+            padding: 12px;
+            margin: 10px 0;
+        }
+        
+        .route-visual {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            background: linear-gradient(to right, #e3f2fd, #fff, #e3f2fd);
+            border: 1px solid #2196F3;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        .port {
+            padding: 8px 15px;
+            background: #003d7a;
+            color: white;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .route-arrow {
+            margin: 0 20px;
+            font-size: 20px;
+            color: #2196F3;
+        }
+        
+        .vessel-info {
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        
+        th {
+            background: #003d7a;
+            color: white;
+            padding: 8px;
+            text-align: left;
+            font-size: 10px;
+            font-weight: normal;
+        }
+        
+        td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            font-size: 10px;
+        }
+        
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        .dates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            padding: 10px;
+            background: #f0f8ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 5px;
+        }
+        
+        .date-item {
+            text-align: center;
+            padding: 8px;
+            background: white;
+            border-radius: 3px;
+        }
+        
+        .date-label {
+            font-size: 9px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        
+        .date-value {
+            font-size: 12px;
+            font-weight: bold;
+            color: #003d7a;
+            margin-top: 3px;
+        }
+        
+        .instructions-box {
+            background: #fffbf0;
+            border-left: 4px solid #ff9800;
+            padding: 12px;
+            margin: 10px 0;
+        }
+        
+        .instructions-title {
+            font-weight: bold;
+            color: #ff6b00;
+            margin-bottom: 8px;
+        }
+        
+        .instructions-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .instructions-list li {
+            padding: 3px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .instructions-list li:before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: #ff6b00;
+        }
+        
+        .charges-summary {
+            background: #f5f5f5;
+            border: 2px solid #333;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .charges-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .charges-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 12px;
+            margin-top: 5px;
+            padding-top: 10px;
+            border-top: 2px solid #333;
+        }
+        
+        .terms-conditions {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 15px 0;
+            font-size: 9px;
+            color: #666;
+        }
+        
+        .terms-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px solid #003d7a;
+        }
+        
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .contact-info {
+            flex: 1;
+        }
+        
+        .contact-title {
+            font-weight: bold;
+            color: #003d7a;
+            margin-bottom: 5px;
+        }
+        
+        .emergency-box {
+            background: #ffebee;
+            border: 2px solid #f44336;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .emergency-title {
+            color: #f44336;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .qr-code {
+            width: 80px;
+            height: 80px;
+            border: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: #999;
+        }
+        
+        .footer-bottom {
+            text-align: center;
+            font-size: 9px;
+            color: #666;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+        
+        @media print {
+            .page {
+                margin: 0;
+                border: initial;
+                border-radius: initial;
+                width: initial;
+                min-height: initial;
+                box-shadow: initial;
+                background: initial;
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <div class="company-info">
+                    <div class="company-logo">GLOBAL LOGISTICS SOLUTIONS</div>
+                    <div class="company-tagline">Your Trusted Partner in International Shipping</div>
+                    <div class="company-details">
+                        123 Shipping Avenue, Port District<br>
+                        Los Angeles, CA 90001, USA<br>
+                        Tel: +1 (555) 100-2000 | Fax: +1 (555) 100-2001<br>
+                        Email: bookings@globallogistics.com<br>
+                        Web: www.globallogistics.com
+                    </div>
+                </div>
+                <div class="booking-header">
+                    <div class="booking-title">BOOKING CONFIRMATION</div>
+                    <div class="booking-number">BKG-20240115-8471</div>
+                    <div class="booking-date">Date: January 15, 2024</div>
+                    <div class="status-badge">CONFIRMED</div>
+                    <div style="margin-top: 10px;">
+                        <div class="qr-code">
+                            [QR CODE]<br>
+                            Track Online
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parties Information -->
+        <div class="section">
+            <div class="section-title">PARTIES INFORMATION</div>
+            
+            <div class="info-grid">
+                <div class="info-box">
+                    <div class="info-box-title">Shipper / Exporter</div>
+                    <div class="info-box-content">
+                        <strong>GLOBAL TECH SOLUTIONS INC.</strong><br>
+                        123 Export Boulevard, Suite 500<br>
+                        Los Angeles, CA 90001<br>
+                        United States<br>
+                        Contact: John Smith<br>
+                        Tel: +1 (555) 123-4567<br>
+                        Email: shipping@globaltech.com
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <div class="info-box-title">Consignee</div>
+                    <div class="info-box-content">
+                        <strong>SINGAPORE ELECTRONICS PTE LTD</strong><br>
+                        456 Jurong Industrial Estate<br>
+                        Singapore 629345<br>
+                        Singapore<br>
+                        Contact: Lee Wei Ming<br>
+                        Tel: +65 6789 1234<br>
+                        Email: imports@sgelectronics.com.sg
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <div class="info-box-title">Notify Party</div>
+                    <div class="info-box-content">
+                        <strong>SAME AS CONSIGNEE</strong><br>
+                        <br>
+                        Alternative Contact:<br>
+                        Operations Manager<br>
+                        Tel: +65 6789 1235<br>
+                        Mobile: +65 9123 4567
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Routing Information -->
+        <div class="section">
+            <div class="section-title">ROUTING & VESSEL INFORMATION</div>
+            
+            <div class="route-visual">
+                <div class="port">LOS ANGELES</div>
+                <div class="route-arrow">→</div>
+                <div style="text-align: center;">
+                    <div style="font-size: 10px; color: #666;">Via</div>
+                    <div style="font-weight: bold; color: #ff6b00;">DIRECT SERVICE</div>
+                </div>
+                <div class="route-arrow">→</div>
+                <div class="port">SINGAPORE</div>
+            </div>
+            <div class="vessel-info">
+                Vessel: MAERSK ATLANTA | Voyage: V.124W | Service: TP6 | Transit Time: 14 days
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Location Type</th>
+                        <th>Location</th>
+                        <th>Port/Terminal</th>
+                        <th>Date</th>
+                        <th>Activity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Place of Receipt</td>
+                        <td>Los Angeles, CA</td>
+                        <td>Customer Warehouse</td>
+                        <td>2024-01-18</td>
+                        <td>Cargo Collection</td>
+                    </tr>
+                    <tr>
+                        <td>Port of Loading</td>
+                        <td>Los Angeles, CA</td>
+                        <td>USLAX - APM Terminal</td>
+                        <td>2024-01-20</td>
+                        <td>Container Loading</td>
+                    </tr>
+                    <tr>
+                        <td>Transshipment</td>
+                        <td>N/A</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>Direct Service</td>
+                    </tr>
+                    <tr>
+                        <td>Port of Discharge</td>
+                        <td>Singapore</td>
+                        <td>SGSIN - PSA Terminal</td>
+                        <td>2024-02-03</td>
+                        <td>Container Discharge</td>
+                    </tr>
+                    <tr>
+                        <td>Final Destination</td>
+                        <td>Singapore</td>
+                        <td>Consignee Warehouse</td>
+                        <td>2024-02-05</td>
+                        <td>Final Delivery</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Cargo Details -->
+        <div class="section">
+            <div class="section-title">CARGO DETAILS</div>
+            
+            <div class="highlight-box">
+                <div style="display: flex; justify-content: space-between;">
+                    <div>
+                        <strong>Commodity:</strong> Electronics - Computers and Accessories<br>
+                        <strong>HS Codes:</strong> 8471.30, 8471.60<br>
+                        <strong>Description:</strong> Laptop Computers, Keyboards, Computer Mouse
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>Total Packages:</strong> 125 Cartons<br>
+                        <strong>Gross Weight:</strong> 8,750 KGS<br>
+                        <strong>Volume:</strong> 45.5 CBM
+                    </div>
+                </div>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Container Type</th>
+                        <th>Quantity</th>
+                        <th>Container Numbers</th>
+                        <th>Seal Numbers</th>
+                        <th>VGM (KGS)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>40' High Cube (40HC)</td>
+                        <td>2</td>
+                        <td>MSKU1234567<br>MSKU7654321</td>
+                        <td>SEAL123456<br>SEAL654321</td>
+                        <td>4,500<br>4,250</td>
+                        <td>To be assigned</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div style="margin-top: 10px; padding: 8px; background: #e8f5e9; border: 1px solid #4CAF50;">
+                <strong style="color: #2E7D32;">Special Requirements:</strong> None | 
+                <strong>Dangerous Goods:</strong> No | 
+                <strong>Temperature Control:</strong> Not Required | 
+                <strong>Service Type:</strong> CY-CY (Container Yard to Container Yard)
+            </div>
+        </div>
+
+        <!-- Important Dates -->
+        <div class="section">
+            <div class="section-title">IMPORTANT DATES & CUT-OFF TIMES</div>
+            
+            <div class="dates-grid">
+                <div class="date-item">
+                    <div class="date-label">Cargo Ready</div>
+                    <div class="date-value">Jan 17, 2024</div>
+                </div>
+                <div class="date-item">
+                    <div class="date-label">Documentation Cut-off</div>
+                    <div class="date-value">Jan 17, 2024<br>17:00 PST</div>
+                </div>
+                <div class="date-item">
+                    <div class="date-label">Cargo Cut-off</div>
+                    <div class="date-value">Jan 18, 2024<br>14:00 PST</div>
+                </div>
+                <div class="date-item">
+                    <div class="date-label">VGM Cut-off</div>
+                    <div class="date-value">Jan 19, 2024<br>12:00 PST</div>
+                </div>
+                <div class="date-item">
+                    <div class="date-label">ETD (Departure)</div>
+                    <div class="date-value">Jan 20, 2024</div>
+                </div>
+                <div class="date-item">
+                    <div class="date-label">ETA (Arrival)</div>
+                    <div class="date-value">Feb 03, 2024</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="section">
+            <div class="section-title">SHIPPING INSTRUCTIONS & DOCUMENTATION</div>
+            
+            <div class="instructions-box">
+                <div class="instructions-title">📋 REQUIRED DOCUMENTS</div>
+                <ul class="instructions-list">
+                    <li>Commercial Invoice - 3 originals + 2 copies</li>
+                    <li>Packing List - 3 originals + 2 copies</li>
+                    <li>Bill of Lading - Original (3 sets)</li>
+                    <li>Certificate of Origin - If applicable</li>
+                    <li>Insurance Certificate - Required (CIF terms)</li>
+                    <li>Export Declaration - Copy required</li>
+                </ul>
+            </div>
+            
+            <div class="instructions-box">
+                <div class="instructions-title">⚠️ SPECIAL INSTRUCTIONS</div>
+                <ul class="instructions-list">
+                    <li>All packages must be properly labeled with shipping marks</li>
+                    <li>Stack limitation: Maximum 5 high</li>
+                    <li>Keep away from moisture and direct sunlight</li>
+                    <li>Fragile - Handle with care</li>
+                    <li>Submit VGM (Verified Gross Mass) before cut-off time</li>
+                    <li>Email pre-alert documents to docs@globallogistics.com</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Freight & Charges -->
+        <div class="section">
+            <div class="section-title">FREIGHT & CHARGES</div>
+            
+            <div class="charges-summary">
+                <div class="charges-row">
+                    <span>Ocean Freight (2 x 40HC)</span>
+                    <span>AS PER QUOTATION</span>
+                </div>
+                <div class="charges-row">
+                    <span>Bunker Adjustment Factor (BAF)</span>
+                    <span>INCLUDED</span>
+                </div>
+                <div class="charges-row">
+                    <span>Currency Adjustment Factor (CAF)</span>
+                    <span>INCLUDED</span>
+                </div>
+                <div class="charges-row">
+                    <span>Terminal Handling Charges (Origin)</span>
+                    <span>PREPAID</span>
+                </div>
+                <div class="charges-row">
+                    <span>Documentation Fee</span>
+                    <span>PREPAID</span>
+                </div>
+                <div class="charges-row">
+                    <span>Payment Terms</span>
+                    <span>PREPAID (CIF)</span>
+                </div>
+                <div class="charges-row">
+                    <strong>INCOTERMS 2020</strong>
+                    <strong>CIF SINGAPORE</strong>
+                </div>
+            </div>
+            
+            <div style="margin-top: 10px; padding: 10px; background: #f0f0f0;">
+                <strong>Quotation Reference:</strong> QT-2024-0158 | 
+                <strong>Valid Until:</strong> January 31, 2024 | 
+                <strong>Currency:</strong> USD
+            </div>
+        </div>
+
+        <!-- Terms & Conditions -->
+        <div class="terms-conditions">
+            <div class="terms-title">TERMS & CONDITIONS</div>
+            <ul style="margin-left: 15px; margin-top: 5px;">
+                <li>This booking is subject to equipment and space availability at time of cargo receipt</li>
+                <li>Carrier's standard Bill of Lading terms and conditions apply</li>
+                <li>VGM (Verified Gross Mass) submission is mandatory as per SOLAS requirements</li>
+                <li>Any changes or cancellations must be notified at least 48 hours before cargo cut-off</li>
+                <li>Detention and demurrage charges apply as per carrier's tariff after free time</li>
+                <li>Booking party is responsible for accurate cargo declaration and documentation</li>
+                <li>Force majeure conditions apply as per international shipping conventions</li>
+            </ul>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-content">
+                <div class="contact-info">
+                    <div class="contact-title">YOUR BOOKING AGENT</div>
+                    <div>
+                        <strong>Sarah Johnson</strong><br>
+                        Senior Booking Coordinator<br>
+                        Direct: +1 (555) 100-2050<br>
+                        Mobile: +1 (555) 987-6543<br>
+                        Email: sarah.j@globallogistics.com
+                    </div>
+                </div>
+                
+                <div class="contact-info">
+                    <div class="contact-title">CUSTOMER SERVICE</div>
+                    <div>
+                        Monday - Friday: 08:00 - 18:00 PST<br>
+                        Saturday: 09:00 - 13:00 PST<br>
+                        Tel: +1 (555) 100-2000<br>
+                        Email: customerservice@globallogistics.com<br>
+                        Track: www.globallogistics.com/tracking
+                    </div>
+                </div>
+                
+                <div class="emergency-box">
+                    <div class="emergency-title">24/7 EMERGENCY HOTLINE</div>
+                    <div>
+                        <strong>+1 (555) 100-9999</strong><br>
+                        emergency@globallogistics.com<br>
+                        For urgent shipment issues only
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <div>Thank you for choosing Global Logistics Solutions as your shipping partner</div>
+                <div style="margin-top: 5px;">
+                    This is a system-generated document. Valid without signature.<br>
+                    Booking Confirmation Version 2.0 | Generated: 2024-01-15 14:30:00 UTC | Reference: BKG-20240115-8471
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

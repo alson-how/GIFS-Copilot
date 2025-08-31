@@ -6,6 +6,9 @@ import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import pkg from 'pg';
 import pdfParse from 'pdf-parse';
+import { createWorker } from 'tesseract.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { detectCommercialInvoice } from '../services/llm-classify.js';
 import { classifyIntent, isExportIntent } from '../services/intentClassification.js';
 import { askRagChatbotWithSources } from '../utils/ragChatbot.js';
@@ -59,38 +62,129 @@ const upload = multer({
 });
 
 /**
- * Extract text from uploaded file
+ * Convert PDF to images using pdftoppm
+ */
+const execAsync = promisify(exec);
+
+async function convertPdfToImages(pdfPath) {
+  try {
+    const outputDir = path.dirname(pdfPath);
+    const baseName = path.basename(pdfPath, '.pdf');
+    const outputPrefix = path.join(outputDir, `${baseName}-page`);
+    
+    console.log('🖼️ Converting PDF to images for OCR...');
+    const { stdout, stderr } = await execAsync(
+      `pdftoppm -png -r 300 "${pdfPath}" "${outputPrefix}"`
+    );
+    
+    if (stderr) {
+      console.log('⚠️ pdftoppm stderr:', stderr);
+    }
+    
+    // Find generated image files
+    const imageFiles = fs.readdirSync(outputDir)
+      .filter(file => file.startsWith(`${baseName}-page`) && file.endsWith('.png'))
+      .map(file => path.join(outputDir, file))
+      .sort();
+    
+    console.log(`📸 Generated ${imageFiles.length} image(s) from PDF`);
+    return imageFiles;
+  } catch (error) {
+    console.error('❌ Error converting PDF to images:', error);
+    return [];
+  }
+}
+
+/**
+ * Extract text using OCR
+ */
+async function extractTextWithOCR(imagePaths) {
+  let allText = '';
+  
+  try {
+    console.log('🔍 Starting OCR text extraction...');
+    const worker = await createWorker('eng');
+    
+    for (const imagePath of imagePaths) {
+      console.log(`📖 Processing image: ${path.basename(imagePath)}`);
+      const { data: { text } } = await worker.recognize(imagePath);
+      allText += text + '\n';
+      
+      // Clean up image file
+      try {
+        fs.unlinkSync(imagePath);
+      } catch (e) {
+        console.log(`⚠️ Could not delete temp image: ${imagePath}`);
+      }
+    }
+    
+    await worker.terminate();
+    console.log(`📝 OCR extracted ${allText.length} characters`);
+    return allText.trim();
+  } catch (error) {
+    console.error('❌ OCR extraction failed:', error);
+    return '';
+  }
+}
+
+/**
+ * Extract text from uploaded file with OCR fallback
  */
 async function extractTextFromFile(filePath, mimeType) {
   try {
-
     console.log(`🔍 Extracting text from file: ${filePath} (${mimeType})`);
     
     if (mimeType === 'application/pdf') {
       const dataBuffer = fs.readFileSync(filePath);
       console.log(`📄 PDF file size: ${dataBuffer.length} bytes`);
       
-      const data = await pdfParse(dataBuffer);
-      console.log(`📝 Extracted text length: ${data.text.length} characters`);
-      console.log(`📄 PDF pages: ${data.numpages}`);
-      
-      if (data.text.length < 50) {
-        console.log('⚠️ Very short text extracted, might be image-based PDF');
-        console.log('📝 Extracted text preview:', JSON.stringify(data.text.substring(0, 200)));
-      } else {
-        console.log('📝 Text extraction successful, preview:', data.text.substring(0, 200) + '...');
+      try {
+        // Try PDF text extraction first
+        const data = await pdfParse(dataBuffer);
+        console.log(`📝 Extracted text length: ${data.text.length} characters`);
+        console.log(`📄 PDF pages: ${data.numpages}`);
+        
+        if (data.text.length >= 50) {
+          console.log('📝 Text extraction successful, preview:', data.text.substring(0, 200) + '...');
+          return data.text;
+        } else {
+          console.log('⚠️ Very short text extracted, trying OCR fallback...');
+          // Fall through to OCR
+        }
+      } catch (pdfError) {
+        console.log('❌ PDF parsing failed, trying OCR fallback...');
+        console.log('📄 PDF Error:', pdfError.message);
       }
       
-      return data.text;
+      // OCR fallback for corrupted PDFs or image-based PDFs
+      console.log('🔄 Attempting OCR extraction...');
+      const imageFiles = await convertPdfToImages(filePath);
+      
+      if (imageFiles.length > 0) {
+        const ocrText = await extractTextWithOCR(imageFiles);
+        if (ocrText.length > 0) {
+          console.log('✅ OCR extraction successful!');
+          return ocrText;
+        }
+      }
+      
+      console.log('❌ Both PDF parsing and OCR failed');
+      return '';
+    }
+    
+    // Handle image files directly with OCR
+    if (mimeType.startsWith('image/')) {
+      console.log('🖼️ Processing image file with OCR...');
+      const ocrText = await extractTextWithOCR([filePath]);
+      return ocrText;
     }
     
     // For other file types, you might want to add more extraction logic
-    // For now, return empty string for non-PDF files
     console.log(`⚠️ Unsupported file type: ${mimeType}`);
     return '';
   } catch (error) {
     console.error('❌ Error extracting text from file:', error);
-    console.log('⚠️ PDF extraction failed, document might be corrupted or unsupported format');
+    console.log('⚠️ Text extraction failed completely');
     console.log('📁 File path:', filePath);
     console.log('📄 MIME type:', mimeType);
     

@@ -402,7 +402,6 @@ ${invoiceProcessingResult?.suggestions ? `**Suggestions:**\n${invoiceProcessingR
 
   return (
     <section className="card fade-in" style={{
-      background: 'linear-gradient(135deg, var(--surface), rgba(127, 179, 211, 0.1))',
       border: '1px solid rgba(127, 179, 211, 0.3)',
       height: '100%',
       display: 'flex',

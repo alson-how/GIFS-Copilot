@@ -33,6 +33,7 @@ services:
       NODE_ENV: production
       ALLOWED_ORIGIN: http://localhost:3000
       RAG_SIMILARITY_THRESHOLD: 0.3
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
     env_file:
       - backend/.env
     ports:

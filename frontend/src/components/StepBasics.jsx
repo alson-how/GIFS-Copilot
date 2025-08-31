@@ -113,6 +113,37 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
            );
   };
 
+  // Document Generation
+  const generateShippingDocuments = async (shipmentId, invoiceData) => {
+    try {
+      console.log('🏭 Generating shipping documents for shipment:', shipmentId);
+      
+      const response = await fetch('/api/document-generation/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          shipmentId,
+          invoiceData
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Documents generated successfully:', result.data);
+        setStatus(`📄 Generated ${result.data.generatedDocuments} shipping documents`);
+      } else {
+        console.error('❌ Document generation failed:', result.error);
+        setStatus(`⚠️ Document generation failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('❌ Error generating documents:', error);
+      setStatus(`⚠️ Error generating documents: ${error.message}`);
+    }
+  };
+
   // Strategic Items Detection
   const triggerStrategicDetection = async () => {
     if (strategicDetectionLoading) {
@@ -802,6 +833,12 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       
       // Include productType for navigation logic in handleStepComplete
       const primaryItem = productItems[0] || {};
+      
+      // Trigger document generation if we have invoice data
+      if (canvasData?.ocrData?.fieldSuggestions) {
+        await generateShippingDocuments(id, canvasData.ocrData.fieldSuggestions);
+      }
+      
       onSaved?.(id, { 
         exportDate, 
         mode, 

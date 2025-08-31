@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { postJSON } from '../services/api.js';
 import FormK2 from './FormK2.jsx';
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+
+// Set up PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 export default function StepDocs({ shipmentId, onSaved, isCanvas }){
   const [hsCode, setHsCode] = useState('85423110');
@@ -11,6 +17,59 @@ export default function StepDocs({ shipmentId, onSaved, isCanvas }){
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [showK2Form, setShowK2Form] = useState(false);
+  const [generatedDocs, setGeneratedDocs] = useState([]);
+  const [selectedDoc, setSelectedDoc] = useState(null);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [numPages, setNumPages] = useState(null);
+  const [pageNumber, setPageNumber] = useState(1);
+
+  // Fetch generated documents
+  const fetchGeneratedDocuments = async () => {
+    if (!shipmentId) return;
+    
+    setDocsLoading(true);
+    try {
+      const response = await fetch(`/api/document-generation/${shipmentId}`);
+      const result = await response.json();
+      
+      if (result.success && result.data && result.data.documents) {
+        const docs = [];
+        const docTypes = [
+          { key: 'packingList', name: 'Packing List', icon: '📦', downloadKey: 'packing_list' },
+          { key: 'bookingConfirmation', name: 'Booking Confirmation', icon: '🚢', downloadKey: 'booking_confirmation' },
+          { key: 'customsDeclaration', name: 'Customs Declaration', icon: '🏛️', downloadKey: 'customs_declaration' },
+          { key: 'billOfLading', name: 'Bill of Lading', icon: '📋', downloadKey: 'bill_of_lading' }
+        ];
+        
+        docTypes.forEach(docType => {
+          if (result.data.documents[docType.key]) {
+            docs.push({
+              name: docType.name,
+              icon: docType.icon,
+              path: result.data.documents[docType.key],
+              url: `/api/document-generation/download/${shipmentId}/${docType.downloadKey}`
+            });
+          }
+        });
+        
+        console.log('📄 Found generated documents:', docs);
+        setGeneratedDocs(docs);
+      }
+    } catch (error) {
+      console.error('Error fetching generated documents:', error);
+    } finally {
+      setDocsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGeneratedDocuments();
+  }, [shipmentId]);
+
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages);
+    setPageNumber(1);
+  };
 
   async function submit(){
     setLoading(true);
@@ -155,6 +214,209 @@ export default function StepDocs({ shipmentId, onSaved, isCanvas }){
             Include all relevant permit and license numbers
           </small>
         </div>
+
+        {/* Generated Documents Section */}
+        <div className="mt-4" style={{
+          background: 'rgba(34, 197, 94, 0.05)', 
+          padding: '1rem', 
+          borderRadius: '8px',
+          border: '1px solid rgba(34, 197, 94, 0.2)'
+        }}>
+          <div className="flex-between mb-3">
+            <div>
+              <h4 style={{color: 'var(--success)', margin: 0, fontSize: '1rem'}}>
+                📄 Generated Shipping Documents
+              </h4>
+              <p style={{color: 'var(--text-muted)', fontSize: '0.8rem', margin: '0.5rem 0 0 0'}}>
+                Auto-generated documents from your commercial invoice
+              </p>
+            </div>
+            <button 
+              className="btn btn-secondary" 
+              onClick={fetchGeneratedDocuments}
+              disabled={docsLoading}
+              style={{minWidth: '120px'}}
+            >
+              {docsLoading ? '🔄 Loading...' : '🔄 Refresh'}
+            </button>
+          </div>
+          
+          {generatedDocs.length > 0 ? (
+            <div className="grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
+              {generatedDocs.map((doc, index) => (
+                <div 
+                  key={index} 
+                  className="card-mini" 
+                  style={{
+                    padding: '1rem',
+                    background: 'white',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => setSelectedDoc(doc)}
+                  onMouseEnter={(e) => e.target.style.borderColor = 'var(--primary)'}
+                  onMouseLeave={(e) => e.target.style.borderColor = 'var(--border)'}
+                >
+                  <div className="flex gap-3 align-center">
+                    <span style={{fontSize: '1.5rem'}}>{doc.icon}</span>
+                    <div style={{flex: 1}}>
+                      <div style={{fontWeight: '500', color: 'var(--text-primary)'}}>{doc.name}</div>
+                      <div style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>Click to preview</div>
+                    </div>
+                    <span style={{color: 'var(--success)', fontSize: '0.8rem'}}>✅</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{
+              textAlign: 'center',
+              padding: '2rem',
+              color: 'var(--text-muted)',
+              background: 'rgba(0,0,0,0.02)',
+              borderRadius: '8px'
+            }}>
+              {docsLoading ? (
+                <div>🔄 Loading documents...</div>
+              ) : (
+                <div>
+                  <div style={{fontSize: '2rem', marginBottom: '0.5rem'}}>📄</div>
+                  <div>No generated documents found</div>
+                  <div style={{fontSize: '0.8rem', marginTop: '0.5rem'}}>
+                    Documents will appear here after uploading a commercial invoice in Step 1
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* PDF Viewer Modal */}
+        {selectedDoc && (
+          <div 
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.8)',
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '2rem'
+            }}
+            onClick={() => setSelectedDoc(null)}
+          >
+            <div 
+              style={{
+                background: 'white',
+                borderRadius: '12px',
+                width: '90%',
+                height: '90%',
+                maxWidth: '1200px',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{
+                padding: '1rem 1.5rem',
+                borderBottom: '1px solid var(--border)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <h3 style={{margin: 0, color: 'var(--text-primary)'}}>
+                    {selectedDoc.icon} {selectedDoc.name}
+                  </h3>
+                </div>
+                <div className="flex gap-2">
+                  <a 
+                    href={selectedDoc.url} 
+                    download 
+                    className="btn btn-secondary"
+                    style={{textDecoration: 'none'}}
+                  >
+                    📥 Download
+                  </a>
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={() => setSelectedDoc(null)}
+                  >
+                    ✕ Close
+                  </button>
+                </div>
+              </div>
+              <div style={{flex: 1, overflow: 'auto', padding: '1rem', background: '#f5f5f5'}}>
+                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                  <Document
+                    file={selectedDoc.url}
+                    onLoadSuccess={onDocumentLoadSuccess}
+                    loading={
+                      <div style={{padding: '2rem', textAlign: 'center'}}>
+                        <div>🔄 Loading PDF...</div>
+                      </div>
+                    }
+                    error={
+                      <div style={{padding: '2rem', textAlign: 'center', color: 'red'}}>
+                        <div>❌ Failed to load PDF</div>
+                        <div style={{fontSize: '0.8rem', marginTop: '0.5rem'}}>
+                          Please try downloading the document instead
+                        </div>
+                      </div>
+                    }
+                  >
+                    <Page 
+                      pageNumber={pageNumber} 
+                      width={Math.min(800, window.innerWidth * 0.7)}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={true}
+                    />
+                  </Document>
+                  
+                  {numPages && numPages > 1 && (
+                    <div style={{
+                      marginTop: '1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '1rem',
+                      background: 'white',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)'
+                    }}>
+                      <button 
+                        onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                        disabled={pageNumber <= 1}
+                        className="btn btn-secondary"
+                        style={{minWidth: 'auto', padding: '0.25rem 0.5rem'}}
+                      >
+                        ◀
+                      </button>
+                      <span style={{fontSize: '0.9rem'}}>
+                        Page {pageNumber} of {numPages}
+                      </span>
+                      <button 
+                        onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+                        disabled={pageNumber >= numPages}
+                        className="btn btn-secondary"
+                        style={{minWidth: 'auto', padding: '0.25rem 0.5rem'}}
+                      >
+                        ▶
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* K2 Form Generation Section */}
         <div className="mt-4" style={{
