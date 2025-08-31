@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { postJSON } from '../services/api.js';
+import { apiService } from '../services/apiMigration.js';
 import FormK2 from './FormK2.jsx';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -29,8 +29,7 @@ export default function StepDocs({ shipmentId, onSaved, isCanvas }){
     
     setDocsLoading(true);
     try {
-      const response = await fetch(`/api/document-generation/${shipmentId}`);
-      const result = await response.json();
+              const result = await apiService.getDocumentStatus(shipmentId);
       
       if (result.success && result.data && result.data.documents) {
         const docs = [];
@@ -47,7 +46,7 @@ export default function StepDocs({ shipmentId, onSaved, isCanvas }){
               name: docType.name,
               icon: docType.icon,
               path: result.data.documents[docType.key],
-              url: `/api/document-generation/download/${shipmentId}/${docType.downloadKey}`
+                              url: `/api/document-generation/download/${shipmentId}/${docType.downloadKey}`
             });
           }
         });
@@ -75,7 +74,7 @@ export default function StepDocs({ shipmentId, onSaved, isCanvas }){
     setLoading(true);
     setStatus('');
     try{
-      const res = await postJSON('/api/compliance/docs', {
+      const res = await apiService.compliance.docs({
         shipment_id: shipmentId,
         hs_code: hsCode,
         hs_validated: hsValidated,

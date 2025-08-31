@@ -1,0 +1,46 @@
+@import '../../../styles/abstracts/variables';
+@import '../../../styles/abstracts/mixins';
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+  width: 100%;
+  
+  &__help-text {
+    font-size: $font-size-sm;
+    color: var(--color-text-muted);
+    line-height: $line-height-tight;
+    margin-top: $spacing-1;
+  }
+  
+  &--error {
+    .form-field__help-text {
+      color: var(--color-text-muted);
+    }
+  }
+  
+  // Spacing adjustments for different field combinations
+  .label {
+    margin-bottom: $spacing-1;
+  }
+  
+  .input,
+  .select {
+    margin-bottom: 0;
+  }
+  
+  // When used in forms with other fields
+  & + & {
+    margin-top: $spacing-4;
+  }
+  
+  // Responsive adjustments
+  @include breakpoint-down(sm) {
+    gap: $spacing-2;
+    
+    & + & {
+      margin-top: $spacing-3;
+    }
+  }
+}

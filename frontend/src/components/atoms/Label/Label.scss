@@ -1,0 +1,48 @@
+@import '../../../styles/abstracts/variables';
+@import '../../../styles/abstracts/mixins';
+
+.label {
+  display: inline-block;
+  font-family: $font-primary;
+  font-weight: $font-weight-medium;
+  color: var(--color-text-primary);
+  line-height: $line-height-tight;
+  margin-bottom: $spacing-1;
+  
+  // Sizes
+  &--small {
+    font-size: $font-size-sm;
+  }
+  
+  &--medium {
+    font-size: $font-size-base;
+  }
+  
+  &--large {
+    font-size: $font-size-lg;
+  }
+  
+  // Required indicator
+  &__required {
+    color: var(--color-error);
+    margin-left: $spacing-1;
+    font-weight: $font-weight-bold;
+  }
+  
+  &--required {
+    position: relative;
+  }
+  
+  // Cursor pointer when associated with form element
+  &[for] {
+    cursor: pointer;
+  }
+  
+  // High contrast support
+  @include high-contrast {
+    .label__required {
+      outline: 1px solid currentColor;
+      outline-offset: 1px;
+    }
+  }
+}

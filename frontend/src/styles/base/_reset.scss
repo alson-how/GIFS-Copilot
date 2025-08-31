@@ -1,0 +1,425 @@
+/**
+ * Modern CSS Reset
+ * Based on modern CSS reset principles with accessibility in mind
+ */
+
+// ===========================
+// BOX SIZING
+// ===========================
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+// ===========================
+// REMOVE DEFAULT SPACING
+// ===========================
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+// ===========================
+// ROOT & BODY
+// ===========================
+
+html {
+  -moz-text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: $font-primary;
+  font-size: $font-size-base;
+  line-height: $line-height-normal;
+  color: var(--color-text-primary);
+  background: var(--color-background);
+  overflow-x: hidden;
+  min-height: 100vh;
+  
+  // Improve text rendering
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeSpeed;
+  
+  // Disable text selection highlighting on UI elements
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+// ===========================
+// TYPOGRAPHY
+// ===========================
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: $font-heading;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
+  color: var(--color-text-primary);
+  
+  // Prevent long words from breaking layout
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+h1 { font-size: $font-size-3xl; }
+h2 { font-size: $font-size-2xl; }
+h3 { font-size: $font-size-xl; }
+h4 { font-size: $font-size-lg; }
+h5 { font-size: $font-size-base; }
+h6 { font-size: $font-size-sm; }
+
+p {
+  color: var(--color-text-secondary);
+  max-width: 65ch; // Optimal reading length
+  
+  // Improve text rendering
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+// ===========================
+// LISTS
+// ===========================
+
+ul, ol {
+  list-style: none;
+}
+
+ul[role='list'],
+ol[role='list'] {
+  list-style: revert;
+}
+
+li {
+  color: var(--color-text-secondary);
+}
+
+// ===========================
+// LINKS
+// ===========================
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: $transition-colors;
+  
+  &:hover {
+    color: var(--color-primary-hover);
+    text-decoration: underline;
+  }
+  
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: $border-radius-sm;
+  }
+}
+
+// Remove default button styling
+button {
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+  
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+// ===========================
+// FORM ELEMENTS
+// ===========================
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+input,
+textarea,
+select {
+  &::placeholder {
+    color: var(--color-text-muted);
+    opacity: 1;
+  }
+}
+
+// Remove default input styling
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+textarea,
+select {
+  appearance: none;
+  border: none;
+  background: transparent;
+  outline: none;
+  
+  &:focus {
+    outline: none;
+  }
+}
+
+// Custom checkbox and radio styling reset
+input[type="checkbox"],
+input[type="radio"] {
+  appearance: none;
+  width: 1em;
+  height: 1em;
+  border: 2px solid var(--color-border);
+  background: var(--color-surface-light);
+  cursor: pointer;
+  
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+input[type="checkbox"] {
+  border-radius: $border-radius-sm;
+}
+
+input[type="radio"] {
+  border-radius: 50%;
+}
+
+// ===========================
+// MEDIA
+// ===========================
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+img {
+  // Prevent images from being dragged
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  
+  // Alt text styling
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+svg {
+  fill: currentColor;
+}
+
+// ===========================
+// TABLES
+// ===========================
+
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  width: 100%;
+}
+
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  font-weight: $font-weight-semibold;
+  color: var(--color-text-primary);
+}
+
+td {
+  color: var(--color-text-secondary);
+}
+
+// ===========================
+// INTERACTIVE ELEMENTS
+// ===========================
+
+// Improve click targets for better accessibility
+button,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  min-height: 44px; // WCAG AAA guideline
+  min-width: 44px;
+}
+
+// Remove default fieldset styling
+fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+legend {
+  font-weight: $font-weight-semibold;
+  color: var(--color-text-primary);
+  padding: 0;
+}
+
+// ===========================
+// UTILITIES
+// ===========================
+
+// Hide content visually but keep it available for screen readers
+.sr-only {
+  @include sr-only;
+}
+
+// Prevent text selection
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+// Force text selection
+.select-all {
+  -webkit-user-select: all;
+  -moz-user-select: all;
+  -ms-user-select: all;
+  user-select: all;
+}
+
+// Disable pointer events
+.pointer-events-none {
+  pointer-events: none;
+}
+
+// Enable pointer events
+.pointer-events-auto {
+  pointer-events: auto;
+}
+
+// ===========================
+// ACCESSIBILITY
+// ===========================
+
+// Respect user's motion preferences
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+  * {
+    border-color: currentColor;
+  }
+  
+  button,
+  input,
+  select,
+  textarea {
+    border-width: 2px;
+  }
+}
+
+// Focus visible support for older browsers
+.js-focus-visible :focus:not(.focus-visible) {
+  outline: none;
+}
+
+// Skip link for keyboard navigation
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: var(--color-primary);
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  z-index: $z-index-maximum;
+  border-radius: $border-radius-base;
+  
+  &:focus {
+    top: 6px;
+  }
+}
+
+// ===========================
+// PRINT STYLES
+// ===========================
+
+@media print {
+  *,
+  *::before,
+  *::after {
+    background: transparent !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  a,
+  a:visited {
+    text-decoration: underline;
+  }
+  
+  a[href]::after {
+    content: " (" attr(href) ")";
+  }
+  
+  abbr[title]::after {
+    content: " (" attr(title) ")";
+  }
+  
+  // Don't print navigation, forms, etc.
+  .no-print,
+  nav,
+  aside,
+  form,
+  button,
+  input {
+    display: none !important;
+  }
+  
+  // Page break controls
+  .page-break-before {
+    page-break-before: always;
+  }
+  
+  .page-break-after {
+    page-break-after: always;
+  }
+  
+  .page-break-inside {
+    page-break-inside: avoid;
+  }
+}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ComprehensiveScreening from './ComprehensiveScreening.jsx';
+import { apiService } from '../services/apiMigration.js';
 
 // Enhanced Step 2 - Comprehensive End-User Security Screening
 export default function StepScreening({ shipmentId, onSaved }) {
@@ -16,12 +17,9 @@ export default function StepScreening({ shipmentId, onSaved }) {
   const loadExistingScreening = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/comprehensive-screening/${shipmentId}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setScreeningData(data.screening);
-        }
+      const data = await apiService.getScreeningStatus(shipmentId);
+      if (data.success) {
+        setScreeningData(data.screening);
       }
     } catch (error) {
       console.log('No existing screening found, will initialize new one');

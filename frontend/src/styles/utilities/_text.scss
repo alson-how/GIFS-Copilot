@@ -1,0 +1,82 @@
+@import '../abstracts/variables';
+@import '../abstracts/mixins';
+
+// Font sizes
+@each $name, $value in (
+  'xs': $font-size-xs,
+  'sm': $font-size-sm,
+  'base': $font-size-base,
+  'lg': $font-size-lg,
+  'xl': $font-size-xl,
+  '2xl': $font-size-2xl,
+  '3xl': $font-size-3xl,
+  '4xl': $font-size-4xl,
+  '5xl': $font-size-5xl
+) {
+  .text-#{$name} {
+    font-size: $value !important;
+  }
+}
+
+// Font weights
+@each $name, $value in (
+  'light': $font-weight-light,
+  'regular': $font-weight-regular,
+  'medium': $font-weight-medium,
+  'semibold': $font-weight-semibold,
+  'bold': $font-weight-bold
+) {
+  .font-#{$name} {
+    font-weight: $value !important;
+  }
+}
+
+// Text alignment
+.text-left { text-align: left !important; }
+.text-center { text-align: center !important; }
+.text-right { text-align: right !important; }
+.text-justify { text-align: justify !important; }
+
+// Text colors
+.text-primary { color: var(--color-text-primary) !important; }
+.text-secondary { color: var(--color-text-secondary) !important; }
+.text-muted { color: var(--color-text-muted) !important; }
+.text-accent { color: var(--color-primary) !important; }
+.text-success { color: var(--color-success) !important; }
+.text-warning { color: var(--color-warning) !important; }
+.text-error { color: var(--color-error) !important; }
+.text-info { color: var(--color-info) !important; }
+
+// Text utilities
+.text-uppercase { text-transform: uppercase !important; }
+.text-lowercase { text-transform: lowercase !important; }
+.text-capitalize { text-transform: capitalize !important; }
+.text-none { text-transform: none !important; }
+
+.text-truncate {
+  @include text-truncate;
+}
+
+.text-clamp-1 { @include text-clamp(1); }
+.text-clamp-2 { @include text-clamp(2); }
+.text-clamp-3 { @include text-clamp(3); }
+.text-clamp-4 { @include text-clamp(4); }
+.text-clamp-5 { @include text-clamp(5); }
+
+// Line heights
+@each $name, $value in (
+  'tight': $line-height-tight,
+  'snug': $line-height-snug,
+  'normal': $line-height-normal,
+  'relaxed': $line-height-relaxed,
+  'loose': $line-height-loose
+) {
+  .leading-#{$name} {
+    line-height: $value !important;
+  }
+}
+
+// Font families
+.font-primary { font-family: $font-primary !important; }
+.font-mono { font-family: $font-mono !important; }
+.font-heading { font-family: $font-heading !important; }

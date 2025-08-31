@@ -1,0 +1,118 @@
+@import '../abstracts/variables';
+@import '../abstracts/mixins';
+
+// Screen reader utilities
+.sr-only {
+  @include sr-only;
+}
+
+.not-sr-only {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: normal !important;
+}
+
+// Focus utilities
+.focus\:outline-none:focus {
+  outline: 2px solid transparent !important;
+  outline-offset: 2px !important;
+}
+
+.focus-visible\:outline-none:focus-visible {
+  outline: 2px solid transparent !important;
+  outline-offset: 2px !important;
+}
+
+.focus\:ring:focus {
+  @include focus-ring;
+}
+
+.focus-visible\:ring:focus-visible {
+  @include focus-ring;
+}
+
+// High contrast mode utilities
+@include high-contrast {
+  .hc\:border-2 {
+    border-width: 2px !important;
+  }
+  
+  .hc\:outline {
+    outline: 2px solid currentColor !important;
+    outline-offset: 2px !important;
+  }
+}
+
+// Reduced motion utilities
+@include reduced-motion {
+  .motion-reduce\:animate-none {
+    animation: none !important;
+  }
+  
+  .motion-reduce\:transition-none {
+    transition: none !important;
+  }
+  
+  .motion-reduce\:transform-none {
+    transform: none !important;
+  }
+}
+
+// Skip link for keyboard navigation
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: var(--color-primary);
+  color: white;
+  padding: $spacing-2 $spacing-3;
+  text-decoration: none;
+  z-index: $z-index-maximum;
+  border-radius: $border-radius-base;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  
+  &:focus {
+    top: 6px;
+  }
+}
+
+// ARIA live regions
+.aria-live-polite {
+  position: absolute !important;
+  left: -10000px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}
+
+// Pointer events
+.pointer-events-none {
+  pointer-events: none !important;
+}
+
+.pointer-events-auto {
+  pointer-events: auto !important;
+}
+
+// User select
+.select-none {
+  user-select: none !important;
+}
+
+.select-text {
+  user-select: text !important;
+}
+
+.select-all {
+  user-select: all !important;
+}
+
+.select-auto {
+  user-select: auto !important;
+}

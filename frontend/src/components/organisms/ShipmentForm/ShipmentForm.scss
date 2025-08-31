@@ -1,0 +1,86 @@
+@import '../../../styles/abstracts/variables';
+@import '../../../styles/abstracts/mixins';
+
+.shipment-form {
+  &__form {
+    width: 100%;
+  }
+  
+  &__header {
+    margin-bottom: $spacing-6;
+    
+    h2 {
+      @include heading('md');
+      margin-bottom: $spacing-1;
+    }
+    
+    p {
+      color: var(--color-text-secondary);
+      margin-bottom: 0;
+    }
+  }
+  
+  &__fields {
+    margin-bottom: $spacing-8;
+  }
+  
+  &__row {
+    @include grid-columns(2, $spacing-4);
+    margin-bottom: $spacing-4;
+    
+    @include breakpoint-down(md) {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-4;
+    }
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  
+  &__field--readonly {
+    .input {
+      background: var(--color-surface-light);
+      color: var(--color-text-muted);
+      cursor: not-allowed;
+    }
+  }
+  
+  &__actions {
+    @include flex-between;
+    padding-top: $spacing-6;
+    border-top: $border-width-1 solid var(--color-border);
+    gap: $spacing-3;
+    
+    @include breakpoint-down(sm) {
+      flex-direction: column-reverse;
+      
+      .btn {
+        width: 100%;
+      }
+    }
+  }
+  
+  // Responsive adjustments
+  @include breakpoint-down(lg) {
+    &__row {
+      @include grid-columns(1, $spacing-4);
+    }
+  }
+  
+  // Animation for form submission
+  &--submitting {
+    opacity: 0.8;
+    pointer-events: none;
+  }
+  
+  // Focus management
+  &__form:focus-within {
+    .shipment-form__actions {
+      .btn:not(:disabled) {
+        box-shadow: 0 0 0 2px rgba(90, 140, 179, 0.2);
+      }
+    }
+  }
+}

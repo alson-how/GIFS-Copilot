@@ -1,0 +1,104 @@
+@import '../../../styles/abstracts/variables';
+@import '../../../styles/abstracts/mixins';
+
+.input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.input {
+  @include form-element-base;
+  
+  &::placeholder {
+    color: var(--color-text-muted);
+    opacity: 1;
+  }
+  
+  // Sizes
+  &--small {
+    height: 2.25rem;
+    padding: $spacing-1 $spacing-2;
+    font-size: $font-size-sm;
+  }
+  
+  &--medium {
+    // Default size from form-element-base
+  }
+  
+  &--large {
+    height: 3.25rem;
+    padding: $spacing-3 $spacing-4;
+    font-size: $font-size-lg;
+  }
+  
+  // States
+  &--error {
+    border-color: var(--color-error);
+    
+    &:focus {
+      border-color: var(--color-error);
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+    }
+  }
+  
+  &--disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background: var(--color-surface-light);
+  }
+  
+  &--full-width {
+    width: 100%;
+  }
+  
+  // Focus styles
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(90, 140, 179, 0.2);
+  }
+  
+  &:focus-visible {
+    @include focus-ring;
+  }
+  
+  // Error message
+  &__error-message {
+    display: block;
+    margin-top: $spacing-1;
+    color: var(--color-error);
+    font-size: $font-size-sm;
+    line-height: $line-height-tight;
+  }
+  
+  // High contrast support
+  @include high-contrast {
+    border-width: 2px;
+    
+    &:focus {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
+  }
+  
+  // Number input specific styles
+  &[type="number"] {
+    -moz-appearance: textfield;
+    
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  }
+  
+  // Search input specific styles
+  &[type="search"] {
+    -webkit-appearance: none;
+    
+    &::-webkit-search-cancel-button {
+      -webkit-appearance: none;
+      cursor: pointer;
+    }
+  }
+}

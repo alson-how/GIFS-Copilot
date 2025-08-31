@@ -1,0 +1,116 @@
+@import '../../../styles/abstracts/variables';
+@import '../../../styles/abstracts/mixins';
+
+.card {
+  @include card;
+  
+  // Variants
+  &--default {
+    // Default styling from mixin
+  }
+  
+  &--outlined {
+    background: transparent;
+    border: $border-width-2 solid var(--color-border);
+    box-shadow: none;
+    
+    &:hover {
+      border-color: var(--color-primary);
+      box-shadow: $shadow-sm;
+    }
+  }
+  
+  &--filled {
+    background: var(--color-surface-light);
+    border: none;
+  }
+  
+  // Padding variants
+  &--padding-none {
+    padding: 0;
+  }
+  
+  &--padding-small {
+    padding: $spacing-4;
+  }
+  
+  &--padding-default {
+    // Default padding from mixin
+  }
+  
+  &--padding-large {
+    padding: $spacing-8;
+    
+    @include breakpoint-down(sm) {
+      padding: $spacing-6;
+    }
+  }
+  
+  // Interactive state
+  &--interactive {
+    cursor: pointer;
+    user-select: none;
+    transition: $transition-all;
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-glow);
+    }
+    
+    &:active {
+      transform: translateY(0);
+      box-shadow: $shadow-sm;
+    }
+    
+    &:focus-visible {
+      @include focus-ring;
+    }
+    
+    // When used as button
+    &[role="button"],
+    &button {
+      border: none;
+      background: inherit;
+      text-align: left;
+      font: inherit;
+      color: inherit;
+      width: 100%;
+    }
+  }
+  
+  // Elevated variant
+  &--elevated {
+    @include card($elevated: true);
+  }
+  
+  // Responsive adjustments
+  @include breakpoint-down(sm) {
+    border-radius: $border-radius-lg;
+    
+    &--padding-default {
+      padding: $spacing-4;
+    }
+  }
+  
+  // High contrast support
+  @include high-contrast {
+    border-width: 2px;
+    
+    &--outlined {
+      border-width: 3px;
+    }
+  }
+  
+  // Reduced motion support
+  @include reduced-motion {
+    transition: none;
+    
+    &--interactive:hover {
+      transform: none;
+    }
+    
+    &--interactive:active {
+      transform: none;
+    }
+  }
+}

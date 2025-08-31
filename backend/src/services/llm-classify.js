@@ -28,10 +28,11 @@ const commercialInvoiceSchema = {
               insurance: { type: "string" },
               total_cif: { type: "string" }
             },
+            required: ["invoice_no", "date", "buyer", "seller", "incoterms", "currency", "subtotal", "freight", "insurance", "total_cif"],
             additionalProperties: false
           }
     },
-    required: ["is_commercial_invoice", "confidence", "reason"],
+    required: ["is_commercial_invoice", "confidence", "reason", "labels_found", "extracted_fields"],
     additionalProperties: false
   },
   strict: true

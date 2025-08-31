@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { apiService } from '../services/apiMigration.js';
 
 const StrategicItemPermitInterface = ({ 
     shipmentId, 
@@ -86,16 +87,14 @@ const StrategicItemPermitInterface = ({
             setError(null);
 
             // Get strategic items status
-            const statusResponse = await fetch(`/api/strategic/status/${shipmentId}`);
-            const statusData = await statusResponse.json();
+            const statusData = await apiService.strategic.getShipmentStatus(shipmentId);
 
             if (statusData.success) {
                 setStrategicStatus(statusData.data.strategic_status);
                 setPermitStatus(statusData.data.permit_status);
                 
                 // Get export validation
-                const validationResponse = await fetch(`/api/strategic/export/validation/${shipmentId}`);
-                const validationData = await validationResponse.json();
+                const validationData = await apiService.strategic.validateExport(shipmentId);
                 
                 if (validationData.success) {
                     setExportValidation(validationData.data);
@@ -210,12 +209,7 @@ const StrategicItemPermitInterface = ({
             const formData = new FormData();
             formData.append('permit', file);
             
-            const response = await fetch(`/api/uploads/permit/${shipmentId}/${permitType}`, {
-                method: 'POST',
-                body: formData
-            });
-            
-            const result = await response.json();
+            const result = await apiService.strategic.uploadPermits(formData);
             
             if (result.success) {
                 setUploadedPermits(prev => ({
@@ -246,12 +240,11 @@ const StrategicItemPermitInterface = ({
                 formData.append('currency', 'USD');
             }
             
-            const response = await fetch(`/api/uploads/insurance/${shipmentId}`, {
-                method: 'POST',
-                body: formData
+            const result = await apiService.uploads.upload({
+                shipment_id: shipmentId,
+                tag: 'insurance',
+                files: [file]
             });
-            
-            const result = await response.json();
             
             if (result.success) {
                 setInsuranceInfo(result.data);

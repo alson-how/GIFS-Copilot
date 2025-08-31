@@ -1,0 +1,33 @@
+/**
+ * Main SCSS Entry Point
+ * Import order is important for cascade and specificity
+ */
+
+// ===========================
+// 1. ABSTRACTS
+// ===========================
+// Variables, mixins, functions (no CSS output)
+@import 'abstracts/variables';
+@import 'abstracts/mixins';
+
+// ===========================
+// 2. BASE
+// ===========================
+// Low-specificity, far-reaching rulesets
+@import 'base/reset';
+
+// ===========================
+// 3. COMPONENTS
+// ===========================
+// Designed components, chunks of UI
+// Components are imported via their individual SCSS files
+// This ensures proper cascade and prevents unused CSS
+
+// ===========================
+// 4. UTILITIES
+// ===========================
+// High-specificity, very explicit utilities
+@import 'utilities/spacing';
+@import 'utilities/text';
+@import 'utilities/layout';
+@import 'utilities/accessibility';

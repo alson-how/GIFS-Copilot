@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { postJSON } from '../services/api.js';
+import { apiService } from '../services/apiMigration.js';
 
 export default function StepAI({ shipmentId, onSaved, isCanvas }){
   const [aica, setAica] = useState(false);
@@ -15,7 +15,7 @@ export default function StepAI({ shipmentId, onSaved, isCanvas }){
     setLoading(true);
     setStatus('');
     try{
-      const res = await postJSON('/api/compliance/ai-chip', {
+      const res = await apiService.compliance.aiChip({
         shipment_id: shipmentId,
         aica_done: aica,
         export_notice_30d: notice,

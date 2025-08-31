@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { postJSON } from '../services/api.js';
+import { apiService } from '../services/apiMigration.js';
 
 export default function StepSTA({ shipmentId, productType, techOrigin }){
   const [hs, setHs] = useState('85423110');
@@ -10,7 +10,7 @@ export default function StepSTA({ shipmentId, productType, techOrigin }){
     setLoading(true);
     setStatus('');
     try{
-      const res = await postJSON('/api/compliance/sta-screening', {
+      const res = await apiService.compliance.staScreening({
         shipment_id: shipmentId,
         hs_code: hs,
         product_type: productType,

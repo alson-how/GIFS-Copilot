@@ -1,0 +1,121 @@
+@import '../../../styles/abstracts/variables';
+@import '../../../styles/abstracts/mixins';
+
+.btn {
+  @include button-base;
+  
+  &__spinner {
+    @include loading-spinner(16px, 2px);
+    margin-right: $spacing-2;
+  }
+  
+  &__content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-2;
+  }
+  
+  // Variants
+  &--primary {
+    @include button-variant(
+      var(--color-primary), 
+      white, 
+      var(--color-primary-hover)
+    );
+  }
+  
+  &--secondary {
+    @include button-variant(
+      var(--color-surface-light), 
+      var(--color-text-primary), 
+      var(--color-surface),
+      $border-width-1 solid var(--color-border)
+    );
+  }
+  
+  &--accent {
+    @include button-variant(
+      var(--color-accent), 
+      var(--color-text-primary)
+    );
+  }
+  
+  &--success {
+    @include button-variant(var(--color-success), white);
+  }
+  
+  &--warning {
+    @include button-variant(var(--color-warning), white);
+  }
+  
+  &--error {
+    @include button-variant(var(--color-error), white);
+  }
+  
+  &--ghost {
+    @include button-variant(
+      transparent, 
+      var(--color-primary), 
+      rgba(90, 140, 179, 0.1),
+      $border-width-1 solid var(--color-primary)
+    );
+  }
+  
+  // Sizes
+  &--small {
+    height: 2rem;
+    padding: $spacing-1 $spacing-3;
+    font-size: $font-size-xs;
+    
+    .btn__spinner {
+      @include loading-spinner(12px, 2px);
+    }
+  }
+  
+  &--medium {
+    // Default size, already defined in button-base
+  }
+  
+  &--large {
+    height: 3rem;
+    padding: $spacing-3 $spacing-6;
+    font-size: $font-size-lg;
+    
+    .btn__spinner {
+      @include loading-spinner(20px, 2px);
+    }
+  }
+  
+  // Loading state
+  &--loading {
+    cursor: not-allowed;
+    
+    .btn__content {
+      opacity: 0.7;
+    }
+  }
+  
+  // Accessibility
+  &:focus-visible {
+    @include focus-ring;
+  }
+  
+  // High contrast support
+  @include high-contrast {
+    border-width: 2px;
+  }
+  
+  // Reduced motion support
+  @include reduced-motion {
+    transition: none;
+    
+    .btn__spinner {
+      animation: none;
+    }
+    
+    &:hover {
+      transform: none;
+    }
+  }
+}

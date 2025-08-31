@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { postBasics } from '../services/api.js';
+import { apiService } from '../services/apiMigration.js';
 import StrategicItemPermitInterface from './StrategicItemPermitInterface.jsx';
 
 export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isCanvas }) {
@@ -118,18 +118,9 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     try {
       console.log('🏭 Generating shipping documents for shipment:', shipmentId);
       
-      const response = await fetch('/api/document-generation/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          shipmentId,
-          invoiceData
-        })
+      const result = await apiService.generateDocuments(shipmentId, {
+        invoiceData
       });
-
-      const result = await response.json();
       
       if (result.success) {
         console.log('✅ Documents generated successfully:', result.data);
@@ -197,18 +188,10 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       
       console.log('🔍 Detection items prepared:', detectionItems);
 
-      const response = await fetch('/api/strategic/detect', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          shipment_id: shipmentId,
-          product_items: detectionItems
-        })
+      const data = await apiService.strategic.detect({
+        shipment_id: shipmentId,
+        product_items: detectionItems
       });
-
-      const data = await response.json();
 
       if (data.success) {
         console.log('✅ Strategic detection completed:', data.data);
@@ -458,14 +441,9 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       formData.append('document_type', docType);
       formData.append('shipment_id', shipmentId);
       
-      const response = await fetch('/api/documents/upload-supporting', {
-        method: 'POST',
-        body: formData
-      });
+      const result = await apiService.uploadSupportingDocument(formData);
       
-      if (response.ok) {
-        const result = await response.json();
-        setUploadedDocuments(prev => ({
+              setUploadedDocuments(prev => ({
           ...prev,
           [docType]: {
             filename: file.name,
@@ -474,9 +452,6 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           }
         }));
         setStatus(`✅ ${docType} uploaded successfully`);
-      } else {
-        setStatus(`❌ Failed to upload ${docType}`);
-      }
     } catch (error) {
       console.error('File upload error:', error);
       setStatus(`❌ Error uploading ${docType}: ${error.message}`);
@@ -539,22 +514,14 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       }
     } else {
       // Load default OCR data when no canvas data is provided (for demo/testing)
-      const loadDefaultOCRData = async () => {
-        try {
-          const response = await fetch('/api/documents/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ demo: true })
-          });
-          
-          if (response.ok) {
-            const ocrData = await response.json();
+              const loadDefaultOCRData = async () => {
+          try {
+            const ocrData = await apiService.uploadDocument(formData);
             if (ocrData.fieldSuggestions) {
-              console.log('🔄 Loading default OCR data for demo:', ocrData.fieldSuggestions);
-              handleAutoFill(ocrData.fieldSuggestions);
-              setStatus('📊 Demo OCR data loaded - showing sample Commercial Invoice data');
-            }
-          }
+        console.log('🔄 Loading default OCR data for demo:', ocrData.fieldSuggestions);
+        handleAutoFill(ocrData.fieldSuggestions);
+        setStatus('📊 Demo OCR data loaded - showing sample Commercial Invoice data');
+      }
         } catch (error) {
           console.log('No default OCR data available:', error.message);
         }
@@ -792,7 +759,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       // Use first product item for backward compatibility with single-product API
       const firstItem = productItems[0] || {};
       
-      const res = await postBasics({
+      const res = await apiService.shipments.createBasics({
         shipment_id: shipmentId || undefined,
         export_date: exportDate,
         mode,
