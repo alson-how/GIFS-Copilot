@@ -12,6 +12,7 @@ import AdminSidebar from './AdminSidebar';
 import AIQuery from '../AIQuery';
 import AdminDashboardHome from '../admin/AdminDashboardHome';
 import ManageShipments from '../admin/ManageShipments';
+import ShipmentDetails from '../ShipmentDetails';
 
 import './AdminDashboard.scss';
 
@@ -80,6 +81,7 @@ const AdminDashboard = () => {
             <Route path="/dashboard" element={<AdminDashboardHome />} />
             <Route path="/ai-query" element={<AIQuery />} />
             <Route path="/manage-shipments" element={<ManageShipments />} />
+            <Route path="/shipment/:shipmentId" element={<ShipmentDetails />} />
             
             {/* Catch-all redirect to Dashboard */}
             <Route path="*" element={<AdminDashboardHome />} />

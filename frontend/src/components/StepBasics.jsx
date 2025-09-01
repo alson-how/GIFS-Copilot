@@ -2,43 +2,66 @@ import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/apiMigration.js';
 
 import AddressSelector from './molecules/AddressSelector/AddressSelector.jsx';
+import StrategicItemDetection from './molecules/StrategicItemDetection/StrategicItemDetection.jsx';
 
 export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isCanvas }) {
-  console.log('🚀 StepBasics component rendered');
-  console.log('🚀 canvasData prop:', canvasData);
   
   // VERY OBVIOUS TEST - this will show an alert if component is rendering
   if (typeof window !== 'undefined') {
     setTimeout(() => {
-      console.log('🚀 ALERT TEST: StepBasics is definitely rendering!');
       // Uncomment this line to test: alert('StepBasics component is rendering!');
     }, 1000);
   }
   
   const [shipmentId, setShipmentId] = useState(defaultShipmentId || (crypto?.randomUUID?.() || ''));
   
-  // Debug logging for shipment ID
-  console.log('🚀 StepBasics render - shipmentId:', shipmentId);
-  console.log('🚀 StepBasics render - canvasData?.shipmentId:', canvasData?.shipmentId);
   const [exportDate, setExportDate] = useState('');
   const [mode, setMode] = useState('air');
   const [destination, setDestination] = useState('China');
   const [endUser, setEndUser] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState(null);
-  const [enableAddressBook, setEnableAddressBook] = useState(true);
+  const [pickupAddress, setPickupAddress] = useState(null);
+  const [enableAddressBook, setEnableAddressBook] = useState(true); // Show address book by default
 
   // Update shipmentId when canvasData contains a new shipmentId from invoice processing
   useEffect(() => {
     if (canvasData?.shipmentId && canvasData.shipmentId !== shipmentId) {
-      console.log('🆔 StepBasics: Updating shipmentId from canvasData:', canvasData.shipmentId);
-      console.log('🆔 StepBasics: Previous shipmentId:', shipmentId);
       setShipmentId(canvasData.shipmentId);
     } else if (canvasData?.shipmentId) {
-      console.log('🆔 StepBasics: Canvas shipmentId already matches current:', canvasData.shipmentId);
     } else if (canvasData) {
-      console.log('🆔 StepBasics: Canvas data exists but no shipmentId:', canvasData);
     }
   }, [canvasData?.shipmentId, shipmentId]);
+
+  // Load existing shipment data into form fields
+  useEffect(() => {
+    if (canvasData && typeof canvasData === 'object') {
+      
+      // Pre-populate form fields from existing shipment data
+      if (canvasData.export_date) {
+        setExportDate(canvasData.export_date);
+      }
+      
+      if (canvasData.mode) {
+        setMode(canvasData.mode);
+      }
+      
+      if (canvasData.destination_country) {
+        setDestination(canvasData.destination_country);
+      }
+      
+      if (canvasData.end_user_name) {
+        setEndUser(canvasData.end_user_name);
+      }
+      
+      if (canvasData.incoterms) {
+        setIncoterms(canvasData.incoterms);
+      }
+
+      if (canvasData.currency) {
+        setCurrency(canvasData.currency);
+      }
+    }
+  }, [canvasData]);
   
   // Multi-product state - array of product items
   const [productItems, setProductItems] = useState([{
@@ -66,11 +89,9 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   
+  // Strategic detection is now handled by StrategicItemDetection component
   const [strategicItemsDetected, setStrategicItemsDetected] = useState(false);
-  const [strategicDetectionComplete, setStrategicDetectionComplete] = useState(false);
-  const [strategicDetectionLoading, setStrategicDetectionLoading] = useState(false);
   const [exportBlocked, setExportBlocked] = useState(false);
-  const [complianceScore, setComplianceScore] = useState(100);
   const [missingPermits, setMissingPermits] = useState([]);
 
   // Product item management functions
@@ -127,142 +148,24 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   // Document Generation
   const generateShippingDocuments = async (shipmentId, invoiceData) => {
     try {
-      console.log('🏭 Generating shipping documents for shipment:', shipmentId);
       
       const result = await apiService.generateDocuments(shipmentId, {
         invoiceData
       });
       
       if (result.success) {
-        console.log('✅ Documents generated successfully:', result.data);
         setStatus(`📄 Generated ${result.data.generatedDocuments} shipping documents`);
       } else {
-        console.error('❌ Document generation failed:', result.error);
         setStatus(`⚠️ Document generation failed: ${result.error}`);
       }
     } catch (error) {
-      console.error('❌ Error generating documents:', error);
       setStatus(`⚠️ Error generating documents: ${error.message}`);
     }
   };
 
-  // Strategic Items Detection
-  const triggerStrategicDetection = async () => {
-    if (strategicDetectionLoading) {
-      console.log('⏳ Strategic detection already in progress, skipping...');
-      return;
-    }
-    
-    try {
-      console.log('🔍 Triggering strategic items detection for shipment:', shipmentId);
-      setStrategicDetectionLoading(true);
-      
-      let detectionItems = [];
-      
-      // First try to use OCR data if available
-      if (canvasData?.ocrData?.fieldSuggestions?.product_items?.value?.length > 0) {
-        console.log('🔍 Using OCR product items for detection');
-        const ocrItems = canvasData.ocrData.fieldSuggestions.product_items.value;
-        detectionItems = ocrItems.map(item => ({
-          description: item.description,
-          hs_code: item.hs_code,
-          technical_specs: {
-            semiconductor_category: 'ai_accelerator', // Inferred from description
-            technology_origin: canvasData.ocrData.fieldSuggestions.technology_origin?.value || 'singapore',
-            quantity: parseFloat(item.quantity) || 0,
-            unit_price: parseFloat(item.unit_price) || 0,
-            commercial_value: parseFloat(item.line_total) || 0
-          }
-        })).filter(item => item.description && item.description.trim() !== '');
-      }
-      
-      // Fallback to form data if no OCR data
-      if (detectionItems.length === 0) {
-        console.log('🔍 Using form product items for detection');
-        detectionItems = productItems.map(item => ({
-          description: item.productDescription,
-          hs_code: item.hsCode,
-          technical_specs: {
-            semiconductor_category: item.semiconductorCategory,
-            technology_origin: item.technologyOrigin,
-            quantity: parseFloat(item.quantity) || 0,
-            unit_price: parseFloat(item.unitPrice) || 0,
-            commercial_value: parseFloat(item.commercialValue) || 0
-          }
-        })).filter(item => item.description && item.description.trim() !== '');
-      }
+  // Strategic Items Detection is now handled by StrategicItemDetection component
 
-      if (detectionItems.length === 0) {
-        console.log('⚠️ No items with descriptions found for strategic detection');
-        return;
-      }
-      
-      console.log('🔍 Detection items prepared:', detectionItems);
-
-      const data = await apiService.strategic.detect({
-        shipment_id: shipmentId,
-        product_items: detectionItems
-      });
-
-      if (data.success) {
-        console.log('✅ Strategic detection completed:', data.data);
-        
-        let strategicItemsCount = data.data.strategic_items_found;
-        let calculatedComplianceScore = 100;
-        
-        if (data.data.strategic_items_found > 0) {
-          if (data.data.export_blocked) {
-            calculatedComplianceScore = 0; // Blocked due to missing permits - 0% compliance
-          } else {
-            calculatedComplianceScore = 25; // Strategic items detected - requires permits, low compliance until permits uploaded
-          }
-        }
-        
-        setStrategicItemsDetected(strategicItemsCount > 0);
-        setExportBlocked(data.data.export_blocked || (strategicItemsCount > 0)); // Block export if strategic items found
-        setComplianceScore(data.data.overall_compliance_score || calculatedComplianceScore);
-        // Set missing permits based on required permits (all are missing until uploaded)
-        const requiredPermits = data.data.required_permits || [];
-        setMissingPermits(requiredPermits); // All required permits are initially missing
-        setStrategicDetectionComplete(true);
-        
-        // Update product items with strategic flags
-        const updatedItems = productItems.map(item => {
-          const detectionResult = data.data.detection_results.find(
-            result => result.product_description === item.productDescription
-          );
-          
-          if (detectionResult) {
-            return {
-              ...item,
-              isStrategic: detectionResult.is_strategic,
-              strategicCodes: detectionResult.strategic_codes || []
-            };
-          }
-          
-          return item;
-        });
-        
-        setProductItems(updatedItems);
-      } else {
-        console.error('❌ Strategic detection failed:', data.error);
-      }
-    } catch (error) {
-      console.error('❌ Strategic detection error:', error);
-    } finally {
-      setStrategicDetectionLoading(false);
-    }
-  };
-
-  // Handle strategic compliance changes
-  const handleComplianceChange = (complianceData) => {
-    setStrategicItemsDetected(complianceData.hasStrategicItems);
-    setExportBlocked(complianceData.exportBlocked);
-    setComplianceScore(complianceData.complianceScore);
-    setMissingPermits(complianceData.missingPermits || []);
-    
-    console.log('🔒 Compliance status updated:', complianceData);
-  };
+  // Strategic compliance is now handled by StrategicItemDetection component
 
   // Handle delivery address selection
   const handleDeliveryAddressChange = (address) => {
@@ -270,34 +173,34 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     
     if (address) {
       // Extract destination country and end user from selected address
-      setDestination(address.country || 'China');
-      setEndUser(address.contact_name || address.label || '');
+      const newDestination = address.country || 'China';
+      const newEndUser = address.contact_name || address.label || '';
+      
+      setDestination(newDestination);
+      setEndUser(newEndUser);
+    } else {
     }
+  };
+
+  // Handle pickup address selection
+  const handlePickupAddressChange = (address) => {
+    setPickupAddress(address);
   };
 
   // Calculate totals and summaries
   const getTotalValue = () => {
-    console.log('🔍 getTotalValue called');
-    console.log('🔍 canvasData:', canvasData);
-    console.log('🔍 canvasData?.ocrData:', canvasData?.ocrData);
-    console.log('🔍 canvasData?.ocrData?.fieldSuggestions:', canvasData?.ocrData?.fieldSuggestions);
-    console.log('🔍 commercial_value available:', !!canvasData?.ocrData?.fieldSuggestions?.commercial_value);
     
     // First try to get the commercial_value from OCR data (this is the SUBTOTAL from the invoice)
     if (canvasData?.ocrData?.fieldSuggestions?.commercial_value?.value) {
       const ocrTotal = canvasData.ocrData.fieldSuggestions.commercial_value.value;
-      console.log('🧮 Using OCR SUBTOTAL:', ocrTotal);
       return ocrTotal;
     }
     
     // Fallback to manual calculation from product items
-    console.log('🔍 Falling back to manual calculation, productItems:', productItems);
     const total = productItems.reduce((sum, item) => {
       const value = parseFloat(item.commercialValue) || 0;
-      console.log(`🧮 Item ${item.id}: commercialValue="${item.commercialValue}" -> ${value}`);
       return sum + value;
     }, 0);
-    console.log('🧮 Manual total calculated:', total);
     return total;
   };
 
@@ -426,11 +329,8 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     const requirements = [];
     const hasStrategicItems = items.some(item => item.isStrategic);
     const totalValue = items.reduce((sum, item) => sum + (parseFloat(item.commercialValue) || 0), 0);
-    console.log('items', items);
-		console.log('hasStrategicItems', hasStrategicItems);
         // High-value shipments (>$224K) require insurance certificate
     if (totalValue > 100000) {
-      console.log('🛡️ HIGH-VALUE DETECTED: Adding insurance requirement for $', totalValue);
       requirements.push({
         id: 'insurance_cert',
         type: 'Insurance Certificate',
@@ -478,7 +378,6 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
         }));
         setStatus(`✅ ${docType} uploaded successfully`);
     } catch (error) {
-      console.error('File upload error:', error);
       setStatus(`❌ Error uploading ${docType}: ${error.message}`);
     }
   };
@@ -516,18 +415,10 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       
       // Auto-fill from OCR data if available
       if (canvasData.ocrData && canvasData.ocrData.fieldSuggestions) {
-        console.log('🔄 Applying OCR auto-fill from canvas data:', canvasData.ocrData.fieldSuggestions);
         handleAutoFill(canvasData.ocrData.fieldSuggestions);
         
         // Also populate product items from OCR table data
-        console.log('📦 Populating product items from OCR data');
-        console.log('📦 OCR data structure:', canvasData.ocrData);
-        console.log('📦 Has invoice_table:', !!canvasData.ocrData.fieldSuggestions.invoice_table);
-        console.log('📦 Has product_items:', !!canvasData.ocrData.fieldSuggestions.product_items);
         if (canvasData.ocrData.fieldSuggestions.invoice_table) {
-          console.log('📊 Invoice table structure:', canvasData.ocrData.fieldSuggestions.invoice_table);
-          console.log('📊 Table headers:', canvasData.ocrData.fieldSuggestions.invoice_table.headers);
-          console.log('📊 Table rows count:', canvasData.ocrData.fieldSuggestions.invoice_table.rows?.length);
         }
         populateFromOCR(canvasData.ocrData);
       }
@@ -543,12 +434,10 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           try {
             const ocrData = await apiService.uploadDocument(formData);
             if (ocrData.fieldSuggestions) {
-        console.log('🔄 Loading default OCR data for demo:', ocrData.fieldSuggestions);
         handleAutoFill(ocrData.fieldSuggestions);
         setStatus('📊 Demo OCR data loaded - showing sample Commercial Invoice data');
       }
         } catch (error) {
-          console.log('No default OCR data available:', error.message);
         }
       };
       
@@ -556,42 +445,19 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     }
   }, [canvasData]);
 
-  // Strategic Items Detection Trigger
-  useEffect(() => {
-    // Check if we have OCR data with product items from Commercial Invoice
-    const hasOCRProductItems = canvasData?.ocrData?.fieldSuggestions?.product_items?.value?.length > 0;
-    const hasFormProductItems = productItems.filter(item => 
-      item.productDescription && item.productDescription.trim() !== ''
-    ).length > 0;
-    
-    if ((hasOCRProductItems || hasFormProductItems) && !strategicDetectionComplete && !strategicDetectionLoading && shipmentId) {
-      console.log('🔍 Product items detected, triggering strategic detection...');
-      console.log('🔍 OCR product items:', hasOCRProductItems ? canvasData.ocrData.fieldSuggestions.product_items.value.length : 0);
-      console.log('🔍 Form product items:', hasFormProductItems ? productItems.length : 0);
-      triggerStrategicDetection();
-    }
-  }, [productItems, canvasData, strategicDetectionComplete, strategicDetectionLoading, shipmentId]);
+  // Strategic Items Detection is now handled by StrategicItemDetection component
 
   // Conditional logic: high-value shipment
   useEffect(() => {
-    console.log('🔍 High-value useEffect triggered');
-    console.log('🔍 productItems:', productItems);
-    console.log('🔍 canvasData in useEffect:', canvasData);
-    console.log('🔍 canvasData?.ocrData in useEffect:', canvasData?.ocrData);
     const totalValue = getTotalValue();
-    console.log('🔍 totalValue:', totalValue);
     if (totalValue > 100000) {
-      console.log('🚨 HIGH-VALUE SHIPMENT DETECTED: $', totalValue);
       if (shipmentPriority === 'Standard') {
         setShipmentPriority('Urgent');
-        console.log('🚨 High-value shipment detected - upgraded to Urgent priority');
       }
       if (!insuranceRequired) {
         setInsuranceRequired(true);
-        console.log('🛡️ High-value shipment detected - enabled insurance requirement');
       }
     } else {
-      console.log('📊 Normal-value shipment: $', totalValue);
     }
   }, [productItems, shipmentPriority, insuranceRequired, canvasData]);
 
@@ -619,38 +485,31 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       }
       
       if (isNaN(date.getTime())) {
-        console.warn('Invalid date format:', dateString);
         return '';
       }
       
       // Return in YYYY-MM-DD format for HTML date input
       return date.toISOString().split('T')[0];
     } catch (error) {
-      console.warn('Error formatting date:', dateString, error);
       return '';
     }
   };
 
   // Handle auto-fill from OCR document processing
   function handleAutoFill(suggestions) {
-    console.log('🔄 Applying OCR auto-fill suggestions:', suggestions);
-    console.log('🔍 Checking for consignee_name in suggestions:', suggestions.consignee_name);
     
     // Map OCR field names to shipment-level setters
     const shipmentFieldMapping = {
       'currency': (value) => setCurrency(value),
       'consignee_name': (value) => {
-        console.log('✅ Setting endUser from consignee_name:', value);
         setEndUser(value);
       },
       'end_user_consignee_name': (value) => {
-        console.log('✅ Setting endUser from end_user_consignee_name:', value);
         setEndUser(value);
       },
       'incoterms': (value) => setIncoterms(value),
       'destination_country': (value) => setDestination(value),
       'transport_mode': (value) => {
-        console.log('✅ Setting transport mode from transport_mode:', value);
         // Map transport mode values
         const modeMapping = {
           'sea': 'sea',
@@ -669,7 +528,6 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
         setMode(mappedMode);
       },
       'target_export_date': (value) => {
-        console.log('✅ Setting export date from target_export_date:', value);
         // Handle different date formats
         const formattedDate = formatDateForInput(value);
         setExportDate(formattedDate);
@@ -683,7 +541,6 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     // Additional shipment-level mappings for missing fields
     const additionalMappings = {
       'technology_origin': (value) => {
-        console.log('✅ Setting technology origin for first product item:', value);
         if (productItems.length > 0) {
           updateItem(productItems[0].id, 'technologyOrigin', value);
         }
@@ -703,9 +560,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
             shipmentSetter(value);
             appliedCount++;
             const source = typeof suggestion === 'object' && suggestion.source ? suggestion.source : 'OCR';
-            console.log(`✅ Applied shipment field ${fieldName}: ${value} (from ${source})`);
           } catch (error) {
-            console.warn(`⚠️ Failed to apply ${fieldName}:`, error);
           }
         }
       }
@@ -731,21 +586,14 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
                   updateItem(firstItemId, mappedField, value);
                   appliedCount++;
                   const source = typeof suggestion === 'object' && suggestion.source ? suggestion.source : 'OCR';
-                  console.log(`✅ Applied product field ${fieldName}: ${value} (from ${source})`);
                 }
             }
           } catch (error) {
-            console.warn(`⚠️ Failed to apply product field ${fieldName}:`, error);
           }
         }
       }
     }
 
-    // Log summary of what was processed
-    console.log(`🔄 OCR Auto-fill Summary: ${appliedCount} fields applied from ${Object.keys(suggestions).length} suggestions`);
-    console.log('🔍 Available fields in suggestions:', Object.keys(suggestions));
-    console.log('🔍 Mapped shipment fields:', Object.keys(shipmentFieldMapping));
-    console.log('🔍 Product fields to check:', productFields);
     
     // Show success message
     if (appliedCount > 0) {
@@ -753,11 +601,9 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       
       // Conditional logic based on auto-filled commercial value
       const totalValue = getTotalValue();
-			console.log('totalValue 483', totalValue);
       if (totalValue > 100000) {
         setShipmentPriority('Urgent');
         setInsuranceRequired(true);
-        console.log('🚨 High-value shipment detected - set to Urgent priority with insurance');
       }
     } else {
       setStatus('⚠️ No matching fields found for auto-fill');
@@ -804,6 +650,31 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
         insurance_required: insuranceRequired,
         consignee_registration: consigneeRegistration || null,
         shipment_priority: shipmentPriority,
+        // Address information
+        delivery_address: deliveryAddress ? {
+          address_id: deliveryAddress.id,
+          label: deliveryAddress.label,
+          line1: deliveryAddress.line1 || deliveryAddress.address_line_1,
+          line2: deliveryAddress.line2 || deliveryAddress.address_line_2,
+          city: deliveryAddress.city,
+          state: deliveryAddress.state,
+          postcode: deliveryAddress.postcode,
+          country: deliveryAddress.country,
+          contact_name: deliveryAddress.contact_name,
+          contact_phone: deliveryAddress.contact_phone
+        } : null,
+        pickup_address: pickupAddress ? {
+          address_id: pickupAddress.id,
+          label: pickupAddress.label,
+          line1: pickupAddress.line1 || pickupAddress.address_line_1,
+          line2: pickupAddress.line2 || pickupAddress.address_line_2,
+          city: pickupAddress.city,
+          state: pickupAddress.state,
+          postcode: pickupAddress.postcode,
+          country: pickupAddress.country,
+          contact_name: pickupAddress.contact_name,
+          contact_phone: pickupAddress.contact_phone
+        } : null,
         // Multi-product data for future API enhancement
         product_items: productItems,
         strategic_count: getStrategicCount(),
@@ -814,10 +685,12 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       const strategicCount = getStrategicCount();
       const aiChipCount = getAIChipCount();
       
-      let statusMessage = `✅ Shipment basics saved successfully (${itemCount} product${itemCount > 1 ? 's' : ''})`;
+      let statusMessage = `✅ Shipment updated successfully (${itemCount} product${itemCount > 1 ? 's' : ''})`;
       if (strategicCount > 0) statusMessage += ` - ${strategicCount} strategic item${strategicCount > 1 ? 's' : ''}`;
       if (aiChipCount > 0) statusMessage += ` - ${aiChipCount} AI chip${aiChipCount > 1 ? 's' : ''}`;
-      statusMessage += ` - Proceeding to next step...`;
+      if (pickupAddress) statusMessage += ` - Pickup: ${pickupAddress.label}`;
+      if (deliveryAddress) statusMessage += ` - Delivery: ${deliveryAddress.label}`;
+      statusMessage += ` - Data saved!`;
       
       setStatus(statusMessage);
       const id = res?.shipment_id || shipmentId;
@@ -1074,7 +947,19 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           </div>
         )}
 
-                    {/* Strategic Items Permit Interface moved to ShipmentDetails */}
+        {/* Strategic Items Detection */}
+        <div style={{ marginBottom: '2rem' }}>
+          <StrategicItemDetection
+            shipmentId={shipmentId}
+            productItems={productItems}
+            canvasData={canvasData}
+            onStrategicStatusChange={(status) => {
+              setStrategicItemsDetected(status.hasStrategicItems);
+              setExportBlocked(status.exportBlocked);
+              setMissingPermits(status.missingPermits || []);
+            }}
+          />
+        </div>
 
         {/* Section 1: Basic Information */}
         <div style={{ marginBottom: '2rem' }}>
@@ -1265,115 +1150,93 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           </div>
         </div>
 
-        {/* Section 4: Delivery Address & Destination */}
+        {/* Section 4: Pickup Address */}
+        <div style={{ marginBottom: '2rem' }}>
+          <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
+            📍 Pickup Address
+          </h3>
+          
+          <div style={{ marginBottom: '1.5rem' }}>
+            <AddressSelector
+              value={pickupAddress}
+              onChange={handlePickupAddressChange}
+              type="pickup"
+              label="Pickup Address"
+              required={false}
+              placeholder="Choose a pickup address from your address book"
+              className="step-basics__pickup-address-selector"
+            />
+            
+            {!pickupAddress && (
+              <div style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                💡 Select where the goods will be collected from. Save addresses in your <a href="/dashboard/addresses" target="_blank" style={{ color: 'var(--primary)' }}>Address Book</a> for quick selection.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Section 5: Delivery Address & Destination */}
         <div style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
             <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem', flex: 1 }}>
               🏢 Delivery Address & Destination
             </h3>
-            {enableAddressBook && (
-              <button
-                type="button"
-                onClick={() => setEnableAddressBook(false)}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-secondary)',
-                  padding: '0.25rem 0.5rem',
-                  borderRadius: '4px',
-                  fontSize: '0.75rem',
-                  cursor: 'pointer',
-                  marginLeft: '1rem'
-                }}
-              >
-                Manual Entry
-              </button>
-            )}
           </div>
           
-          {enableAddressBook ? (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <AddressSelector
-                value={deliveryAddress}
-                onChange={handleDeliveryAddressChange}
-                type="shipping"
-                label="Delivery Address"
-                required={true}
-                placeholder="Choose a saved delivery address or enter a new one"
-                className="step-basics__address-selector"
-              />
-              
-              {!deliveryAddress && (
-                <div style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  💡 Tip: Save addresses in your <a href="/dashboard/addresses" target="_blank" style={{ color: 'var(--primary)' }}>Address Book</a> for quick selection in future shipments
-                </div>
-              )}
-            </div>
-          ) : (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div className="form-row">
-                <div className="form-field">
-                  <label className="form-label">Destination Country *</label>
-                  <select 
-                    className="form-select"
-                    value={destination} 
-                    onChange={e=>setDestination(e.target.value)}
-                    required
-                  >
-                    <option value="China">🇨🇳 China</option>
-                    <option value="United States">🇺🇸 United States</option>
-                    <option value="Singapore">🇸🇬 Singapore</option>
-                    <option value="Thailand">🇹🇭 Thailand</option>
-                    <option value="Vietnam">🇻🇳 Vietnam</option>
-                    <option value="Japan">🇯🇵 Japan</option>
-                    <option value="South Korea">🇰🇷 South Korea</option>
-                    <option value="Taiwan">🇹🇼 Taiwan</option>
-                    <option value="Indonesia">🇮🇩 Indonesia</option>
-                    <option value="Philippines">🇵🇭 Philippines</option>
-                    <option value="India">🇮🇳 India</option>
-                    <option value="Germany">🇩🇪 Germany</option>
-                    <option value="United Kingdom">🇬🇧 United Kingdom</option>
-                    <option value="France">🇫🇷 France</option>
-                    <option value="Netherlands">🇳🇱 Netherlands</option>
-                    <option value="Australia">🇦🇺 Australia</option>
-                    <option value="Canada">🇨🇦 Canada</option>
-                    <option value="Mexico">🇲🇽 Mexico</option>
-                    <option value="Brazil">🇧🇷 Brazil</option>
-                  </select>
-                </div>
+          {/* Address Book Selector */}
 
-                <div className="form-field">
-                  <label className="form-label">End User / Consignee *</label>
-                  <input 
-                    className="form-input"
-                    placeholder="Company name receiving the goods"
-                    value={endUser} 
-                    onChange={e=>setEndUser(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div style={{ marginTop: '1rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setEnableAddressBook(true)}
-                  style={{
-                    background: 'var(--primary)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '0.5rem 1rem',
-                    borderRadius: '4px',
-                    fontSize: '0.85rem',
-                    cursor: 'pointer'
-                  }}
+          {/* Manual Destination Fields */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ color: 'var(--text)', margin: '0 0 1rem 0', fontSize: '1rem' }}>
+              Manual Destination Details
+            </h4>
+            <div className="form-row">
+              <div className="form-field">
+                <label className="form-label">Destination Country *</label>
+                <select 
+                  className="form-select"
+                  value={destination} 
+                  onChange={e=>setDestination(e.target.value)}
+                  required
                 >
-                  📍 Use Address Book Instead
-                </button>
+                  <option value="China">🇨🇳 China</option>
+                  <option value="United States">🇺🇸 United States</option>
+                  <option value="Singapore">🇸🇬 Singapore</option>
+                  <option value="Thailand">🇹🇭 Thailand</option>
+                  <option value="Vietnam">🇻🇳 Vietnam</option>
+                  <option value="Japan">🇯🇵 Japan</option>
+                  <option value="South Korea">🇰🇷 South Korea</option>
+                  <option value="Taiwan">🇹🇼 Taiwan</option>
+                  <option value="Indonesia">🇮🇩 Indonesia</option>
+                  <option value="Philippines">🇵🇭 Philippines</option>
+                  <option value="India">🇮🇳 India</option>
+                  <option value="Germany">🇩🇪 Germany</option>
+                  <option value="United Kingdom">🇬🇧 United Kingdom</option>
+                  <option value="France">🇫🇷 France</option>
+                  <option value="Netherlands">🇳🇱 Netherlands</option>
+                  <option value="Australia">🇦🇺 Australia</option>
+                  <option value="Canada">🇨🇦 Canada</option>
+                  <option value="Mexico">🇲🇽 Mexico</option>
+                  <option value="Brazil">🇧🇷 Brazil</option>
+                </select>
+              </div>
+
+              <div className="form-field">
+                <label className="form-label">End User / Consignee *</label>
+                <input 
+                  className="form-input"
+                  placeholder="Company name receiving the goods"
+                  value={endUser} 
+                  onChange={e=>setEndUser(e.target.value)}
+                  required
+                />
               </div>
             </div>
-          )}
+          </div>
+        </div>
 
+        {/* Section 6: Additional Fields */}
+        <div style={{ marginBottom: '2rem' }}>
           <div className="form-row">
             <div className="form-field">
               <label className="form-label">Consignee Registration (Optional)</label>
@@ -1401,7 +1264,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
             className={`btn ${isFormValid ? 'btn-primary' : 'btn-disabled'}`}
             disabled={loading || !isFormValid}
           >
-            {loading ? '⏳ Saving...' : '➡️ Proceed to Next Step'}
+            {loading ? '⏳ Updating...' : '💾 Update Shipment'}
           </button>
           
           {!isFormValid && (

@@ -1,17 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useAdminAuth } from '../contexts/AdminAuthContext';
+import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { apiRequest } from '../config/api.js';
 import { apiService } from '../services/apiMigration.js';
 import StepBasics from './StepBasics.jsx';
 import StepAI from './StepAI.jsx';
 import StepScreening from './StepScreening.jsx';
 import StepDocs from './StepDocs.jsx';
-import Sidebar from './Sidebar';
-import StrategicItemPermitInterface from './StrategicItemPermitInterface.jsx';
+import AdminSidebar from './layout/AdminSidebar';
+import CustomerSidebar from './layout/CustomerSidebar';
+import StrategicItemDetection from './molecules/StrategicItemDetection/StrategicItemDetection.jsx';
 
 export default function ShipmentDetails() {
   const { shipmentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Detect role based on URL path
+  const isAdminRoute = location.pathname.startsWith('/admin/');
+  
+  // Use appropriate auth context based on route
+  const adminAuth = useAdminAuth();
+  const customerAuth = useCustomerAuth();
+  
+  // Determine which auth context to use
+  const auth = isAdminRoute ? adminAuth : customerAuth;
+  const user = isAdminRoute ? adminAuth.admin : customerAuth.customer;
+  
   
   // Canvas state
   const [currentCanvasStep, setCurrentCanvasStep] = useState(1);
@@ -22,16 +38,7 @@ export default function ShipmentDetails() {
   
   // Sidebar state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [currentView, setCurrentView] = useState('shipment-details');
   
-  // Strategic detection state
-  const [strategicItemsDetected, setStrategicItemsDetected] = useState(false);
-  const [strategicDetectionComplete, setStrategicDetectionComplete] = useState(false);
-  const [strategicDetectionLoading, setStrategicDetectionLoading] = useState(false);
-  const [exportBlocked, setExportBlocked] = useState(false);
-  const [complianceScore, setComplianceScore] = useState(100);
-  const [missingPermits, setMissingPermits] = useState([]);
-  const [strategicItemsCount, setStrategicItemsCount] = useState(0);
 
   // Load shipment data on mount and when shipmentId changes
   useEffect(() => {
@@ -40,20 +47,6 @@ export default function ShipmentDetails() {
     }
   }, [shipmentId]);
 
-  // Load Strategic Status when shipment data is available
-  useEffect(() => {
-    console.log('🔍 ShipmentDetails: Strategic status useEffect triggered');
-    console.log('🔍 ShipmentDetails: strategicDetectionComplete:', strategicDetectionComplete);
-    console.log('🔍 ShipmentDetails: strategicDetectionLoading:', strategicDetectionLoading);
-    console.log('🔍 ShipmentDetails: shipmentId:', shipmentId);
-    console.log('🔍 ShipmentDetails: shipmentData available:', !!shipmentData);
-    console.log('🔍 ShipmentDetails: invoiceProcessingData available:', !!shipmentData?.invoiceProcessingData);
-    
-    if (!strategicDetectionComplete && !strategicDetectionLoading && shipmentId && shipmentData) {
-      console.log('🔍 ShipmentDetails: Loading strategic status for shipment...');
-      loadStrategicStatus();
-    }
-  }, [shipmentId, strategicDetectionComplete, strategicDetectionLoading, shipmentData]);
 
   const loadShipmentData = async (id) => {
     try {
@@ -71,7 +64,6 @@ export default function ShipmentDetails() {
       }
       
       const shipmentResult = await shipmentResponse.json();
-      console.log('📦 Loaded shipment metadata:', shipmentResult);
       
       // Handle the API response format {"ok": true, "shipment": {...}}
       const shipmentData = shipmentResult.shipment || shipmentResult;
@@ -80,12 +72,9 @@ export default function ShipmentDetails() {
       let invoiceData = null;
       if (invoiceResponse.ok) {
         const invoiceResult = await invoiceResponse.json();
-        console.log('📄 Loaded invoice processing data:', invoiceResult);
         if (invoiceResult.success && invoiceResult.data) {
           invoiceData = invoiceResult.data;
         }
-      } else {
-        console.log('ℹ️ No invoice processing data found for this shipment');
       }
       
       // Merge shipment metadata with invoice processing data
@@ -107,7 +96,6 @@ export default function ShipmentDetails() {
         })
       };
       
-      console.log('🔄 Merged shipment data:', mergedData);
       setShipmentData(mergedData);
       
       // Set basics data for step navigation
@@ -122,137 +110,15 @@ export default function ShipmentDetails() {
       }
       
     } catch (err) {
-      console.error('❌ Error loading shipment:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Load Strategic Status (get existing results)
-  const loadStrategicStatus = async () => {
-    if (strategicDetectionLoading) {
-      console.log('⏳ Strategic status loading already in progress, skipping...');
-      return;
-    }
-    
-    try {
-      console.log('🔍 ShipmentDetails: Loading strategic status for shipment:', shipmentId);
-      setStrategicDetectionLoading(true);
-      
-      const data = await apiService.strategic.getShipmentStatus(shipmentId);
-
-      if (data.success) {
-        console.log('✅ ShipmentDetails: Strategic status loaded:', data.data);
-        console.log('🔍 ShipmentDetails: Full API response:', JSON.stringify(data.data, null, 2));
-        
-        // The API response structure has nested objects
-        const apiData = data.data;
-        const strategicStatus = apiData.strategic_status || {};
-        const permitStatus = apiData.permit_status || {};
-        
-        console.log('🔍 ShipmentDetails: apiData:', apiData);
-        console.log('🔍 ShipmentDetails: strategicStatus:', strategicStatus);
-        console.log('🔍 ShipmentDetails: permitStatus:', permitStatus);
-        console.log('🔍 ShipmentDetails: detection_results length:', apiData.detection_results?.length || 0);
-        
-        // Update state with existing strategic detection results
-        setStrategicItemsDetected(strategicStatus.has_strategic_items || false);
-        setExportBlocked(strategicStatus.export_blocked || false);
-        
-        // Calculate compliance score based on actual status
-        let calculatedComplianceScore = 100;
-        if (strategicStatus.export_blocked) {
-          calculatedComplianceScore = 0; // Export blocked = 0% compliance
-        } else if (strategicStatus.has_strategic_items && permitStatus.missing_permits?.length > 0) {
-          calculatedComplianceScore = 25; // Strategic items with missing permits = low compliance
-        } else if (strategicStatus.has_strategic_items) {
-          calculatedComplianceScore = 75; // Strategic items but permits uploaded = good compliance
-        }
-        
-        setComplianceScore(calculatedComplianceScore);
-        // Use the strategic items count from the API response - try multiple field names
-        const strategicCount = strategicStatus.strategic_items_found || 
-                              strategicStatus.strategic_items || 
-                              strategicStatus.total_items ||
-                              apiData.detection_results?.length ||
-                              (strategicStatus.has_strategic_items ? 1 : 0);
-        console.log('🔍 ShipmentDetails: Setting strategicItemsCount to:', strategicCount);
-        setStrategicItemsCount(strategicCount);
-        setMissingPermits(permitStatus.missing_permits || permitStatus.required_permits || []);
-        setStrategicDetectionComplete(true);
-        
-        console.log('🔍 ShipmentDetails: Final state set:', {
-          strategicItemsDetected: strategicStatus.has_strategic_items,
-          exportBlocked: strategicStatus.export_blocked,
-          complianceScore: calculatedComplianceScore,
-          strategicItemsCount: strategicCount
-        });
-        
-      } else {
-        console.log('ℹ️ ShipmentDetails: No existing strategic status found:', data.error);
-        // If no existing status, trigger detection
-        triggerStrategicDetection();
-      }
-    } catch (error) {
-      console.error('❌ ShipmentDetails: Strategic status loading error:', error);
-      // If API fails, try to trigger detection
-      triggerStrategicDetection();
-    } finally {
-      setStrategicDetectionLoading(false);
-    }
-  };
-
-  // Trigger Strategic Detection (fallback if no existing status)
-  const triggerStrategicDetection = async () => {
-    try {
-      console.log('🔍 ShipmentDetails: Triggering strategic detection for shipment:', shipmentId);
-      
-      let detectionItems = [];
-      
-      // Use OCR data if available from invoice processing
-      if (shipmentData?.invoiceProcessingData?.product_items?.length > 0) {
-        console.log('🔍 ShipmentDetails: Using OCR product items for detection');
-        const ocrItems = shipmentData.invoiceProcessingData.product_items;
-        detectionItems = ocrItems.map(item => ({
-          product_description: item.description || item.product_description || item.item_description,
-          hs_code: item.hs_code,
-          quantity: parseFloat(item.quantity) || 1,
-          value: parseFloat(item.value || item.line_total || item.unit_price) || 0,
-          item_id: item.id || item.item_id
-        })).filter(item => item.product_description && item.product_description.trim() !== '');
-      }
-
-      if (detectionItems.length === 0) {
-        console.log('⚠️ ShipmentDetails: No items with descriptions found for strategic detection');
-        setStrategicDetectionComplete(true);
-        return;
-      }
-      
-      console.log('🔍 ShipmentDetails: Calling strategic detect API with items:', detectionItems);
-
-      const data = await apiService.strategic.detect({
-        shipment_id: shipmentId,
-        product_items: detectionItems
-      });
-
-      if (data.success) {
-        console.log('✅ ShipmentDetails: Strategic detection completed:', data.data);
-        // After detection, reload status to get updated results
-        setTimeout(() => loadStrategicStatus(), 1000);
-      } else {
-        console.error('❌ ShipmentDetails: Strategic detection failed:', data.error);
-        setStrategicDetectionComplete(true);
-      }
-    } catch (error) {
-      console.error('❌ ShipmentDetails: Strategic detection error:', error);
-      setStrategicDetectionComplete(true);
-    }
-  };
 
   // Handle step completion and navigation
   const handleStepComplete = (stepNumber, id, data) => {
-    console.log(`✅ Step ${stepNumber} completed for shipment ${id}`);
     
     if (stepNumber === 1) {
       setBasics(data);
@@ -273,18 +139,12 @@ export default function ShipmentDetails() {
     setSidebarCollapsed(!sidebarCollapsed);
   };
 
-  // Handle view changes (for sidebar navigation)
-  const handleViewChange = (viewId) => {
-    if (viewId === 'shipments') {
-      navigate('/dashboard/shipments');
-    } else if (viewId === 'enhanced-workflow') {
-      navigate('/dashboard/enhanced-workflow');
-    } else if (viewId === 'traditional-workflow') {
-      navigate('/dashboard/traditional-workflow');
-    } else {
-      setCurrentView(viewId);
-    }
+  // Handle logout
+  const handleLogout = async () => {
+    await auth.logout();
+    navigate(isAdminRoute ? '/admin/login' : '/login');
   };
+
 
   // Canvas data structure for compatibility with existing components
   const canvasData = shipmentData ? {
@@ -319,12 +179,21 @@ export default function ShipmentDetails() {
   if (loading) {
     return (
       <div className="app" style={{ display: 'flex', minHeight: '100vh' }}>
-        <Sidebar 
-          currentView={currentView}
-          onViewChange={handleViewChange}
-          isCollapsed={sidebarCollapsed}
-          onToggleCollapse={handleToggleSidebar}
-        />
+        {isAdminRoute ? (
+          <AdminSidebar 
+            isCollapsed={sidebarCollapsed}
+            onToggleCollapse={handleToggleSidebar}
+            admin={user}
+            onLogout={handleLogout}
+          />
+        ) : (
+          <CustomerSidebar 
+            isCollapsed={sidebarCollapsed}
+            onToggleCollapse={handleToggleSidebar}
+            customer={user}
+            onLogout={handleLogout}
+          />
+        )}
         <div style={{
           flex: 1,
           marginLeft: sidebarCollapsed ? '60px' : '280px',
@@ -353,12 +222,21 @@ export default function ShipmentDetails() {
   if (error) {
     return (
       <div className="app" style={{ display: 'flex', minHeight: '100vh' }}>
-        <Sidebar 
-          currentView={currentView}
-          onViewChange={handleViewChange}
-          isCollapsed={sidebarCollapsed}
-          onToggleCollapse={handleToggleSidebar}
-        />
+        {isAdminRoute ? (
+          <AdminSidebar 
+            isCollapsed={sidebarCollapsed}
+            onToggleCollapse={handleToggleSidebar}
+            admin={user}
+            onLogout={handleLogout}
+          />
+        ) : (
+          <CustomerSidebar 
+            isCollapsed={sidebarCollapsed}
+            onToggleCollapse={handleToggleSidebar}
+            customer={user}
+            onLogout={handleLogout}
+          />
+        )}
         <div style={{
           flex: 1,
           marginLeft: sidebarCollapsed ? '60px' : '280px',
@@ -393,12 +271,21 @@ export default function ShipmentDetails() {
   if (!shipmentData) {
     return (
       <div className="app" style={{ display: 'flex', minHeight: '100vh' }}>
-        <Sidebar 
-          currentView={currentView}
-          onViewChange={handleViewChange}
-          isCollapsed={sidebarCollapsed}
-          onToggleCollapse={handleToggleSidebar}
-        />
+        {isAdminRoute ? (
+          <AdminSidebar 
+            isCollapsed={sidebarCollapsed}
+            onToggleCollapse={handleToggleSidebar}
+            admin={user}
+            onLogout={handleLogout}
+          />
+        ) : (
+          <CustomerSidebar 
+            isCollapsed={sidebarCollapsed}
+            onToggleCollapse={handleToggleSidebar}
+            customer={user}
+            onLogout={handleLogout}
+          />
+        )}
         <div style={{
           flex: 1,
           marginLeft: sidebarCollapsed ? '60px' : '280px',
@@ -433,12 +320,21 @@ export default function ShipmentDetails() {
   return (
     <div className="app" style={{ display: 'flex', minHeight: '100vh' }}>
       {/* Sidebar Navigation */}
-      <Sidebar 
-        currentView={currentView}
-        onViewChange={handleViewChange}
-        isCollapsed={sidebarCollapsed}
-        onToggleCollapse={handleToggleSidebar}
-      />
+      {isAdminRoute ? (
+        <AdminSidebar 
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={handleToggleSidebar}
+          admin={user}
+          onLogout={handleLogout}
+        />
+      ) : (
+        <CustomerSidebar 
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={handleToggleSidebar}
+          customer={user}
+          onLogout={handleLogout}
+        />
+      )}
 
       {/* Main Content */}
       <div style={{
@@ -508,29 +404,11 @@ export default function ShipmentDetails() {
           {currentCanvasStep === 1 && (
             <>
               <StepBasics
-                defaultShipmentId={shipmentData.shipment_id}
+                defaultShipmentId={shipmentId}
                 canvasData={shipmentData}
                 onSaved={(id, data) => handleStepComplete(1, id, data)}
                 isCanvas={true}
               />
-              
-              {/* Strategic Item Detection Interface */}
-              <div style={{ marginTop: '2rem' }}>
-                <StrategicItemPermitInterface
-                  shipmentId={shipmentData.shipment_id}
-                  strategicItemsDetected={strategicItemsDetected}
-                  strategicDetectionComplete={strategicDetectionComplete}
-                  strategicDetectionLoading={strategicDetectionLoading}
-                  exportBlocked={exportBlocked}
-                  complianceScore={complianceScore}
-                  missingPermits={missingPermits}
-                  strategicItemsCount={strategicItemsCount}
-                  onRetriggerDetection={() => {
-                    setStrategicDetectionComplete(false);
-                    triggerStrategicDetection();
-                  }}
-                />
-              </div>
             </>
           )}
           

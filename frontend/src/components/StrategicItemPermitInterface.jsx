@@ -68,11 +68,26 @@ const StrategicItemPermitInterface = ({
         // Update local state when props change
         if (strategicDetectionComplete) {
             console.log('✅ StrategicItemPermitInterface: Strategic detection complete, using prop data');
+            console.log('🔍 StrategicItemPermitInterface: missingPermits prop:', missingPermits);
+            console.log('🔍 StrategicItemPermitInterface: strategicItemsCount:', strategicItemsCount);
+            
             setStrategicStatus({
                 has_strategic_items: strategicItemsDetected,
                 is_blocked: exportBlocked,
                 compliance_score: complianceScore,
                 missing_permits: missingPermits
+            });
+
+            // CRITICAL: Set permitStatus with required_permits for upload UI to show
+            setPermitStatus({
+                required_permits: missingPermits.map(permitType => ({
+                    permit_type: permitType,
+                    is_required: true,
+                    status: 'missing'
+                })),
+                missing_permits: missingPermits,
+                uploaded_permits: [],
+                invalid_permits: []
             });
 
             // Set export validation status for bottom section
