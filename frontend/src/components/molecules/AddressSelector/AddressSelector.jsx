@@ -42,7 +42,6 @@ const AddressSelector = ({
 
   // Load addresses on mount
   useEffect(() => {
-    console.log('AddressSelector: Component mounted, loading addresses...');
     loadAddresses();
   }, [type]);
 
@@ -66,13 +65,11 @@ const AddressSelector = ({
       setLoading(true);
       setLoadError(null);
       
-      console.log('AddressSelector: Loading addresses for type:', type);
       const response = await AddressService.getAddresses({ 
         type: type,
         limit: 50
       });
       
-      console.log('AddressSelector: API response:', response);
       
       // Handle multiple response formats
       let addressList = [];
@@ -84,14 +81,12 @@ const AddressSelector = ({
         addressList = response;
       }
       
-      console.log('AddressSelector: Processed addresses:', addressList);
       setAddresses(addressList);
       
       if (!response.success && !Array.isArray(response) && !response.addresses) {
         setLoadError(response.error || 'Failed to load addresses');
       }
     } catch (error) {
-      console.error('AddressSelector: Failed to load addresses:', error);
       setLoadError(error.message);
     } finally {
       setLoading(false);
@@ -99,7 +94,6 @@ const AddressSelector = ({
   };
 
   const handleAddressSelect = useCallback((addressId) => {
-    console.log('AddressSelector: Selected address ID:', addressId);
     
     if (addressId === '__new__') {
       handleNewAddressToggle();
@@ -107,16 +101,13 @@ const AddressSelector = ({
     }
     
     const selectedAddress = addresses.find(addr => addr.id === addressId);
-    console.log('AddressSelector: Found address:', selectedAddress);
     
     setSelectedAddressId(addressId);
     setShowNewAddressForm(false);
     
     if (selectedAddress && onChange) {
-      console.log('AddressSelector: Calling onChange with address:', selectedAddress);
       onChange(selectedAddress);
     } else if (onChange) {
-      console.log('AddressSelector: Calling onChange with null (address not found)');
       onChange(null);
     }
   }, [addresses, onChange]);

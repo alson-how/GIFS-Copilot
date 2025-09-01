@@ -55,7 +55,6 @@ export const AdminAuthProvider = ({ children }) => {
           logout();
         }
       } catch (error) {
-        console.error('Admin auth check failed:', error);
         logout();
       } finally {
         setIsLoading(false);
@@ -84,7 +83,6 @@ export const AdminAuthProvider = ({ children }) => {
       setPermissions(payload.permissions || []);
       setIsAuthenticated(true);
     } catch (error) {
-      console.error('Failed to load admin profile:', error);
       logout();
     }
   };
@@ -116,7 +114,6 @@ export const AdminAuthProvider = ({ children }) => {
         return { success: false, error: result.error };
       }
     } catch (error) {
-      console.error('Admin login failed:', error);
       return { 
         success: false, 
         error: 'Login failed. Please check your connection and try again.' 
@@ -139,7 +136,6 @@ export const AdminAuthProvider = ({ children }) => {
         });
       }
     } catch (error) {
-      console.error('Admin logout request failed:', error);
     } finally {
       // Clear local state regardless of API call result
       localStorage.removeItem('admin_token');
@@ -212,7 +208,6 @@ export const AdminAuthProvider = ({ children }) => {
         return { success: false, error: result.error };
       }
     } catch (error) {
-      console.error('Admin profile update failed:', error);
       return { 
         success: false, 
         error: 'Profile update failed. Please try again.' 
@@ -284,7 +279,6 @@ export const AdminAuthProvider = ({ children }) => {
         return { success: false, error: result.error };
       }
     } catch (error) {
-      console.error('Role switch failed:', error);
       return { success: false, error: 'Failed to switch role' };
     }
   };

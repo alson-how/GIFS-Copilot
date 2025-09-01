@@ -70,8 +70,6 @@ function LegacyAppWithRouter() {
 
   // Handle canvas opening from AI chat
   const handleOpenCanvas = (data) => {
-    console.log('🎯 App.jsx handleOpenCanvas called with data:', data);
-    console.log('🎯 App.jsx handleOpenCanvas shipmentId:', data?.shipmentId);
     setCanvasData(data);
     setShowCanvas(true);
     setShowChatOnly(false);
@@ -367,16 +365,12 @@ function LegacyAppWithRouter() {
 
               {/* Step Content */}
               {currentCanvasStep === 1 && (
-                <>
-                  {console.log('🎯 App.jsx rendering StepBasics with canvasData:', canvasData)}
-                  {console.log('🎯 App.jsx rendering StepBasics shipmentId from canvasData:', canvasData?.shipmentId)}
-                  <StepBasics
-                    defaultShipmentId={shipmentId}
-                    canvasData={canvasData}
-                    onSaved={(id, data) => handleStepComplete(1, id, data)}
-                    isCanvas={true}
-                  />
-                </>
+                <StepBasics
+                  defaultShipmentId={shipmentId}
+                  canvasData={canvasData}
+                  onSaved={(id, data) => handleStepComplete(1, id, data)}
+                  isCanvas={true}
+                />
               )}
               
               {currentCanvasStep === 2 && basics?.productType === 'ai_accelerator_gpu_tpu_npu' && (

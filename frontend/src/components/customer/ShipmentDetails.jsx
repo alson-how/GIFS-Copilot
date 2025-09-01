@@ -53,7 +53,6 @@ export default function ShipmentDetails() {
       }
       
       const shipmentResult = await shipmentResponse.json();
-      console.log('📦 Loaded shipment metadata:', shipmentResult);
       
       // Handle the API response format {"ok": true, "shipment": {...}}
       const shipmentData = shipmentResult.shipment || shipmentResult;
@@ -62,12 +61,10 @@ export default function ShipmentDetails() {
       let invoiceData = null;
       if (invoiceResponse.ok) {
         const invoiceResult = await invoiceResponse.json();
-        console.log('📄 Loaded invoice processing data:', invoiceResult);
         if (invoiceResult.success && invoiceResult.data) {
           invoiceData = invoiceResult.data;
         }
       } else {
-        console.log('ℹ️ No invoice processing data found for this shipment');
       }
       
       // Merge shipment metadata with invoice processing data
@@ -89,7 +86,6 @@ export default function ShipmentDetails() {
         })
       };
       
-      console.log('🔄 Merged shipment data:', mergedData);
       setShipmentData(mergedData);
       
       // Set basics data for step navigation
@@ -105,14 +101,10 @@ export default function ShipmentDetails() {
       
       // Run strategic detection if we have product items from invoice data
       if (mergedData?.invoiceProcessingData?.product_items && mergedData.invoiceProcessingData.product_items.length > 0) {
-        console.log('🔍 Triggering strategic detection for loaded shipment data');
         runStrategicDetection(id, mergedData.invoiceProcessingData.product_items);
-      } else {
-        console.log('ℹ️ No product items found in shipment data for strategic detection');
       }
       
     } catch (err) {
-      console.error('❌ Error loading shipment:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -125,13 +117,11 @@ export default function ShipmentDetails() {
       setStrategicLoading(true);
       setStrategicError(null);
       
-      console.log('🔍 Loading strategic status for shipment:', id);
       const response = await apiRequest(`/strategic/status/${id}`);
       
       if (!response.ok) {
         // If 404, shipment might not have been processed yet for strategic items
         if (response.status === 404) {
-          console.log('ℹ️ No strategic status found for this shipment (not yet processed)');
           setStrategicStatus(null);
           return;
         }
@@ -139,17 +129,14 @@ export default function ShipmentDetails() {
       }
       
       const result = await response.json();
-      console.log('🔍 Strategic status loaded:', result);
       
       if (result.success && result.data) {
         setStrategicStatus(result.data);
       } else {
-        console.log('⚠️ Strategic status request succeeded but no data returned');
         setStrategicStatus(null);
       }
       
     } catch (err) {
-      console.error('❌ Error loading strategic status:', err);
       setStrategicError(err.message);
     } finally {
       setStrategicLoading(false);
@@ -162,10 +149,8 @@ export default function ShipmentDetails() {
       setDetectionLoading(true);
       setDetectionError(null);
       
-      console.log('🔍 Running strategic detection for shipment:', id, 'with', productItems?.length, 'items');
       
       if (!productItems || productItems.length === 0) {
-        console.log('⚠️ No product items found for strategic detection');
         return;
       }
       
@@ -179,7 +164,6 @@ export default function ShipmentDetails() {
       })).filter(item => item.product_description); // Only include items with descriptions
       
       if (formattedItems.length === 0) {
-        console.log('⚠️ No valid product items for strategic detection (no descriptions found)');
         return;
       }
       
@@ -188,7 +172,6 @@ export default function ShipmentDetails() {
         product_items: formattedItems
       };
       
-      console.log('🔍 Strategic detection request:', requestBody);
       
       const response = await apiRequest('/strategic/detect', {
         method: 'POST',
@@ -203,7 +186,6 @@ export default function ShipmentDetails() {
       }
       
       const result = await response.json();
-      console.log('✅ Strategic detection completed:', result);
       
       if (result.success) {
         // After detection, reload the strategic status to get updated data
@@ -215,7 +197,6 @@ export default function ShipmentDetails() {
       }
       
     } catch (err) {
-      console.error('❌ Error running strategic detection:', err);
       setDetectionError(err.message);
     } finally {
       setDetectionLoading(false);
@@ -224,7 +205,6 @@ export default function ShipmentDetails() {
 
   // Handle step completion and navigation
   const handleStepComplete = (stepNumber, id, data) => {
-    console.log(`✅ Step ${stepNumber} completed for shipment ${id}`);
     
     if (stepNumber === 1) {
       setBasics(data);

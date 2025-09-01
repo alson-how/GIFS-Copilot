@@ -48,14 +48,11 @@ export default function AIQuery({ onOpenCanvas }) {
     setQuery(''); // Clear input immediately
     
     try {
-        console.log(uploadedFiles.length);
-        console.log(detectExportIntent(userMessage.content));
       // Check if user has files and wants to export/ship
       if (uploadedFiles.length > 0 && detectExportIntent(userMessage.content)) {
         // Use new Invoice Detection API
         let invoiceProcessingResult = null;
         try {
-          console.log('🔍 Processing uploaded files with Invoice Detection API...');
           
           // Only process the first file for now (Commercial Invoice detection)
           const firstFile = uploadedFiles[0];
@@ -71,22 +68,8 @@ export default function AIQuery({ onOpenCanvas }) {
           
           if (invoiceResponse.ok) {
             invoiceProcessingResult = await invoiceResponse.json();
-            console.log('✅ Invoice processing completed:', invoiceProcessingResult);
-            console.log('🔍 CRITICAL DEBUG - Full invoice response data:', invoiceProcessingResult.data);
-            console.log('🔍 CRITICAL DEBUG - Shipment ID in response:', invoiceProcessingResult.data?.shipment_id);
-            console.log('🔍 CRITICAL DEBUG - Response structure keys:', Object.keys(invoiceProcessingResult.data || {}));
-            
-            // IMMEDIATE CHECK: Is shipment_id present?
-            if (!invoiceProcessingResult.data?.shipment_id) {
-              console.error('❌ CRITICAL ERROR: No shipment_id in upload response!');
-              console.error('❌ This will cause the race condition!');
-              console.error('❌ Full response:', JSON.stringify(invoiceProcessingResult, null, 2));
-            } else {
-              console.log('✅ SHIPMENT ID FOUND:', invoiceProcessingResult.data.shipment_id);
-            }
           } else {
             const errorData = await invoiceResponse.json();
-            console.warn('⚠️ Invoice processing failed:', errorData);
             
             // If it's not a Commercial Invoice or wrong intent, show error to user
             if (errorData.error) {
@@ -102,7 +85,6 @@ export default function AIQuery({ onOpenCanvas }) {
             }
           }
         } catch (error) {
-          console.error('❌ Invoice processing error:', error);
           const botResponse = {
             id: Date.now() + 1,
             content: '❌ **Error processing document**\n\nThere was an error processing your document. Please try again with a valid Commercial Invoice.',
@@ -118,9 +100,6 @@ export default function AIQuery({ onOpenCanvas }) {
         const extractedDate = extractDateFromQuery(userMessage.content);
         const extractedDestination = extractDestination(userMessage.content);
         
-        // CRITICAL DEBUG: Check what we're getting from the upload response
-        console.log('🔍 CANVAS CREATION DEBUG - invoiceProcessingResult:', invoiceProcessingResult);
-        console.log('🔍 CANVAS CREATION DEBUG - shipment_id extraction:', invoiceProcessingResult?.data?.shipment_id);
         
         // Create canvas data with invoice processing results
         const canvasData = {
@@ -138,15 +117,7 @@ export default function AIQuery({ onOpenCanvas }) {
           } : null
         };
         
-        console.log('🔍 CANVAS CREATION DEBUG - Final canvasData:', canvasData);
-        console.log('🔍 CANVAS CREATION DEBUG - Final shipmentId:', canvasData.shipmentId);
         
-        // Debug logging for OCR data structure
-        if (invoiceProcessingResult?.data?.extracted_fields) {
-          console.log('🔍 Invoice OCR extracted_fields:', invoiceProcessingResult.data.extracted_fields);
-          console.log('🔍 Consignee name in extracted fields:', invoiceProcessingResult.data.extracted_fields.consignee_name);
-          console.log('🔍 Mapped to canvasData.ocrData.fieldSuggestions:', canvasData.ocrData.fieldSuggestions);
-        }
 
         // Create AI response with invoice processing summary
         let invoiceSummary = '';
@@ -249,10 +220,6 @@ ${invoiceProcessingResult?.suggestions ? `**Suggestions:**\n${invoiceProcessingR
         
         // Only open canvas for successful Commercial Invoice processing
         if (shouldOpenCanvas && onOpenCanvas) {
-          console.log('🎯 AIQuery: Opening canvas with completed upload data');
-          console.log('🎯 AIQuery: Shipment ID from upload:', canvasData.shipmentId);
-          console.log('🎯 AIQuery: Upload completed flag:', canvasData.uploadCompleted);
-          console.log('🎯 AIQuery: Upload timestamp:', new Date(canvasData.uploadTimestamp));
           onOpenCanvas(canvasData);
         }
         

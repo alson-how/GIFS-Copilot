@@ -62,7 +62,6 @@ const ShipmentOrdersList = () => {
                 throw new Error(data.error || 'Failed to fetch shipments');
             }
         } catch (err) {
-            console.error('Error fetching shipments:', err);
             setError(err.message);
         } finally {
             setLoading(false);

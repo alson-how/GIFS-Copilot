@@ -27,7 +27,6 @@ const StrategicItemDetection = ({
 
   // Reset strategic detection state when shipmentId changes
   useEffect(() => {
-    console.log('🔄 StrategicItemDetection: Shipment ID changed, resetting state');
     setStrategicDetectionComplete(false);
     setStrategicDetectionLoading(false);
     setStrategicItemsDetected(false);
@@ -39,15 +38,8 @@ const StrategicItemDetection = ({
 
   // Load Strategic Status when component mounts or shipmentId changes
   useEffect(() => {
-    console.log('🔍 StrategicItemDetection: Component mounted/shipmentId changed');
-    console.log('🔍 StrategicItemDetection: strategicDetectionComplete:', strategicDetectionComplete);
-    console.log('🔍 StrategicItemDetection: strategicDetectionLoading:', strategicDetectionLoading);
-    console.log('🔍 StrategicItemDetection: shipmentId (PROP):', shipmentId);
-    console.log('🔍 StrategicItemDetection: canvasData.shipment_id:', canvasData?.shipment_id);
-    console.log('🔍 StrategicItemDetection: Using shipmentId from PROP (not canvas):', shipmentId);
     
     if (!strategicDetectionComplete && !strategicDetectionLoading && shipmentId) {
-      console.log('🔍 StrategicItemDetection: Loading strategic status for shipment...');
       loadStrategicStatus();
     }
   }, [shipmentId, strategicDetectionComplete, strategicDetectionLoading]);
@@ -57,16 +49,8 @@ const StrategicItemDetection = ({
     const hasOCRProductItems = canvasData?.invoiceProcessingData?.product_items?.length > 0;
     const hasFormProductItems = productItems?.length > 0;
     
-    console.log('🔍 StrategicItemDetection: Product items check:', {
-      hasOCRProductItems,
-      hasFormProductItems,
-      strategicDetectionComplete,
-      strategicDetectionLoading,
-      shipmentId: !!shipmentId
-    });
 
     if ((hasOCRProductItems || hasFormProductItems) && !strategicDetectionComplete && !strategicDetectionLoading && shipmentId) {
-      console.log('🔍 StrategicItemDetection: Product items detected, triggering strategic detection...');
       triggerStrategicDetection();
     }
   }, [productItems, canvasData, strategicDetectionComplete, strategicDetectionLoading, shipmentId]);
@@ -74,29 +58,21 @@ const StrategicItemDetection = ({
   // Load Strategic Status (get existing results)
   const loadStrategicStatus = async () => {
     if (strategicDetectionLoading) {
-      console.log('⏳ Strategic status loading already in progress, skipping...');
       return;
     }
     
     try {
-      console.log('🔍 StrategicItemDetection: Loading strategic status for shipment:', shipmentId);
       setStrategicDetectionLoading(true);
       
       const data = await apiService.strategic.getShipmentStatus(shipmentId);
 
       if (data.success) {
-        console.log('✅ StrategicItemDetection: Strategic status loaded:', data.data);
-        console.log('🔍 StrategicItemDetection: Full API response:', JSON.stringify(data.data, null, 2));
         
         // The API response structure has nested objects
         const apiData = data.data;
         const strategicStatus = apiData.strategic_status || {};
         const permitStatus = apiData.permit_status || {};
         
-        console.log('🔍 StrategicItemDetection: apiData:', apiData);
-        console.log('🔍 StrategicItemDetection: strategicStatus:', strategicStatus);
-        console.log('🔍 StrategicItemDetection: permitStatus:', permitStatus);
-        console.log('🔍 StrategicItemDetection: detection_results length:', apiData.detection_results?.length || 0);
         
         // Update state with existing strategic detection results
         const hasStrategicItems = strategicStatus.has_strategic_items || false;
@@ -123,17 +99,10 @@ const StrategicItemDetection = ({
                               strategicStatus.total_items ||
                               apiData.detection_results?.length ||
                               (strategicStatus.has_strategic_items ? 1 : 0);
-        console.log('🔍 StrategicItemDetection: Setting strategicItemsCount to:', strategicCount);
         setStrategicItemsCount(strategicCount);
         setMissingPermits(permitStatus.missing_permits || permitStatus.required_permits || []);
         setStrategicDetectionComplete(true);
         
-        console.log('🔍 StrategicItemDetection: Final state set:', {
-          strategicItemsDetected: hasStrategicItems,
-          exportBlocked: isExportBlocked,
-          complianceScore: calculatedComplianceScore,
-          strategicItemsCount: strategicCount
-        });
         
         // Notify parent component of status change
         if (onStrategicStatusChange) {
@@ -147,12 +116,10 @@ const StrategicItemDetection = ({
         }
         
       } else {
-        console.log('ℹ️ StrategicItemDetection: No existing strategic status found:', data.error);
         // If no existing status, trigger detection
         triggerStrategicDetection();
       }
     } catch (error) {
-      console.error('❌ StrategicItemDetection: Strategic status loading error:', error);
       // If API fails, try to trigger detection
       triggerStrategicDetection();
     } finally {
@@ -163,13 +130,11 @@ const StrategicItemDetection = ({
   // Trigger Strategic Detection (fallback if no existing status)
   const triggerStrategicDetection = async () => {
     try {
-      console.log('🔍 StrategicItemDetection: Triggering strategic detection for shipment:', shipmentId);
       
       let detectionItems = [];
       
       // Use OCR data if available from canvas/invoice processing
       if (canvasData?.invoiceProcessingData?.product_items?.length > 0) {
-        console.log('🔍 StrategicItemDetection: Using OCR product items for detection');
         const ocrItems = canvasData.invoiceProcessingData.product_items;
         detectionItems = ocrItems.map(item => ({
           product_description: item.description || item.product_description || item.item_description,
@@ -180,7 +145,6 @@ const StrategicItemDetection = ({
         })).filter(item => item.product_description && item.product_description.trim() !== '');
       } else if (productItems?.length > 0) {
         // Use form product items as fallback
-        console.log('🔍 StrategicItemDetection: Using form product items for detection');
         detectionItems = productItems.map(item => ({
           product_description: item.productDescription || item.description,
           hs_code: item.hsCode,
@@ -191,12 +155,10 @@ const StrategicItemDetection = ({
       }
 
       if (detectionItems.length === 0) {
-        console.log('⚠️ StrategicItemDetection: No items with descriptions found for strategic detection');
         setStrategicDetectionComplete(true);
         return;
       }
       
-      console.log('🔍 StrategicItemDetection: Calling strategic detect API with items:', detectionItems);
 
       const data = await apiService.strategic.detect({
         shipment_id: shipmentId,
@@ -204,15 +166,12 @@ const StrategicItemDetection = ({
       });
 
       if (data.success) {
-        console.log('✅ StrategicItemDetection: Strategic detection completed:', data.data);
         // After detection, reload status to get updated results
         setTimeout(() => loadStrategicStatus(), 1000);
       } else {
-        console.error('❌ StrategicItemDetection: Strategic detection failed:', data.error);
         setStrategicDetectionComplete(true);
       }
     } catch (error) {
-      console.error('❌ StrategicItemDetection: Strategic detection error:', error);
       setStrategicDetectionComplete(true);
     }
   };

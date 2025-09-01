@@ -54,7 +54,6 @@ export const CustomerAuthProvider = ({ children }) => {
           logout();
         }
       } catch (error) {
-        console.error('Auth check failed:', error);
         logout();
       } finally {
         setIsLoading(false);
@@ -80,7 +79,6 @@ export const CustomerAuthProvider = ({ children }) => {
       
       setIsAuthenticated(true);
     } catch (error) {
-      console.error('Failed to load customer profile:', error);
       logout();
     }
   };
@@ -112,7 +110,6 @@ export const CustomerAuthProvider = ({ children }) => {
         return { success: false, error: result.error };
       }
     } catch (error) {
-      console.error('Login failed:', error);
       return { 
         success: false, 
         error: 'Login failed. Please check your connection and try again.' 
@@ -139,7 +136,6 @@ export const CustomerAuthProvider = ({ children }) => {
         return { success: false, error: result.error };
       }
     } catch (error) {
-      console.error('Registration failed:', error);
       return { 
         success: false, 
         error: 'Registration failed. Please check your connection and try again.' 
@@ -162,7 +158,6 @@ export const CustomerAuthProvider = ({ children }) => {
         });
       }
     } catch (error) {
-      console.error('Logout request failed:', error);
     } finally {
       // Clear local state regardless of API call result
       localStorage.removeItem('customer_access_token');
@@ -197,7 +192,6 @@ export const CustomerAuthProvider = ({ children }) => {
         return { success: false, error: result.error };
       }
     } catch (error) {
-      console.error('Profile update failed:', error);
       return { 
         success: false, 
         error: 'Profile update failed. Please try again.' 

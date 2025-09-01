@@ -38,8 +38,6 @@ const StrategicItemPermitInterface = ({
 
     // Reset all state when shipmentId changes to prevent stale data
     useEffect(() => {
-        console.log('🆔 StrategicItemPermitInterface: shipmentId changed to:', shipmentId);
-        console.log('🆔 StrategicItemPermitInterface: Previous API loaded flag:', hasLoadedFromAPI);
         
         // Reset the API loaded flag when shipment ID changes
         // This allows the component to make a new API call with the correct ID
@@ -51,15 +49,11 @@ const StrategicItemPermitInterface = ({
         setUploadedPermits({});
         setInsuranceInfo(null);
         
-        console.log('🆔 StrategicItemPermitInterface: Reset API loaded flag to false');
     }, [shipmentId]);
 
     // Also reset when canvas data changes (indicating new upload)
     useEffect(() => {
         if (canvasData?.shipmentId && canvasData.shipmentId !== shipmentId) {
-            console.log('🆔 StrategicItemPermitInterface: Canvas shipment ID changed, resetting API flag');
-            console.log('🆔 StrategicItemPermitInterface: Canvas ID:', canvasData.shipmentId);
-            console.log('🆔 StrategicItemPermitInterface: Component ID:', shipmentId);
             setHasLoadedFromAPI(false);
         }
     }, [canvasData?.shipmentId, shipmentId]);
@@ -67,9 +61,6 @@ const StrategicItemPermitInterface = ({
     useEffect(() => {
         // Update local state when props change
         if (strategicDetectionComplete) {
-            console.log('✅ StrategicItemPermitInterface: Strategic detection complete, using prop data');
-            console.log('🔍 StrategicItemPermitInterface: missingPermits prop:', missingPermits);
-            console.log('🔍 StrategicItemPermitInterface: strategicItemsCount:', strategicItemsCount);
             
             setStrategicStatus({
                 has_strategic_items: strategicItemsDetected,
@@ -109,54 +100,30 @@ const StrategicItemPermitInterface = ({
             }
         } else if (shipmentId && !hasLoadedFromAPI && !loading && shouldMakeAPICall(shipmentId)) {
             // DEFINITIVE FIX: Only proceed if we have confirmed upload completion
-            console.log('🎯 StrategicItemPermitInterface: Upload confirmed complete, proceeding with API calls');
-            console.log('🎯 Current shipmentId:', shipmentId);
-            console.log('🎯 Canvas shipmentId:', canvasData?.shipmentId);
-            console.log('🎯 Upload completed:', canvasData?.uploadCompleted);
-            console.log('🎯 Product items available:', canvasData?.invoiceData?.product_items?.length || 0);
             
             // Add small delay for final state synchronization
             const timeoutId = setTimeout(() => {
-                console.log('🚀 StrategicItemPermitInterface: Making validated API calls for shipment:', shipmentId);
                 
                 // Triple-check all conditions before API call
                 if (!hasLoadedFromAPI && shouldMakeAPICall(shipmentId) && canvasData?.uploadCompleted) {
-                    console.log('✅ All conditions verified - starting strategic processing');
                     setHasLoadedFromAPI(true);
                     
                     // If we have product items from canvas/invoice data, run detection first
                     if (canvasData?.invoiceData?.product_items && canvasData.invoiceData.product_items.length > 0) {
-                        console.log('🔍 StrategicItemPermitInterface: Product items found, running detection first');
                         runStrategicDetection(shipmentId, canvasData.invoiceData.product_items);
                     } else {
-                        console.log('📊 StrategicItemPermitInterface: No product items, loading status directly');
                         loadStrategicStatus();
                     }
-                } else {
-                    console.log('❌ Conditions changed during delay or upload not completed');
-                    console.log('  hasLoadedFromAPI:', hasLoadedFromAPI);
-                    console.log('  shouldMakeAPICall:', shouldMakeAPICall(shipmentId));
-                    console.log('  uploadCompleted:', canvasData?.uploadCompleted);
                 }
             }, 200); // Increased delay to 200ms for better reliability
             
             return () => clearTimeout(timeoutId);
-        } else {
-            // Enhanced debugging for when API call is not made
-            console.log('🔍 StrategicItemPermitInterface: API call conditions:');
-            console.log('  shipmentId:', shipmentId);
-            console.log('  hasLoadedFromAPI:', hasLoadedFromAPI);
-            console.log('  loading:', loading);
-            console.log('  shouldMakeAPICall:', shouldMakeAPICall(shipmentId));
-            console.log('  strategicDetectionComplete:', strategicDetectionComplete);
-            console.log('  canvasData?.shipmentId:', canvasData?.shipmentId);
         }
     }, [shipmentId, strategicItemsDetected, exportBlocked, complianceScore, missingPermits, strategicDetectionComplete, hasLoadedFromAPI, loading, canvasData]);
 
     // Helper function to validate shipment ID and determine if we should make API call
     const shouldMakeAPICall = (id) => {
         if (!id) {
-            console.log('⚠️ shouldMakeAPICall: No shipment ID provided');
             return false;
         }
         
@@ -164,7 +131,6 @@ const StrategicItemPermitInterface = ({
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
         
         if (!isUUID) {
-            console.log('⚠️ shouldMakeAPICall: Invalid shipment ID format:', id);
             return false;
         }
         
@@ -172,27 +138,17 @@ const StrategicItemPermitInterface = ({
         if (canvasData) {
             // If we have canvas data, upload MUST be completed
             if (!canvasData.uploadCompleted) {
-                console.log('❌ shouldMakeAPICall: Upload not completed yet, blocking API call');
                 return false;
             }
             
             // Upload completed - now check shipment ID match
             if (canvasData.shipmentId !== id) {
-                console.log('❌ shouldMakeAPICall: Shipment ID mismatch after upload completion');
-                console.log('   Canvas ID (from upload):', canvasData.shipmentId);
-                console.log('   Component ID:', id);
-                console.log('   Upload timestamp:', new Date(canvasData.uploadTimestamp));
                 return false;
             }
-            
-            console.log('✅ shouldMakeAPICall: Upload completed AND shipment IDs match perfectly');
-            console.log('✅ Using shipment ID from upload response:', id);
-            console.log('✅ Upload timestamp:', new Date(canvasData.uploadTimestamp));
             return true;
         }
         
-        // No canvas data - standalone usage (allow but with warning)
-        console.log('⚠️ shouldMakeAPICall: No canvas data - standalone usage, allowing API call:', id);
+        // No canvas data - standalone usage (allow)
         return true;
     };
 
@@ -202,10 +158,8 @@ const StrategicItemPermitInterface = ({
             setLoading(true);
             setError(null);
             
-            console.log('🔍 StrategicItemPermitInterface: Running detection for shipment:', shipmentId, 'with', productItems?.length, 'items');
             
             if (!productItems || productItems.length === 0) {
-                console.log('⚠️ StrategicItemPermitInterface: No product items found for detection');
                 return;
             }
             
@@ -219,7 +173,6 @@ const StrategicItemPermitInterface = ({
             })).filter(item => item.product_description); // Only include items with descriptions
             
             if (formattedItems.length === 0) {
-                console.log('⚠️ StrategicItemPermitInterface: No valid product items for detection (no descriptions found)');
                 return;
             }
             
@@ -228,10 +181,8 @@ const StrategicItemPermitInterface = ({
                 product_items: formattedItems
             };
             
-            console.log('🔍 StrategicItemPermitInterface: Detection request:', requestBody);
             
             const result = await apiService.strategic.detect(requestBody);
-            console.log('✅ StrategicItemPermitInterface: Detection completed:', result);
             
             if (result.success) {
                 // After detection, load the strategic status to get updated data
@@ -243,7 +194,6 @@ const StrategicItemPermitInterface = ({
             }
             
         } catch (err) {
-            console.error('❌ StrategicItemPermitInterface: Error running detection:', err);
             setError(`Strategic detection failed: ${err.message}`);
         } finally {
             setLoading(false);
@@ -257,12 +207,9 @@ const StrategicItemPermitInterface = ({
 
             // Final safety check before making API call
             if (!shouldMakeAPICall(shipmentId)) {
-                console.log('❌ loadStrategicStatus: Safety check failed, aborting API call');
                 setLoading(false);
                 return;
             }
-
-            console.log('🚀 loadStrategicStatus: Making API call with shipment ID:', shipmentId);
 
             // Get strategic items status (includes validation data)
             const statusData = await apiService.strategic.getShipmentStatus(shipmentId);
@@ -292,7 +239,6 @@ const StrategicItemPermitInterface = ({
                 setError(statusData.error || 'Failed to load strategic items status');
             }
         } catch (err) {
-            console.error('Failed to load strategic status:', err);
             setError('Failed to load strategic items status');
         } finally {
             setLoading(false);
@@ -325,7 +271,6 @@ const StrategicItemPermitInterface = ({
                 setError(data.error || 'Permit upload failed');
             }
         } catch (err) {
-            console.error('Permit upload failed:', err);
             setError('Permit upload failed');
         } finally {
             setUploadingPermit(null);
@@ -395,12 +340,10 @@ const StrategicItemPermitInterface = ({
                     ...prev,
                     [permitType]: result.data
                 }));
-                console.log(`✅ Permit ${permitType} uploaded successfully`);
             } else {
                 throw new Error(result.error || 'Upload failed');
             }
         } catch (error) {
-            console.error(`❌ Error uploading permit ${permitType}:`, error);
             setError(`Failed to upload ${permitType}: ${error.message}`);
         } finally {
             setUploadingPermit(null);
@@ -427,12 +370,10 @@ const StrategicItemPermitInterface = ({
             
             if (result.success) {
                 setInsuranceInfo(result.data);
-                console.log('✅ Insurance document uploaded successfully');
             } else {
                 throw new Error(result.error || 'Upload failed');
             }
         } catch (error) {
-            console.error('❌ Error uploading insurance document:', error);
             setError(`Failed to upload insurance document: ${error.message}`);
         } finally {
             setUploadingInsurance(false);
@@ -528,13 +469,6 @@ const StrategicItemPermitInterface = ({
         );
     }
 
-    console.log('🔍 StrategicItemPermitInterface rendering with:', {
-        shipmentId,
-        strategicItemsDetected,
-        strategicItemsCount,
-        complianceScore,
-        exportBlocked
-    });
 
     return (
         <div style={{ marginBottom: '2rem' }}>
