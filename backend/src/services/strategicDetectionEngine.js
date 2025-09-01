@@ -59,6 +59,12 @@ class StrategicDetectionEngine {
                 try {
                     // Run multi-layer detection
                     const detectionResult = await this.ragService.detectStrategicItems(item);
+                    console.log(`🔍 Detection result for "${item.description}":`, {
+                        is_strategic: detectionResult.is_strategic,
+                        confidence: detectionResult.final_confidence,
+                        strategic_codes: detectionResult.strategic_codes,
+                        required_permits: detectionResult.required_permits
+                    });
                     
                     // Store detection result in database
                     const storedResult = await this.storeDetectionResult(
@@ -271,24 +277,21 @@ class StrategicDetectionEngine {
             return 100; // No strategic items = 100% compliant
         }
         
-        // Base score reduction for having strategic items
-        let score = 70;
+        // Strategic items found = major compliance issue
+        // Compliance score should be 0% when strategic items are detected without permits
+        let score = 0;
         
-        // Further reduction based on confidence levels
+        // Calculate average confidence level
         const avgConfidence = shipmentResults.detection_results
             .filter(r => r.is_strategic)
             .reduce((sum, r) => sum + r.final_confidence, 0) / shipmentResults.strategic_items_found;
         
-        if (avgConfidence >= 90) {
-            score -= 30; // High confidence strategic items
-        } else if (avgConfidence >= 70) {
-            score -= 20; // Medium confidence
-        } else {
-            score -= 10; // Low confidence (needs manual review)
-        }
+        console.log(`🎯 Strategic items detected: ${shipmentResults.strategic_items_found} items with ${avgConfidence.toFixed(1)}% avg confidence`);
+        console.log(`⚠️ Export blocked due to strategic items - requires permits`);
         
-        // Minimum score is 0
-        return Math.max(0, score);
+        // Score remains 0 when strategic items are found
+        // Only increases to non-zero when permits are properly uploaded and validated
+        return score;
     }
 
     /**

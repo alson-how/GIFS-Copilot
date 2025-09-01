@@ -2,9 +2,13 @@ import express from 'express';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import DocumentParser from '../services/documentParser.js';
+import { authCustomer } from '../middleware/authCustomer.js';
 
 const router = express.Router();
 const documentParser = new DocumentParser();
+
+// Apply customer authentication to all document routes
+router.use(authCustomer);
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();

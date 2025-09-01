@@ -21,7 +21,9 @@ const StrategicItemPermitInterface = ({
     complianceScore = 100,
     missingPermits = [],
     strategicDetectionComplete = false,
-    strategicDetectionLoading = false
+    strategicDetectionLoading = false,
+    strategicItemsCount = 0,
+    canvasData = null // Add canvas data to know if we're waiting for upload response
 }) => {
     const [strategicStatus, setStrategicStatus] = useState(null);
     const [permitStatus, setPermitStatus] = useState(null);
@@ -37,6 +39,10 @@ const StrategicItemPermitInterface = ({
     // Reset all state when shipmentId changes to prevent stale data
     useEffect(() => {
         console.log('🆔 StrategicItemPermitInterface: shipmentId changed to:', shipmentId);
+        console.log('🆔 StrategicItemPermitInterface: Previous API loaded flag:', hasLoadedFromAPI);
+        
+        // Reset the API loaded flag when shipment ID changes
+        // This allows the component to make a new API call with the correct ID
         setHasLoadedFromAPI(false);
         setStrategicStatus(null);
         setPermitStatus(null);
@@ -44,11 +50,24 @@ const StrategicItemPermitInterface = ({
         setError(null);
         setUploadedPermits({});
         setInsuranceInfo(null);
+        
+        console.log('🆔 StrategicItemPermitInterface: Reset API loaded flag to false');
     }, [shipmentId]);
+
+    // Also reset when canvas data changes (indicating new upload)
+    useEffect(() => {
+        if (canvasData?.shipmentId && canvasData.shipmentId !== shipmentId) {
+            console.log('🆔 StrategicItemPermitInterface: Canvas shipment ID changed, resetting API flag');
+            console.log('🆔 StrategicItemPermitInterface: Canvas ID:', canvasData.shipmentId);
+            console.log('🆔 StrategicItemPermitInterface: Component ID:', shipmentId);
+            setHasLoadedFromAPI(false);
+        }
+    }, [canvasData?.shipmentId, shipmentId]);
 
     useEffect(() => {
         // Update local state when props change
         if (strategicDetectionComplete) {
+            console.log('✅ StrategicItemPermitInterface: Strategic detection complete, using prop data');
             setStrategicStatus({
                 has_strategic_items: strategicItemsDetected,
                 is_blocked: exportBlocked,
@@ -73,18 +92,99 @@ const StrategicItemPermitInterface = ({
                     missingPermits: missingPermits
                 });
             }
-        } else if (shipmentId && !hasLoadedFromAPI && !loading) {
-            // Only load from API if detection hasn't completed yet and we haven't already loaded
-            console.log('🔍 Loading strategic status from API for shipment:', shipmentId);
-            setHasLoadedFromAPI(true);
-            loadStrategicStatus();
+        } else if (shipmentId && !hasLoadedFromAPI && !loading && shouldMakeAPICall(shipmentId)) {
+            // DEFINITIVE FIX: Only proceed if we have confirmed upload completion
+            console.log('🎯 StrategicItemPermitInterface: Upload confirmed complete, proceeding with API call');
+            console.log('🎯 Current shipmentId:', shipmentId);
+            console.log('🎯 Canvas shipmentId:', canvasData?.shipmentId);
+            console.log('🎯 Upload completed:', canvasData?.uploadCompleted);
+            
+            // Add small delay for final state synchronization
+            const timeoutId = setTimeout(() => {
+                console.log('🚀 StrategicItemPermitInterface: Making validated API call for shipment:', shipmentId);
+                
+                // Triple-check all conditions before API call
+                if (!hasLoadedFromAPI && shouldMakeAPICall(shipmentId) && canvasData?.uploadCompleted) {
+                    console.log('✅ All conditions verified - making strategic status API call');
+                    setHasLoadedFromAPI(true);
+                    loadStrategicStatus();
+                } else {
+                    console.log('❌ Conditions changed during delay or upload not completed');
+                    console.log('  hasLoadedFromAPI:', hasLoadedFromAPI);
+                    console.log('  shouldMakeAPICall:', shouldMakeAPICall(shipmentId));
+                    console.log('  uploadCompleted:', canvasData?.uploadCompleted);
+                }
+            }, 200); // Increased delay to 200ms for better reliability
+            
+            return () => clearTimeout(timeoutId);
+        } else {
+            // Enhanced debugging for when API call is not made
+            console.log('🔍 StrategicItemPermitInterface: API call conditions:');
+            console.log('  shipmentId:', shipmentId);
+            console.log('  hasLoadedFromAPI:', hasLoadedFromAPI);
+            console.log('  loading:', loading);
+            console.log('  shouldMakeAPICall:', shouldMakeAPICall(shipmentId));
+            console.log('  strategicDetectionComplete:', strategicDetectionComplete);
+            console.log('  canvasData?.shipmentId:', canvasData?.shipmentId);
         }
-    }, [shipmentId, strategicItemsDetected, exportBlocked, complianceScore, missingPermits, strategicDetectionComplete, hasLoadedFromAPI, loading]);
+    }, [shipmentId, strategicItemsDetected, exportBlocked, complianceScore, missingPermits, strategicDetectionComplete, hasLoadedFromAPI, loading, canvasData]);
+
+    // Helper function to validate shipment ID and determine if we should make API call
+    const shouldMakeAPICall = (id) => {
+        if (!id) {
+            console.log('⚠️ shouldMakeAPICall: No shipment ID provided');
+            return false;
+        }
+        
+        // Check if shipment ID is a valid UUID format
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        
+        if (!isUUID) {
+            console.log('⚠️ shouldMakeAPICall: Invalid shipment ID format:', id);
+            return false;
+        }
+        
+        // DEFINITIVE RACE CONDITION FIX: Check for upload completion flag
+        if (canvasData) {
+            // If we have canvas data, upload MUST be completed
+            if (!canvasData.uploadCompleted) {
+                console.log('❌ shouldMakeAPICall: Upload not completed yet, blocking API call');
+                return false;
+            }
+            
+            // Upload completed - now check shipment ID match
+            if (canvasData.shipmentId !== id) {
+                console.log('❌ shouldMakeAPICall: Shipment ID mismatch after upload completion');
+                console.log('   Canvas ID (from upload):', canvasData.shipmentId);
+                console.log('   Component ID:', id);
+                console.log('   Upload timestamp:', new Date(canvasData.uploadTimestamp));
+                return false;
+            }
+            
+            console.log('✅ shouldMakeAPICall: Upload completed AND shipment IDs match perfectly');
+            console.log('✅ Using shipment ID from upload response:', id);
+            console.log('✅ Upload timestamp:', new Date(canvasData.uploadTimestamp));
+            return true;
+        }
+        
+        // No canvas data - standalone usage (allow but with warning)
+        console.log('⚠️ shouldMakeAPICall: No canvas data - standalone usage, allowing API call:', id);
+        return true;
+    };
 
     const loadStrategicStatus = async () => {
         try {
             setLoading(true);
             setError(null);
+
+            // Final safety check before making API call
+            if (!shouldMakeAPICall(shipmentId)) {
+                console.log('❌ loadStrategicStatus: Safety check failed, aborting API call');
+                setLoading(false);
+                return;
+            }
+
+            console.log('🚀 loadStrategicStatus: Making API call with shipment ID:', shipmentId);
 
             // Get strategic items status
             const statusData = await apiService.strategic.getShipmentStatus(shipmentId);
@@ -374,13 +474,13 @@ const StrategicItemPermitInterface = ({
                 }}>
                     <div style={{ padding: '1rem', backgroundColor: 'white', borderRadius: '4px' }}>
                         <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#d63031' }}>
-                            {strategicItemsDetected ? '4' : '0'}
+                            {strategicItemsCount || (canvasData?.ocrData?.fieldSuggestions?.product_items?.value?.length || 0)}
                         </div>
                         <div style={{ fontSize: '0.9rem', color: '#666' }}>Strategic Items</div>
                     </div>
                     <div style={{ padding: '1rem', backgroundColor: 'white', borderRadius: '4px' }}>
                         <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#e17055' }}>
-                            {complianceScore}%
+                            {(strategicItemsCount > 0 && complianceScore === 100) ? 0 : complianceScore}%
                         </div>
                         <div style={{ fontSize: '0.9rem', color: '#666' }}>Compliance Score</div>
                     </div>

@@ -21,6 +21,14 @@ import refactoredComplianceRouter from './routes/refactored/compliance.js';
 import refactoredUploadsRouter from './routes/refactored/uploads.js';
 import refactoredStrategicRouter from './routes/refactored/strategic.js';
 
+// Import auth routes
+import authRouter from './routes/shared/auth.js';
+import passwordResetRouter from './routes/shared/password-reset.js';
+import workflowsRouter from './routes/workflows.js';
+
+// Import customer routes
+import customerShipmentsRouter from './routes/customer/shipments.js';
+
 // Import legacy routes (to be migrated)
 import policyRouter from './routes/policy.js';
 import uploadsRouter from './routes/upload.js';
@@ -103,6 +111,17 @@ function createApp() {
   app.use('/api/v2/compliance', refactoredComplianceRouter);
   app.use('/api/v2/uploads', refactoredUploadsRouter);
   app.use('/api/v2/strategic', refactoredStrategicRouter);
+
+  // Authentication Routes
+  app.use('/api/auth', authRouter);
+  app.use('/api/auth', passwordResetRouter);
+  
+  // Protected Customer Routes
+  app.use('/api/workflows', workflowsRouter);
+  app.use('/api/customer/shipments', customerShipmentsRouter);
+  
+  // General shipments route (redirects to customer shipments for now)
+  app.use('/api/shipments', customerShipmentsRouter);
 
   // API Routes - Legacy (to be migrated)
   app.use('/api/policy', policyRouter);

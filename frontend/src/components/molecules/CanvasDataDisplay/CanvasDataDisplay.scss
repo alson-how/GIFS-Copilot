@@ -1,0 +1,92 @@
+/**
+ * CanvasDataDisplay Molecule Styles
+ * Information panel for displaying OCR and canvas processing data
+ */
+
+.canvas-data-display {
+  background: rgba(90, 140, 179, 0.1);
+  border: 1px solid rgba(90, 140, 179, 0.3);
+  border-radius: var(--border-radius-lg);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  font-family: var(--font-family);
+}
+
+.canvas-data-display__title {
+  margin: 0 0 0.5rem 0;
+  color: var(--primary-600);
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.canvas-data-display__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.canvas-data-display__field {
+  font-size: 0.9rem;
+  color: var(--gray-700);
+  line-height: 1.4;
+
+  strong {
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-right: 0.5rem;
+  }
+}
+
+// Responsive design
+@media (max-width: 640px) {
+  .canvas-data-display {
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .canvas-data-display__title {
+    font-size: 0.9rem;
+  }
+
+  .canvas-data-display__field {
+    font-size: 0.8rem;
+  }
+}
+
+// Dark theme
+@media (prefers-color-scheme: dark) {
+  .canvas-data-display {
+    background: rgba(90, 140, 179, 0.2);
+    border-color: rgba(90, 140, 179, 0.4);
+  }
+
+  .canvas-data-display__title {
+    color: var(--primary-400);
+  }
+
+  .canvas-data-display__field {
+    color: var(--gray-300);
+
+    strong {
+      color: var(--gray-100);
+    }
+  }
+}
+
+// High contrast mode
+@media (prefers-contrast: high) {
+  .canvas-data-display {
+    border-width: 2px;
+  }
+}
+
+// Print styles
+@media print {
+  .canvas-data-display {
+    border: 1px solid #000;
+    background: none;
+  }
+}

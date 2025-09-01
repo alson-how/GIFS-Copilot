@@ -1,0 +1,107 @@
+/**
+ * TradeTermsForm Molecule Styles
+ * Form layout for trade terms and commercial information
+ */
+
+.trade-terms-form {
+  .form-section__content {
+    padding: 0;
+  }
+}
+
+.trade-terms-form__content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.trade-terms-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+.trade-terms-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.trade-terms-form__checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 1.75rem; // Align with other fields that have labels
+}
+
+.trade-terms-form__checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+.trade-terms-form__checkbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--primary-500);
+  cursor: pointer;
+}
+
+.trade-terms-form__checkbox-text {
+  user-select: none;
+}
+
+.trade-terms-form__insurance-note {
+  font-size: 0.8rem;
+  color: var(--blue-600);
+  background: var(--blue-50);
+  padding: 0.5rem;
+  border-radius: var(--border-radius);
+  border-left: 3px solid var(--blue-300);
+  margin-top: 0.25rem;
+}
+
+// Responsive adjustments
+@media (max-width: 640px) {
+  .trade-terms-form__content {
+    gap: 1rem;
+  }
+  
+  .trade-terms-form__row {
+    gap: 0.75rem;
+  }
+
+  .trade-terms-form__checkbox-group {
+    padding-top: 0.5rem;
+  }
+
+  .trade-terms-form__checkbox-label {
+    font-size: 0.8rem;
+  }
+
+  .trade-terms-form__insurance-note {
+    font-size: 0.75rem;
+  }
+}
+
+// Dark theme
+@media (prefers-color-scheme: dark) {
+  .trade-terms-form__checkbox-label {
+    color: var(--gray-300);
+  }
+
+  .trade-terms-form__insurance-note {
+    color: var(--blue-300);
+    background: var(--blue-900);
+    border-left-color: var(--blue-400);
+  }
+}

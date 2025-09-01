@@ -72,6 +72,18 @@ export default function AIQuery({ onOpenCanvas }) {
           if (invoiceResponse.ok) {
             invoiceProcessingResult = await invoiceResponse.json();
             console.log('✅ Invoice processing completed:', invoiceProcessingResult);
+            console.log('🔍 CRITICAL DEBUG - Full invoice response data:', invoiceProcessingResult.data);
+            console.log('🔍 CRITICAL DEBUG - Shipment ID in response:', invoiceProcessingResult.data?.shipment_id);
+            console.log('🔍 CRITICAL DEBUG - Response structure keys:', Object.keys(invoiceProcessingResult.data || {}));
+            
+            // IMMEDIATE CHECK: Is shipment_id present?
+            if (!invoiceProcessingResult.data?.shipment_id) {
+              console.error('❌ CRITICAL ERROR: No shipment_id in upload response!');
+              console.error('❌ This will cause the race condition!');
+              console.error('❌ Full response:', JSON.stringify(invoiceProcessingResult, null, 2));
+            } else {
+              console.log('✅ SHIPMENT ID FOUND:', invoiceProcessingResult.data.shipment_id);
+            }
           } else {
             const errorData = await invoiceResponse.json();
             console.warn('⚠️ Invoice processing failed:', errorData);
@@ -106,6 +118,10 @@ export default function AIQuery({ onOpenCanvas }) {
         const extractedDate = extractDateFromQuery(userMessage.content);
         const extractedDestination = extractDestination(userMessage.content);
         
+        // CRITICAL DEBUG: Check what we're getting from the upload response
+        console.log('🔍 CANVAS CREATION DEBUG - invoiceProcessingResult:', invoiceProcessingResult);
+        console.log('🔍 CANVAS CREATION DEBUG - shipment_id extraction:', invoiceProcessingResult?.data?.shipment_id);
+        
         // Create canvas data with invoice processing results
         const canvasData = {
           extractedDate,
@@ -114,11 +130,16 @@ export default function AIQuery({ onOpenCanvas }) {
           originalQuery: userMessage.content,
           invoiceData: invoiceProcessingResult, // Include invoice processing results
           shipmentId: invoiceProcessingResult?.data?.shipment_id, // Include shipment ID for tracking
+          uploadCompleted: true, // CRITICAL FLAG: Upload API has completed successfully
+          uploadTimestamp: Date.now(), // Timestamp to ensure freshness
           // Map OCR data to expected format for frontend
           ocrData: invoiceProcessingResult?.data?.extracted_fields ? {
             fieldSuggestions: invoiceProcessingResult.data.extracted_fields
           } : null
         };
+        
+        console.log('🔍 CANVAS CREATION DEBUG - Final canvasData:', canvasData);
+        console.log('🔍 CANVAS CREATION DEBUG - Final shipmentId:', canvasData.shipmentId);
         
         // Debug logging for OCR data structure
         if (invoiceProcessingResult?.data?.extracted_fields) {
@@ -228,6 +249,10 @@ ${invoiceProcessingResult?.suggestions ? `**Suggestions:**\n${invoiceProcessingR
         
         // Only open canvas for successful Commercial Invoice processing
         if (shouldOpenCanvas && onOpenCanvas) {
+          console.log('🎯 AIQuery: Opening canvas with completed upload data');
+          console.log('🎯 AIQuery: Shipment ID from upload:', canvasData.shipmentId);
+          console.log('🎯 AIQuery: Upload completed flag:', canvasData.uploadCompleted);
+          console.log('🎯 AIQuery: Upload timestamp:', new Date(canvasData.uploadTimestamp));
           onOpenCanvas(canvasData);
         }
         

@@ -1,0 +1,44 @@
+/**
+ * BasicInformationForm Molecule Styles
+ * Form layout for basic shipment information fields
+ */
+
+.basic-information-form {
+  .form-section__content {
+    padding: 0;
+  }
+}
+
+.basic-information-form__content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.basic-information-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+.basic-information-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+// Responsive adjustments
+@media (max-width: 640px) {
+  .basic-information-form__content {
+    gap: 1rem;
+  }
+  
+  .basic-information-form__row {
+    gap: 0.75rem;
+  }
+}

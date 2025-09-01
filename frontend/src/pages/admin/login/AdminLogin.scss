@@ -1,0 +1,254 @@
+/**
+ * Admin Login Page Styles
+ */
+
+.admin-login {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  font-family: var(--font-family);
+
+  &__loading {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  }
+
+  &__container {
+    max-width: 420px;
+    width: 100%;
+  }
+
+  &__header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  &__logo {
+    h1 {
+      margin: 0 0 0.5rem 0;
+      font-size: 2rem;
+      font-weight: 700;
+      color: white;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    p {
+      margin: 0;
+      font-size: 1rem;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 500;
+    }
+  }
+
+  &__card {
+    background: white;
+    border-radius: var(--border-radius-xl);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 
+                0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+
+  &__card-header {
+    padding: 2rem 2rem 1rem 2rem;
+    text-align: center;
+    border-bottom: 1px solid var(--gray-100);
+
+    h2 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gray-900);
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.875rem;
+      color: var(--gray-600);
+    }
+  }
+
+  &__form {
+    padding: 2rem;
+  }
+
+  &__error {
+    margin-bottom: 1.5rem;
+  }
+
+  &__field {
+    margin-bottom: 1.5rem;
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--gray-700);
+    }
+  }
+
+  &__options {
+    margin-bottom: 2rem;
+  }
+
+  &__checkbox {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--gray-600);
+
+    input[type="checkbox"] {
+      margin-right: 0.5rem;
+      accent-color: var(--primary-500);
+    }
+
+    span {
+      user-select: none;
+    }
+  }
+
+  &__submit {
+    width: 100%;
+    margin-bottom: 1.5rem;
+  }
+
+  &__demo {
+    text-align: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--gray-100);
+
+    p {
+      margin: 0 0 0.75rem 0;
+      font-size: 0.875rem;
+      color: var(--gray-600);
+      font-weight: 500;
+    }
+  }
+
+  &__footer {
+    text-align: center;
+    margin-top: 2rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.875rem;
+
+    p {
+      margin: 0 0 0.5rem 0;
+    }
+
+    a {
+      color: rgba(255, 255, 255, 0.9);
+      text-decoration: underline;
+
+      &:hover {
+        color: white;
+      }
+    }
+  }
+
+  &__security {
+    font-size: 0.8rem !important;
+    opacity: 0.8;
+  }
+}
+
+// Responsive design
+@media (max-width: 480px) {
+  .admin-login {
+    padding: 1rem;
+
+    &__container {
+      max-width: 100%;
+    }
+
+    &__logo {
+      h1 {
+        font-size: 1.75rem;
+      }
+    }
+
+    &__card-header {
+      padding: 1.5rem 1.5rem 1rem 1.5rem;
+
+      h2 {
+        font-size: 1.25rem;
+      }
+    }
+
+    &__form {
+      padding: 1.5rem;
+    }
+
+    &__field {
+      margin-bottom: 1.25rem;
+    }
+
+    &__options {
+      margin-bottom: 1.5rem;
+    }
+
+    &__submit {
+      margin-bottom: 1.25rem;
+    }
+
+    &__demo {
+      padding-top: 1.25rem;
+    }
+
+    &__footer {
+      margin-top: 1.5rem;
+      font-size: 0.8rem;
+    }
+  }
+}
+
+// Dark theme
+@media (prefers-color-scheme: dark) {
+  .admin-login {
+    &__card {
+      background: var(--gray-800);
+      border: 1px solid var(--gray-700);
+    }
+
+    &__card-header {
+      border-bottom-color: var(--gray-700);
+
+      h2 {
+        color: var(--gray-100);
+      }
+
+      p {
+        color: var(--gray-400);
+      }
+    }
+
+    &__field label {
+      color: var(--gray-300);
+    }
+
+    &__checkbox {
+      color: var(--gray-400);
+    }
+
+    &__demo {
+      border-top-color: var(--gray-700);
+
+      p {
+        color: var(--gray-400);
+      }
+    }
+  }
+}
+
+// Print styles
+@media print {
+  .admin-login {
+    display: none;
+  }
+}

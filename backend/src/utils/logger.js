@@ -164,16 +164,18 @@ export const apiLogger = {
 
 export const dbLogger = {
   query: (query, params = []) => {
+    const queryStr = typeof query === 'string' ? query : String(query);
     logger.database('QUERY', 'database', { 
-      query: query.substring(0, 100) + (query.length > 100 ? '...' : ''),
+      query: queryStr.substring(0, 100) + (queryStr.length > 100 ? '...' : ''),
       paramCount: params.length 
     });
   },
   
   error: (error, query) => {
+    const queryStr = typeof query === 'string' ? query : String(query || '');
     logger.error('Database query failed', { 
       error,
-      query: query?.substring(0, 100) + (query?.length > 100 ? '...' : '') 
+      query: queryStr.substring(0, 100) + (queryStr.length > 100 ? '...' : '') 
     });
   }
 };

@@ -239,8 +239,10 @@ class StrategicItemsRAG {
      */
     async detectExactMatch(productDescription, hsCode) {
         try {
+            console.log(`🔍 Layer 1: Exact match detection for "${productDescription}"`);
+            
             const query = `
-                SELECT strategic_code, description, required_permits, permit_details, category
+                SELECT strategic_code, description, required_permits, permit_details, category, keywords
                 FROM strategic_items_rag
                 WHERE 
                     LOWER(description) LIKE LOWER($1) OR
@@ -254,12 +256,43 @@ class StrategicItemsRAG {
                 hsCode
             ]);
             
+            console.log(`🔍 Layer 1: Found ${rows.length} exact matches`);
+            
             if (rows.length > 0) {
                 return {
                     layer: 'RAG_EXACT_MATCH',
                     confidence: 95,
                     matches: rows,
                     detection_method: 'Direct database lookup'
+                };
+            }
+            
+            // Enhanced keyword matching
+            const enhancedQuery = `
+                SELECT strategic_code, description, required_permits, permit_details, category, keywords
+                FROM strategic_items_rag
+                WHERE keywords IS NOT NULL
+            `;
+            
+            const { rows: allItems } = await this.db.query(enhancedQuery);
+            
+            const matchedItems = allItems.filter(item => {
+                if (!item.keywords) return false;
+                
+                const productLower = productDescription.toLowerCase();
+                return item.keywords.some(keyword => 
+                    productLower.includes(keyword.toLowerCase())
+                );
+            });
+            
+            console.log(`🔍 Layer 1: Enhanced keyword matching found ${matchedItems.length} matches`);
+            
+            if (matchedItems.length > 0) {
+                return {
+                    layer: 'RAG_EXACT_MATCH',
+                    confidence: 90,
+                    matches: matchedItems,
+                    detection_method: 'Enhanced keyword matching'
                 };
             }
             
@@ -275,32 +308,73 @@ class StrategicItemsRAG {
      */
     async detectSemanticMatch(productDescription) {
         try {
-            // Generate embedding for the product description
-            const embedding = await this.generateEmbedding(productDescription);
+            console.log(`🔍 Layer 2: Semantic search for "${productDescription}"`);
             
-            // Perform vector similarity search
+            // Fallback to keyword-based similarity if embeddings fail
+            try {
+                // Try vector similarity first
+                const embedding = await this.generateEmbedding(productDescription);
+                
+                const query = `
+                    SELECT 
+                        strategic_code, 
+                        description, 
+                        required_permits, 
+                        permit_details, 
+                        category,
+                        1 - (embedding <=> $1::vector) as similarity
+                    FROM strategic_items_rag
+                    WHERE 1 - (embedding <=> $1::vector) > 0.85
+                    ORDER BY similarity DESC
+                    LIMIT 10
+                `;
+                
+                const { rows } = await this.db.query(query, [`[${embedding.join(',')}]`]);
+                
+                if (rows.length > 0) {
+                    console.log(`🔍 Layer 2: Vector similarity found ${rows.length} matches`);
+                    return {
+                        layer: 'RAG_SEMANTIC_SEARCH',
+                        confidence: Math.round(rows[0].similarity * 100),
+                        matches: rows,
+                        detection_method: 'Vector similarity search'
+                    };
+                }
+            } catch (embeddingError) {
+                console.log('⚠️ Vector similarity failed, falling back to keyword similarity');
+            }
+            
+            // Fallback: Keyword-based similarity
             const query = `
-                SELECT 
-                    strategic_code, 
-                    description, 
-                    required_permits, 
-                    permit_details, 
-                    category,
-                    1 - (embedding <=> $1::vector) as similarity
+                SELECT strategic_code, description, required_permits, permit_details, category, keywords
                 FROM strategic_items_rag
-                WHERE 1 - (embedding <=> $1::vector) > 0.85
-                ORDER BY similarity DESC
-                LIMIT 10
+                WHERE keywords IS NOT NULL
             `;
             
-            const { rows } = await this.db.query(query, [`[${embedding.join(',')}]`]);
+            const { rows } = await this.db.query(query);
             
-            if (rows.length > 0) {
+            const productWords = productDescription.toLowerCase().split(/\s+/);
+            const matchedItems = rows.filter(item => {
+                if (!item.keywords) return false;
+                
+                const keywordWords = item.keywords.join(' ').toLowerCase().split(/\s+/);
+                const commonWords = productWords.filter(word => 
+                    keywordWords.some(keyword => keyword.includes(word) || word.includes(keyword))
+                );
+                
+                // Calculate similarity based on common words
+                const similarity = commonWords.length / Math.max(productWords.length, keywordWords.length);
+                return similarity > 0.3; // 30% similarity threshold
+            });
+            
+            console.log(`🔍 Layer 2: Keyword similarity found ${matchedItems.length} matches`);
+            
+            if (matchedItems.length > 0) {
                 return {
                     layer: 'RAG_SEMANTIC_SEARCH',
-                    confidence: Math.round(rows[0].similarity * 100),
-                    matches: rows,
-                    detection_method: 'Vector similarity search'
+                    confidence: 85,
+                    matches: matchedItems,
+                    detection_method: 'Keyword similarity search'
                 };
             }
             
@@ -621,6 +695,70 @@ class StrategicItemsRAG {
             
             // Determine if item is strategic (confidence >= 60%)
             detectionResults.is_strategic = detectionResults.final_confidence >= 60;
+            
+            // Enhanced strategic item detection for common strategic products
+            const strategicPatterns = [
+                {
+                    keywords: ['ai', 'accelerator', 'gpu', 'neural', 'machine learning', 'deep learning', 'tensor', 'npu', 'tpu'],
+                    confidence: 90,
+                    codes: ['3A001.a.1', '3A001.b.1'],
+                    permits: ['STA_2010', 'AICA', 'TechDocs'],
+                    category: 'AI/ML Hardware'
+                },
+                {
+                    keywords: ['network switch', 'router', 'switching', 'high-speed network', 'telecommunications'],
+                    confidence: 85,
+                    codes: ['5A002.a'],
+                    permits: ['STA_2010', 'SIRIM'],
+                    category: 'Network Equipment'
+                },
+                {
+                    keywords: ['server memory', 'memory module', 'high-capacity memory', 'ram', 'ddr'],
+                    confidence: 80,
+                    codes: ['3A001.a.3'],
+                    permits: ['STA_2010'],
+                    category: 'Memory Systems'
+                },
+                {
+                    keywords: ['fiber optic', 'optical cable', 'transmission', 'high-speed data'],
+                    confidence: 75,
+                    codes: ['6A002.a'],
+                    permits: ['STA_2010'],
+                    category: 'Optical Systems'
+                },
+                {
+                    keywords: ['encryption', 'cryptographic', 'security software', 'cybersecurity'],
+                    confidence: 85,
+                    codes: ['5D002'],
+                    permits: ['STA_2010', 'AICA', 'CyberSecurity'],
+                    category: 'Security Software'
+                }
+            ];
+            
+            // Check if item matches strategic patterns
+            for (const pattern of strategicPatterns) {
+                const hasKeyword = pattern.keywords.some(keyword => 
+                    description.toLowerCase().includes(keyword.toLowerCase())
+                );
+                
+                if (hasKeyword && detectionResults.final_confidence < pattern.confidence) {
+                    console.log(`🎯 Enhanced detection: ${pattern.category} - ${pattern.confidence}% confidence`);
+                    detectionResults.is_strategic = true;
+                    detectionResults.final_confidence = pattern.confidence;
+                    detectionResults.strategic_codes = [...new Set([...detectionResults.strategic_codes, ...pattern.codes])];
+                    detectionResults.required_permits = [...new Set([...detectionResults.required_permits, ...pattern.permits])];
+                    detectionResults.detection_summary.push({
+                        layer: 'enhanced_pattern_match',
+                        confidence: pattern.confidence,
+                        matches_count: 1,
+                        method: `${pattern.category} pattern detection`,
+                        matched_keywords: pattern.keywords.filter(keyword => 
+                            description.toLowerCase().includes(keyword.toLowerCase())
+                        )
+                    });
+                    break; // Use the first matching pattern
+                }
+            }
             
             console.log(`🎯 Detection complete: ${detectionResults.is_strategic ? 'STRATEGIC' : 'NON-STRATEGIC'} (${detectionResults.final_confidence}% confidence)`);
             

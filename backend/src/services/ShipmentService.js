@@ -210,11 +210,15 @@ export class ShipmentService extends BaseService {
       const stats = await this.repository.rawQuery(`
         SELECT 
           COUNT(*) as total_shipments,
-          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-          COUNT(CASE WHEN status = 'processing' THEN 1 END) as processing_count,
-          COUNT(CASE WHEN status = 'in_transit' THEN 1 END) as in_transit_count,
-          COUNT(CASE WHEN status = 'delivered' THEN 1 END) as delivered_count,
-          COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_count,
+          COUNT(CASE WHEN step1_status = 'pending' THEN 1 END) as pending_count,
+          COUNT(CASE WHEN step1_status = 'completed' THEN 1 END) as completed_count,
+          COUNT(CASE WHEN current_step = 1 THEN 1 END) as step1_count,
+          COUNT(CASE WHEN current_step = 2 THEN 1 END) as step2_count,
+          COUNT(CASE WHEN current_step = 3 THEN 1 END) as step3_count,
+          COUNT(CASE WHEN current_step = 4 THEN 1 END) as step4_count,
+          COUNT(CASE WHEN current_step = 5 THEN 1 END) as step5_count,
+          COUNT(CASE WHEN has_strategic_items = true THEN 1 END) as strategic_items_count,
+          COUNT(CASE WHEN has_ai_chips = true THEN 1 END) as ai_chips_count,
           COUNT(CASE WHEN created_at >= NOW() - INTERVAL '30 days' THEN 1 END) as recent_count
         FROM shipments
       `);

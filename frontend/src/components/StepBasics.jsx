@@ -15,6 +15,10 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   }
   
   const [shipmentId, setShipmentId] = useState(defaultShipmentId || (crypto?.randomUUID?.() || ''));
+  
+  // Debug logging for shipment ID
+  console.log('🚀 StepBasics render - shipmentId:', shipmentId);
+  console.log('🚀 StepBasics render - canvasData?.shipmentId:', canvasData?.shipmentId);
   const [exportDate, setExportDate] = useState('');
   const [mode, setMode] = useState('air');
   const [destination, setDestination] = useState('China');
@@ -23,8 +27,13 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   // Update shipmentId when canvasData contains a new shipmentId from invoice processing
   useEffect(() => {
     if (canvasData?.shipmentId && canvasData.shipmentId !== shipmentId) {
-      console.log('🆔 Updating shipmentId from canvasData:', canvasData.shipmentId);
+      console.log('🆔 StepBasics: Updating shipmentId from canvasData:', canvasData.shipmentId);
+      console.log('🆔 StepBasics: Previous shipmentId:', shipmentId);
       setShipmentId(canvasData.shipmentId);
+    } else if (canvasData?.shipmentId) {
+      console.log('🆔 StepBasics: Canvas shipmentId already matches current:', canvasData.shipmentId);
+    } else if (canvasData) {
+      console.log('🆔 StepBasics: Canvas data exists but no shipmentId:', canvasData);
     }
   }, [canvasData?.shipmentId, shipmentId]);
   
@@ -195,17 +204,20 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
 
       if (data.success) {
         console.log('✅ Strategic detection completed:', data.data);
-        setStrategicItemsDetected(data.data.strategic_items_found > 0);
-        setExportBlocked(data.data.export_blocked);
-        // Calculate compliance score based on strategic items and export status
+        
+        let strategicItemsCount = data.data.strategic_items_found;
         let calculatedComplianceScore = 100;
+        
         if (data.data.strategic_items_found > 0) {
           if (data.data.export_blocked) {
-            calculatedComplianceScore = 50; // Blocked due to missing permits
+            calculatedComplianceScore = 0; // Blocked due to missing permits - 0% compliance
           } else {
             calculatedComplianceScore = 90; // Strategic items detected but compliant
           }
         }
+        
+        setStrategicItemsDetected(strategicItemsCount > 0);
+        setExportBlocked(data.data.export_blocked || (strategicItemsCount > 0));
         setComplianceScore(data.data.overall_compliance_score || calculatedComplianceScore);
         // Set missing permits based on required permits (all are missing until uploaded)
         const requiredPermits = data.data.required_permits || [];
@@ -1059,6 +1071,8 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
               missingPermits={missingPermits}
               strategicDetectionComplete={strategicDetectionComplete}
               strategicDetectionLoading={strategicDetectionLoading}
+              canvasData={canvasData}
+              strategicItemsCount={getStrategicCount()}
             />
 
         {/* Section 1: Basic Information */}

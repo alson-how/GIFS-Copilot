@@ -8,6 +8,8 @@
     "start": "node src/app.js",
     "seed-knowledge": "node src/db/seed-knowledge.js",
     "clear-knowledge": "node src/db/seed-knowledge.js --clear",
+    "seed-users": "node src/scripts/seed-users.js",
+    "clear-users": "node src/scripts/seed-users.js --clear",
     "ingest-knowledge": "node src/scripts/ingest-knowledge.js",
     "ingest-enhanced": "node src/scripts/enhanced-ingest.js",
     "ingest-enhanced-clear": "node src/scripts/enhanced-ingest.js --clear",
@@ -17,11 +19,14 @@
   "dependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^2.1.1",
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dayjs": "^1.11.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.0.1",
     "jsdom": "^24.0.0",
+    "jsonwebtoken": "^9.0.2",
     "luxon": "^3.7.1",
     "multer": "^1.4.5-lts.1",
     "node-fetch": "^3.3.2",
@@ -29,12 +34,11 @@
     "openai": "^4.104.0",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.17.2",
     "pg": "^8.11.3",
+    "puppeteer": "^21.0.0",
     "sharp": "^0.33.0",
     "tesseract.js": "^5.1.1",
-    "pdfkit": "^0.17.2",
-    "puppeteer": "^21.0.0",
-
     "uuid": "^9.0.0"
   }
 }

@@ -8,7 +8,7 @@ import { serviceLogger } from '../utils/logger.js';
 
 export class ShipmentRepository extends BaseRepository {
   constructor() {
-    super('shipments', 'id');
+    super('shipments', 'shipment_id');
   }
 
   /**
@@ -39,7 +39,7 @@ export class ShipmentRepository extends BaseRepository {
             '[]'::json
           ) as files
         FROM shipments s
-        LEFT JOIN shipment_files sf ON s.id = sf.shipment_id
+        LEFT JOIN shipment_files sf ON s.shipment_id = sf.shipment_id
       `;
 
       const params = [];
@@ -53,7 +53,7 @@ export class ShipmentRepository extends BaseRepository {
         params.push(...Object.values(conditions));
       }
 
-      query += ' GROUP BY s.id';
+      query += ' GROUP BY s.shipment_id';
 
       // Add ORDER BY
       if (options.orderBy) {
@@ -138,13 +138,13 @@ export class ShipmentRepository extends BaseRepository {
             '[]'::json
           ) as files
         FROM shipments s
-        LEFT JOIN compliance_records cr ON s.id = cr.shipment_id
-        LEFT JOIN ai_chip_control ac ON s.id = ac.shipment_id
-        LEFT JOIN end_user_screening eus ON s.id = eus.shipment_id
-        LEFT JOIN documents d ON s.id = d.shipment_id
-        LEFT JOIN shipment_files sf ON s.id = sf.shipment_id
-        WHERE s.id = $1
-        GROUP BY s.id, cr.shipment_id, ac.shipment_id, eus.shipment_id, d.shipment_id
+        LEFT JOIN compliance_records cr ON s.shipment_id = cr.shipment_id
+        LEFT JOIN ai_chip_control ac ON s.shipment_id = ac.shipment_id
+        LEFT JOIN end_user_screening eus ON s.shipment_id = eus.shipment_id
+        LEFT JOIN documents d ON s.shipment_id = d.shipment_id
+        LEFT JOIN shipment_files sf ON s.shipment_id = sf.shipment_id
+        WHERE s.shipment_id = $1
+        GROUP BY s.shipment_id, cr.shipment_id, ac.shipment_id, eus.shipment_id, d.shipment_id
       `;
 
       const result = await this.rawQuery(query, [id]);

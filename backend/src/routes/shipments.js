@@ -1,6 +1,10 @@
 // backend/src/routes/shipments.js
 import express from 'express';
+import { authCustomer } from '../middleware/authCustomer.js';
 const router = express.Router();
+
+// Apply customer authentication to all shipment routes
+router.use(authCustomer);
 
 /**
  * POST /api/shipments/basics

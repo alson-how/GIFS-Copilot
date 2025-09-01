@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+
+// Authentication Components
+import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
+import { AdminAuthProvider } from './contexts/AdminAuthContext';
+import CustomerLogin from './pages/auth/CustomerLogin';
+import AdminLogin from './pages/auth/AdminLogin';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+
+// Protected Pages
+import CustomerDashboard from './components/layout/CustomerDashboard';
+import AdminDashboard from './components/layout/AdminDashboard';
+
+// Legacy Components (to be integrated)
 import StepBasics from './components/StepBasics.jsx';
 import StepSTA from './components/StepSTA.jsx';
 import StepAI from './components/StepAI.jsx';
@@ -11,10 +24,10 @@ import EnhancedWorkflow from './components/EnhancedWorkflow.jsx';
 import ShipmentOrdersList from './components/ShipmentOrdersList.jsx';
 import ShipmentDetails from './components/ShipmentDetails.jsx';
 import PermitDocument from './components/PermitDocument.jsx';
+import TraditionalWorkflow from './pages/workflow/TraditionalWorkflow';
 
-// Main App component with routing
-function AppWithRouter() {
-  // Navigation state
+// Legacy App component for existing workflows (will be integrated later)
+function LegacyAppWithRouter() {
   const [currentView, setCurrentView] = useState('enhanced-workflow');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
@@ -24,7 +37,7 @@ function AppWithRouter() {
   const [showCanvas, setShowCanvas] = useState(false);
   const [canvasData, setCanvasData] = useState(null);
   const [showChatOnly, setShowChatOnly] = useState(false);
-  const [currentCanvasStep, setCurrentCanvasStep] = useState(1); // 1: Basics, 2: AI Chip, 3: Screening, 4: Docs
+  const [currentCanvasStep, setCurrentCanvasStep] = useState(1);
 
   // Add fade-in animation on mount
   useEffect(() => {
@@ -57,6 +70,8 @@ function AppWithRouter() {
 
   // Handle canvas opening from AI chat
   const handleOpenCanvas = (data) => {
+    console.log('🎯 App.jsx handleOpenCanvas called with data:', data);
+    console.log('🎯 App.jsx handleOpenCanvas shipmentId:', data?.shipmentId);
     setCanvasData(data);
     setShowCanvas(true);
     setShowChatOnly(false);
@@ -352,12 +367,16 @@ function AppWithRouter() {
 
               {/* Step Content */}
               {currentCanvasStep === 1 && (
-                <StepBasics
-                  defaultShipmentId={shipmentId}
-                  canvasData={canvasData}
-                  onSaved={(id, data) => handleStepComplete(1, id, data)}
-                  isCanvas={true}
-                />
+                <>
+                  {console.log('🎯 App.jsx rendering StepBasics with canvasData:', canvasData)}
+                  {console.log('🎯 App.jsx rendering StepBasics shipmentId from canvasData:', canvasData?.shipmentId)}
+                  <StepBasics
+                    defaultShipmentId={shipmentId}
+                    canvasData={canvasData}
+                    onSaved={(id, data) => handleStepComplete(1, id, data)}
+                    isCanvas={true}
+                  />
+                </>
               )}
               
               {currentCanvasStep === 2 && basics?.productType === 'ai_accelerator_gpu_tpu_npu' && (
@@ -498,15 +517,77 @@ function AppWithRouter() {
   );
 }
 
-// Wrapper component with Router
+// Main App component with authentication
 export default function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<AppWithRouter />} />
-        <Route path="/shipment/:shipmentId" element={<ShipmentDetails />} />
-        <Route path="/permit-document" element={<PermitDocument />} />
-      </Routes>
+      <CustomerAuthProvider>
+        <AdminAuthProvider>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={<CustomerLogin />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            
+            {/* Protected Customer Routes - Dashboard with nested routes */}
+            <Route 
+              path="/dashboard/*" 
+              element={
+                <ProtectedRoute userType="customer">
+                  <CustomerDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Protected Admin Routes - Dashboard with nested routes */}
+            <Route 
+              path="/admin/*" 
+              element={
+                <ProtectedRoute userType="admin">
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Legacy Routes for backwards compatibility */}
+            <Route 
+              path="/traditional-workflow" 
+              element={<Navigate to="/dashboard/traditional-workflow" replace />} 
+            />
+            
+            {/* Legacy Protected Routes */}
+            <Route 
+              path="/legacy" 
+              element={
+                <ProtectedRoute userType="customer">
+                  <LegacyAppWithRouter />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/shipment/:shipmentId" 
+              element={
+                <ProtectedRoute userType="customer">
+                  <ShipmentDetails />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/permit-document" 
+              element={
+                <ProtectedRoute userType="customer">
+                  <PermitDocument />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Default redirect */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            
+            {/* Catch all - redirect to login */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </AdminAuthProvider>
+      </CustomerAuthProvider>
     </Router>
   );
 }

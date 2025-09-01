@@ -1,0 +1,26 @@
+ Admin Account:
+
+  - Email: admin@3plcompany.com
+  - Password: Admin@123456
+  - Role: ADMIN
+  - Name: John Administrator
+
+  Customer Accounts:
+
+  Customer 1:
+  - Email: customer1@techcorp.com
+  - Password: Customer@123
+  - Company: Tech Corp Solutions
+  - Name: Sarah Johnson
+
+  Customer 2:
+  - Email: customer2@globalimports.com
+  - Password: Customer@123
+  - Company: Global Imports Ltd
+  - Name: Michael Chen
+
+  Customer 3:
+  - Email: customer3@fashionhouse.com
+  - Password: Customer@123
+  - Company: Fashion House International
+  - Name: Emma Williams
