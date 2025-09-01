@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiRequest, directApiRequest } from '../config/api.js';
 
 const AdminAuthContext = createContext();
 
@@ -33,10 +34,9 @@ export const AdminAuthProvider = ({ children }) => {
         }
 
         // Verify token with backend
-        const response = await fetch('/api/auth/verify-token', {
+        const response = await apiRequest('/auth/verify-token', {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Authorization': `Bearer ${token}`
           }
         });
 
@@ -93,11 +93,8 @@ export const AdminAuthProvider = ({ children }) => {
     try {
       setIsLoading(true);
 
-      const response = await fetch('/api/auth/admin/login', {
+      const response = await apiRequest('/auth/admin/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ username, password, rememberMe })
       });
 
@@ -134,11 +131,10 @@ export const AdminAuthProvider = ({ children }) => {
       // Call logout endpoint
       const token = localStorage.getItem('admin_token');
       if (token) {
-        await fetch('/api/auth/logout', {
+        await apiRequest('/auth/logout', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Authorization': `Bearer ${token}`
           }
         });
       }
@@ -199,11 +195,10 @@ export const AdminAuthProvider = ({ children }) => {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch('/api/admin/profile', {
+      const response = await directApiRequest('/api/admin/profile', {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(profileData)
       });
@@ -268,8 +263,12 @@ export const AdminAuthProvider = ({ children }) => {
     }
 
     try {
-      const response = await makeAuthenticatedRequest('/api/admin/switch-role', {
+      const token = localStorage.getItem('admin_token');
+      const response = await directApiRequest('/api/admin/switch-role', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ role: newRole })
       });
 

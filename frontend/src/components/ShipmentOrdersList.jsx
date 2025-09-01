@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiRequest } from '../config/api.js';
 
 const ShipmentOrdersList = () => {
     const navigate = useNavigate();
@@ -47,16 +48,16 @@ const ShipmentOrdersList = () => {
                 ...(filters.endUser && { endUser: filters.endUser })
             });
 
-            const response = await fetch(`/api/shipments?${params}`);
+            const response = await apiRequest(`/shipments?${params}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
             
-            if (data.ok) {
-                setShipments(data.shipments || []);
-                setTotalShipments(data.pagination?.total || 0);
+            if (data.success) {
+                setShipments(data.data.shipments || []);
+                setTotalShipments(data.data.pagination?.total || 0);
             } else {
                 throw new Error(data.error || 'Failed to fetch shipments');
             }
@@ -417,7 +418,7 @@ const ShipmentOrdersList = () => {
                             <tbody>
                                 {shipments.map((shipment, index) => (
                                     <tr 
-                                        key={shipment.shipment_id}
+                                        key={shipment.shipmentId || shipment.id}
                                         style={{
                                             backgroundColor: index % 2 === 0 ? 'white' : '#f8f9fa',
                                             transition: 'background-color 0.2s',
@@ -425,7 +426,7 @@ const ShipmentOrdersList = () => {
                                         }}
                                         onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e3f2fd'}
                                         onMouseOut={(e) => e.currentTarget.style.backgroundColor = index % 2 === 0 ? 'white' : '#f8f9fa'}
-                                        onClick={() => handleShipmentClick(shipment.shipment_id)}
+                                        onClick={() => handleShipmentClick(shipment.shipmentId)}
                                     >
                                         <td style={{ 
                                             padding: '1rem',
@@ -434,7 +435,7 @@ const ShipmentOrdersList = () => {
                                             fontWeight: '500',
                                             textDecoration: 'underline'
                                         }}>
-                                            {shipment.shipment_id?.substring(0, 8)}...
+                                            {shipment.shipmentId || shipment.id}
                                         </td>
                                         <td style={{ 
                                             padding: '1rem',
@@ -445,11 +446,11 @@ const ShipmentOrdersList = () => {
                                                 borderRadius: '12px',
                                                 fontSize: '0.8rem',
                                                 fontWeight: '500',
-                                                backgroundColor: `${getStatusColor(shipment.step1_status)}20`,
-                                                color: getStatusColor(shipment.step1_status),
-                                                border: `1px solid ${getStatusColor(shipment.step1_status)}40`
+                                                backgroundColor: `${getStatusColor(shipment.status)}20`,
+                                                color: getStatusColor(shipment.status),
+                                                border: `1px solid ${getStatusColor(shipment.status)}40`
                                             }}>
-                                                {formatStatus(shipment.step1_status)}
+                                                {formatStatus(shipment.status)}
                                             </span>
                                         </td>
                                         <td style={{ 
@@ -457,29 +458,29 @@ const ShipmentOrdersList = () => {
                                             borderBottom: '1px solid #dee2e6',
                                             color: '#495057'
                                         }}>
-                                            {formatDate(shipment.export_date)}
+                                            {formatDate(shipment.exportDate)}
                                         </td>
                                         <td style={{ 
                                             padding: '1rem',
                                             borderBottom: '1px solid #dee2e6',
                                             color: '#495057'
                                         }}>
-                                            {shipment.end_user_name || 'Not specified'}
+                                            {shipment.endUser || shipment.consignee || 'Not specified'}
                                         </td>
                                         <td style={{ 
                                             padding: '1rem',
                                             borderBottom: '1px solid #dee2e6',
                                             color: '#495057'
                                         }}>
-                                            {shipment.destination_country || 'Not specified'}
+                                            {shipment.destination || 'Not specified'}
                                         </td>
                                         <td style={{ 
                                             padding: '1rem',
                                             borderBottom: '1px solid #dee2e6',
                                             color: '#495057'
                                         }}>
-                                            {shipment.commercial_value ? 
-                                                `${shipment.currency || 'USD'} ${Number(shipment.commercial_value).toLocaleString()}` :
+                                            {shipment.totalValue ? 
+                                                `USD ${Number(shipment.totalValue).toLocaleString()}` :
                                                 'Not specified'
                                             }
                                         </td>

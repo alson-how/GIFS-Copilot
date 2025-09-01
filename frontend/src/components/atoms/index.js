@@ -11,3 +11,10 @@ export { default as LoadingSpinner } from './LoadingSpinner/LoadingSpinner.jsx';
 export { default as ErrorMessage } from './ErrorMessage/ErrorMessage.jsx';
 export { default as ProgressIndicator } from './ProgressIndicator/ProgressIndicator.jsx';
 export { default as Modal } from './Modal/Modal.jsx';
+
+// Address Book atoms
+export { default as AddressIcon } from './AddressIcon/AddressIcon.jsx';
+export { default as AddressLabel } from './AddressLabel/AddressLabel.jsx';
+export { default as CountrySelector } from './CountrySelector/CountrySelector.jsx';
+export { default as PostcodeInput } from './PostcodeInput/PostcodeInput.jsx';
+export { default as StateSelector } from './StateSelector/StateSelector.jsx';

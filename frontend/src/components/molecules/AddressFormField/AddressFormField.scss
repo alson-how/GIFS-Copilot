@@ -1,0 +1,55 @@
+@use "../../../styles/abstracts/variables" as *;
+@use "../../../styles/abstracts/mixins" as *;
+
+.address-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  
+  &__label {
+    font-weight: 500;
+    color: $color-text-primary;
+  }
+  
+  &__input-wrapper {
+    position: relative;
+  }
+  
+  &__help-text {
+    font-size: 0.875rem;
+    color: $color-text-secondary;
+    line-height: 1.4;
+  }
+  
+  &__error {
+    font-size: 0.875rem;
+    color: $color-error;
+    line-height: 1.4;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    
+    &::before {
+      content: '⚠';
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+  }
+  
+  // Error state styling
+  &--error {
+    .address-form-field__label {
+      color: $color-error;
+    }
+  }
+  
+  // Responsive adjustments
+  @media (max-width: 768px) {
+    gap: 0.375rem;
+    
+    &__help-text,
+    &__error {
+      font-size: 0.8125rem;
+    }
+  }
+}

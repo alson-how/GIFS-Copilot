@@ -28,21 +28,29 @@ import workflowsRouter from './routes/workflows.js';
 
 // Import customer routes
 import customerShipmentsRouter from './routes/customer/shipments.js';
+import customerAddressesRouter from './routes/customer/addresses.js';
 
-// Import legacy routes (to be migrated)
-import policyRouter from './routes/policy.js';
-import uploadsRouter from './routes/upload.js';
-import opsRouter from './routes/ops.js';
-import k2Router from './routes/form_k2.js';
-import documentsRouter from './routes/documents.js';
-import { batchProcessingRouter } from './routes/batchProcessing.js';
-import { stepRoutingRouter } from './routes/stepRouting.js';
-import comprehensiveScreeningRouter from './routes/comprehensiveScreening.js';
+// Import public routes
+import publicShipmentsRouter from './routes/public/shipments.js';
+
+// Import admin routes  
+import adminDashboardRouter from './routes/admin/dashboard.js';
+import adminQuotesRouter from './routes/admin/quotes.js';
+
+// Import legacy routes (to be migrated) - temporarily commented out to debug auth issue
+// import policyRouter from './routes/policy.js';
+// import uploadsRouter from './routes/upload.js';
+// import opsRouter from './routes/ops.js';
+// import k2Router from './routes/form_k2.js';
+// import documentsRouter from './routes/documents.js';
+// import { batchProcessingRouter } from './routes/batchProcessing.js';
+// import { stepRoutingRouter } from './routes/stepRouting.js';
+// import comprehensiveScreeningRouter from './routes/comprehensiveScreening.js';
 import strategicItemsRouter from './routes/strategicItems.js';
-import permitUploadsRouter from './routes/permitUploads.js';
+// import permitUploadsRouter from './routes/permitUploads.js';
 import processInvoiceDetectionRouter from './routes/processInvoiceDetection.js';
-import permitDocumentsRouter from './routes/permitDocuments.js';
-import documentGenerationRouter from './routes/documentGeneration.js';
+// import permitDocumentsRouter from './routes/permitDocuments.js';
+// import documentGenerationRouter from './routes/documentGeneration.js';
 
 /**
  * Create and configure Express application
@@ -119,24 +127,29 @@ function createApp() {
   // Protected Customer Routes
   app.use('/api/workflows', workflowsRouter);
   app.use('/api/customer/shipments', customerShipmentsRouter);
+  app.use('/api/customer/addresses', customerAddressesRouter);
   
-  // General shipments route (redirects to customer shipments for now)
-  app.use('/api/shipments', customerShipmentsRouter);
+  // Admin Routes
+  app.use('/api/admin/dashboard', adminDashboardRouter);
+  app.use('/api/admin/quotes', adminQuotesRouter);
+  
+  // Public shipments route (no authentication required)
+  app.use('/api/shipments', publicShipmentsRouter);
 
-  // API Routes - Legacy (to be migrated)
-  app.use('/api/policy', policyRouter);
-  app.use('/api/uploads', uploadsRouter);
-  app.use('/api/ops', opsRouter);
-  app.use('/api/k2', k2Router);
-  app.use('/api/documents', documentsRouter);
-  app.use('/api/batch-processing', batchProcessingRouter);
-  app.use('/api/step-routing', stepRoutingRouter);
-  app.use('/api/comprehensive-screening', comprehensiveScreeningRouter);
+  // API Routes - Legacy (to be migrated) - temporarily commented out to debug auth issue
+  // app.use('/api/policy', policyRouter);
+  // app.use('/api/uploads', uploadsRouter);
+  // app.use('/api/ops', opsRouter);
+  // app.use('/api/k2', k2Router);
+  // app.use('/api/documents', documentsRouter);
+  // app.use('/api/batch-processing', batchProcessingRouter);
+  // app.use('/api/step-routing', stepRoutingRouter);
+  // app.use('/api/comprehensive-screening', comprehensiveScreeningRouter);
   app.use('/api/strategic', strategicItemsRouter);
-  app.use('/api/uploads', permitUploadsRouter);
+  // app.use('/api/uploads', permitUploadsRouter);
   app.use('/api/invoice-detection', processInvoiceDetectionRouter);
-  app.use('/api/permit-documents', permitDocumentsRouter);
-  app.use('/api/document-generation', documentGenerationRouter);
+  // app.use('/api/permit-documents', permitDocumentsRouter);
+  // app.use('/api/document-generation', documentGenerationRouter);
 
   // Static file serving for uploaded files
   app.use('/files', express.static(path.join(process.cwd(), config.server.uploadsDir)));

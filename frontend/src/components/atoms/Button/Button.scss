@@ -19,46 +19,46 @@
   // Variants
   &--primary {
     @include button-variant(
-      var(--color-primary), 
+      $color-primary, 
       white, 
-      var(--color-primary-hover)
+      $color-primary-600
     );
   }
   
   &--secondary {
     @include button-variant(
-      var(--color-surface-light), 
-      var(--color-text-primary), 
-      var(--color-surface),
-      $border-width-1 solid var(--color-border)
+      $color-light-surface, 
+      $color-text-primary, 
+      $color-neutral-100,
+      $border-width-1 solid $color-border
     );
   }
   
   &--accent {
     @include button-variant(
-      var(--color-accent), 
-      var(--color-text-primary)
+      $color-accent, 
+      $color-text-primary
     );
   }
   
   &--success {
-    @include button-variant(var(--color-success), white);
+    @include button-variant($color-success, white);
   }
   
   &--warning {
-    @include button-variant(var(--color-warning), white);
+    @include button-variant($color-warning, white);
   }
   
   &--error {
-    @include button-variant(var(--color-error), white);
+    @include button-variant($color-error, white);
   }
   
   &--ghost {
     @include button-variant(
       transparent, 
-      var(--color-primary), 
+      $color-primary, 
       rgba(90, 140, 179, 0.1),
-      $border-width-1 solid var(--color-primary)
+      $border-width-1 solid $color-primary
     );
   }
   

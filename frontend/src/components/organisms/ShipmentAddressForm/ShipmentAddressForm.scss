@@ -1,0 +1,214 @@
+@use "../../../styles/abstracts/variables" as *;
+@use "../../../styles/abstracts/mixins" as *;
+
+.shipment-address-form {
+  width: 100%;
+  
+  &__section {
+    margin-bottom: 2rem;
+    
+    &:last-child {
+      margin-bottom: 1rem;
+    }
+  }
+  
+  &__controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  &__selector {
+    width: 100%;
+  }
+  
+  &__toggle {
+    display: flex;
+    justify-content: flex-end;
+  }
+  
+  &__manual {
+    padding: 2rem;
+    border: 1px dashed $color-border;
+    border-radius: $border-radius;
+    text-align: center;
+    color: $color-text-secondary;
+    background-color: rgba($color-primary, 0.03);
+    
+    p {
+      margin: 0 0 1rem 0;
+      font-style: italic;
+    }
+  }
+  
+  &__preview {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    background-color: rgba($color-primary, 0.05);
+    
+    h4 {
+      margin: 0 0 1rem 0;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: $color-text-primary;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+  }
+  
+  &__address-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  &__address-label {
+    font-weight: 600;
+    color: $color-primary;
+    font-size: 1rem;
+  }
+  
+  &__address-details {
+    color: $color-text-primary;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  
+  &__contact-info {
+    padding-top: 0.75rem;
+    border-top: 1px solid $color-border;
+    font-size: 0.85rem;
+    color: $color-text-secondary;
+  }
+  
+  &__quick-links {
+    margin-top: 2rem;
+    padding: 1rem 1.5rem;
+    background-color: rgba($color-primary, 0.05);
+    border: 1px solid rgba($color-primary, 0.1);
+    border-radius: $border-radius;
+    
+    p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: $color-text-secondary;
+      
+      strong {
+        color: $color-text-primary;
+      }
+      
+      a {
+        color: $color-primary;
+        text-decoration: none;
+        font-weight: 500;
+        
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+  
+  // Responsive design
+  @media (max-width: 768px) {
+    &__preview {
+      padding: 1rem;
+    }
+    
+    &__quick-links {
+      padding: 1rem;
+      
+      p {
+        font-size: 0.85rem;
+      }
+    }
+  }
+  
+  // Integration variants
+  &--compact {
+    .shipment-address-form__section {
+      margin-bottom: 1.5rem;
+    }
+    
+    .shipment-address-form__preview {
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+    
+    .shipment-address-form__quick-links {
+      margin-top: 1.5rem;
+      padding: 0.75rem 1rem;
+    }
+  }
+  
+  &--inline {
+    .shipment-address-form__controls {
+      flex-direction: row;
+      align-items: flex-end;
+      gap: 1rem;
+    }
+    
+    .shipment-address-form__selector {
+      flex: 1;
+    }
+    
+    .shipment-address-form__toggle {
+      flex-shrink: 0;
+    }
+    
+    @media (max-width: 768px) {
+      .shipment-address-form__controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .shipment-address-form {
+    &__manual {
+      background-color: $color-dark-surface-light;
+      border-color: $color-border-dark;
+      color: $color-dark-text-secondary;
+    }
+    
+    &__preview {
+      background-color: $color-dark-surface-light;
+      border-color: $color-border-dark;
+    }
+    
+    &__address-label {
+      color: $color-primary-light;
+    }
+    
+    &__address-details {
+      color: $color-dark-text-primary;
+    }
+    
+    &__contact-info {
+      border-color: $color-border-dark;
+      color: $color-dark-text-secondary;
+    }
+    
+    &__quick-links {
+      background-color: rgba($color-primary, 0.1);
+      border-color: rgba($color-primary, 0.2);
+      
+      p {
+        color: $color-dark-text-secondary;
+        
+        strong {
+          color: $color-dark-text-primary;
+        }
+        
+        a {
+          color: $color-primary-light;
+        }
+      }
+    }
+  }
+}

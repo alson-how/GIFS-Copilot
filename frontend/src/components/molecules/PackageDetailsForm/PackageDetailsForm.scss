@@ -1,0 +1,216 @@
+/**
+ * Package Details Form Styles
+ */
+
+.package-details-form {
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  &__section {
+    &:not(:last-child) {
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+  }
+
+  &__section-title {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  &__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__dimensions {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 1rem;
+    align-items: end;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+      
+      .package-details-form__dimension-separator {
+        display: none;
+      }
+    }
+  }
+
+  &__dimension-separator {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #6b7280;
+    padding-bottom: 0.5rem;
+    text-align: center;
+  }
+
+  &__calculated {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+  }
+
+  &__calculated-label {
+    color: #0369a1;
+    font-weight: 500;
+  }
+
+  &__calculated-value {
+    color: #0c4a6e;
+    font-weight: 600;
+  }
+
+  &__special-handling {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__checkbox-card {
+    display: block;
+    padding: 1rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+
+    &:hover {
+      border-color: #d1d5db;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    &--selected {
+      border-color: #3b82f6;
+      background-color: #f0f9ff;
+
+      .package-details-form__checkbox-title {
+        color: #1d4ed8;
+      }
+    }
+  }
+
+  &__checkbox {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  &__checkbox-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-left: 2rem;
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.125rem;
+      width: 1.25rem;
+      height: 1.25rem;
+      border: 2px solid #d1d5db;
+      border-radius: 4px;
+      background: white;
+      transition: all 0.2s ease;
+    }
+
+    .package-details-form__checkbox:checked + &::before {
+      border-color: #3b82f6;
+      background: #3b82f6;
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m13.854 3.646-7.5 7.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6 10.293l7.146-7.147a.5.5 0 0 1 .708.708z'/%3E%3C/svg%3E");
+      background-size: 0.75rem;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+  }
+
+  &__checkbox-title {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #1f2937;
+    line-height: 1.4;
+  }
+
+  &__checkbox-description {
+    font-size: 0.8125rem;
+    color: #6b7280;
+    line-height: 1.4;
+  }
+
+  // Error states
+  &__section:has(.form-field--error) {
+    .package-details-form__section-title {
+      color: #dc2626;
+    }
+  }
+
+  // Loading state
+  &--loading {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  // Responsive improvements
+  @media (max-width: 640px) {
+    &__content {
+      gap: 1.5rem;
+    }
+
+    &__section {
+      padding-bottom: 1rem;
+    }
+
+    &__section-title {
+      font-size: 0.9375rem;
+      margin-bottom: 0.75rem;
+    }
+
+    &__checkbox-content {
+      padding-left: 1.75rem;
+
+      &::before {
+        width: 1.125rem;
+        height: 1.125rem;
+        background-size: 0.6875rem;
+      }
+    }
+
+    &__checkbox-title {
+      font-size: 0.8125rem;
+    }
+
+    &__checkbox-description {
+      font-size: 0.75rem;
+    }
+
+    &__calculated {
+      padding: 0.625rem;
+      font-size: 0.8125rem;
+    }
+  }
+}

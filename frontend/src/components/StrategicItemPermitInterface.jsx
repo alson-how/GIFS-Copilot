@@ -94,20 +94,29 @@ const StrategicItemPermitInterface = ({
             }
         } else if (shipmentId && !hasLoadedFromAPI && !loading && shouldMakeAPICall(shipmentId)) {
             // DEFINITIVE FIX: Only proceed if we have confirmed upload completion
-            console.log('🎯 StrategicItemPermitInterface: Upload confirmed complete, proceeding with API call');
+            console.log('🎯 StrategicItemPermitInterface: Upload confirmed complete, proceeding with API calls');
             console.log('🎯 Current shipmentId:', shipmentId);
             console.log('🎯 Canvas shipmentId:', canvasData?.shipmentId);
             console.log('🎯 Upload completed:', canvasData?.uploadCompleted);
+            console.log('🎯 Product items available:', canvasData?.invoiceData?.product_items?.length || 0);
             
             // Add small delay for final state synchronization
             const timeoutId = setTimeout(() => {
-                console.log('🚀 StrategicItemPermitInterface: Making validated API call for shipment:', shipmentId);
+                console.log('🚀 StrategicItemPermitInterface: Making validated API calls for shipment:', shipmentId);
                 
                 // Triple-check all conditions before API call
                 if (!hasLoadedFromAPI && shouldMakeAPICall(shipmentId) && canvasData?.uploadCompleted) {
-                    console.log('✅ All conditions verified - making strategic status API call');
+                    console.log('✅ All conditions verified - starting strategic processing');
                     setHasLoadedFromAPI(true);
-                    loadStrategicStatus();
+                    
+                    // If we have product items from canvas/invoice data, run detection first
+                    if (canvasData?.invoiceData?.product_items && canvasData.invoiceData.product_items.length > 0) {
+                        console.log('🔍 StrategicItemPermitInterface: Product items found, running detection first');
+                        runStrategicDetection(shipmentId, canvasData.invoiceData.product_items);
+                    } else {
+                        console.log('📊 StrategicItemPermitInterface: No product items, loading status directly');
+                        loadStrategicStatus();
+                    }
                 } else {
                     console.log('❌ Conditions changed during delay or upload not completed');
                     console.log('  hasLoadedFromAPI:', hasLoadedFromAPI);
@@ -172,6 +181,60 @@ const StrategicItemPermitInterface = ({
         return true;
     };
 
+    // Run strategic detection on product items
+    const runStrategicDetection = async (shipmentId, productItems) => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            console.log('🔍 StrategicItemPermitInterface: Running detection for shipment:', shipmentId, 'with', productItems?.length, 'items');
+            
+            if (!productItems || productItems.length === 0) {
+                console.log('⚠️ StrategicItemPermitInterface: No product items found for detection');
+                return;
+            }
+            
+            // Format product items for the API
+            const formattedItems = productItems.map(item => ({
+                product_description: item.product_description || item.description || item.item_description,
+                hs_code: item.hs_code,
+                quantity: item.quantity || 1,
+                value: item.value || item.unit_price || 0,
+                item_id: item.id || item.item_id
+            })).filter(item => item.product_description); // Only include items with descriptions
+            
+            if (formattedItems.length === 0) {
+                console.log('⚠️ StrategicItemPermitInterface: No valid product items for detection (no descriptions found)');
+                return;
+            }
+            
+            const requestBody = {
+                shipment_id: shipmentId,
+                product_items: formattedItems
+            };
+            
+            console.log('🔍 StrategicItemPermitInterface: Detection request:', requestBody);
+            
+            const result = await apiService.strategic.detect(requestBody);
+            console.log('✅ StrategicItemPermitInterface: Detection completed:', result);
+            
+            if (result.success) {
+                // After detection, load the strategic status to get updated data
+                setTimeout(() => {
+                    loadStrategicStatus();
+                }, 1000); // Small delay to ensure database is updated
+            } else {
+                throw new Error(result.error || 'Strategic detection failed');
+            }
+            
+        } catch (err) {
+            console.error('❌ StrategicItemPermitInterface: Error running detection:', err);
+            setError(`Strategic detection failed: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const loadStrategicStatus = async () => {
         try {
             setLoading(true);
@@ -186,28 +249,29 @@ const StrategicItemPermitInterface = ({
 
             console.log('🚀 loadStrategicStatus: Making API call with shipment ID:', shipmentId);
 
-            // Get strategic items status
+            // Get strategic items status (includes validation data)
             const statusData = await apiService.strategic.getShipmentStatus(shipmentId);
 
             if (statusData.success) {
                 setStrategicStatus(statusData.data.strategic_status);
                 setPermitStatus(statusData.data.permit_status);
                 
-                // Get export validation
-                const validationData = await apiService.strategic.validateExport(shipmentId);
+                // Set export validation from the same response
+                setExportValidation({
+                    export_permitted: !statusData.data.strategic_status.export_blocked,
+                    compliance_score: statusData.data.strategic_status.compliance_score || 100,
+                    missing_permits: statusData.data.permit_status.missing_permits || [],
+                    is_blocked: statusData.data.strategic_status.export_blocked || false
+                });
                 
-                if (validationData.success) {
-                    setExportValidation(validationData.data);
-                    
-                    // Notify parent component of compliance status
-                    if (onComplianceChange) {
-                        onComplianceChange({
-                            hasStrategicItems: statusData.data.strategic_status.has_strategic_items,
-                            exportBlocked: !validationData.data.export_permitted,
-                            complianceScore: validationData.data.compliance_score,
-                            missingPermits: validationData.data.missing_permits
-                        });
-                    }
+                // Notify parent component of compliance status
+                if (onComplianceChange) {
+                    onComplianceChange({
+                        hasStrategicItems: statusData.data.strategic_status.has_strategic_items || statusData.data.strategic_status.strategic_items > 0,
+                        exportBlocked: statusData.data.strategic_status.export_blocked || false,
+                        complianceScore: statusData.data.strategic_status.compliance_score || 100,
+                        missingPermits: statusData.data.permit_status.missing_permits || []
+                    });
                 }
             } else {
                 setError(statusData.error || 'Failed to load strategic items status');
@@ -449,6 +513,14 @@ const StrategicItemPermitInterface = ({
         );
     }
 
+    console.log('🔍 StrategicItemPermitInterface rendering with:', {
+        shipmentId,
+        strategicItemsDetected,
+        strategicItemsCount,
+        complianceScore,
+        exportBlocked
+    });
+
     return (
         <div style={{ marginBottom: '2rem' }}>
             {/* Strategic Items Alert */}
@@ -474,13 +546,13 @@ const StrategicItemPermitInterface = ({
                 }}>
                     <div style={{ padding: '1rem', backgroundColor: 'white', borderRadius: '4px' }}>
                         <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#d63031' }}>
-                            {strategicItemsCount || (canvasData?.ocrData?.fieldSuggestions?.product_items?.value?.length || 0)}
+                            {strategicItemsDetected ? (strategicItemsCount || 1) : 0}
                         </div>
                         <div style={{ fontSize: '0.9rem', color: '#666' }}>Strategic Items</div>
                     </div>
                     <div style={{ padding: '1rem', backgroundColor: 'white', borderRadius: '4px' }}>
-                        <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#e17055' }}>
-                            {(strategicItemsCount > 0 && complianceScore === 100) ? 0 : complianceScore}%
+                        <div style={{ fontSize: '2rem', fontWeight: 'bold', color: complianceScore < 50 ? '#d63031' : complianceScore < 80 ? '#e17055' : '#00b894' }}>
+                            {complianceScore}%
                         </div>
                         <div style={{ fontSize: '0.9rem', color: '#666' }}>Compliance Score</div>
                     </div>

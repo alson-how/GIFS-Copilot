@@ -21,7 +21,7 @@ router.post('/customer/login', async (req, res) => {
 
     // Validate required fields
     if (!email || !password) {
-      await UserRepository.recordLoginAttempt(email, ipAddress, userAgent, false, 'Missing credentials');
+      await UserRepository.recordLoginAttempt(email || 'unknown', ipAddress, userAgent, false, 'Missing credentials');
       return res.status(400).json({
         success: false,
         error: 'Email and password are required'
@@ -132,7 +132,7 @@ router.post('/admin/login', async (req, res) => {
 
     // Validate required fields
     if (!email || !password) {
-      await UserRepository.recordLoginAttempt(email, ipAddress, userAgent, false, 'Missing credentials');
+      await UserRepository.recordLoginAttempt(email || 'unknown', ipAddress, userAgent, false, 'Missing credentials');
       return res.status(400).json({
         success: false,
         error: 'Email and password are required'

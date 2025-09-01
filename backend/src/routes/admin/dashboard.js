@@ -3,10 +3,11 @@
  * Routes for admin portal dashboard and analytics
  */
 
-const express = require('express');
+import express from 'express';
+import logger from '../../utils/logger.js';
+import { authAdmin, requireRole } from '../../middleware/authAdmin.js';
+
 const router = express.Router();
-const logger = require('../../utils/logger');
-const { authAdmin, requireRole } = require('../../middleware/authAdmin');
 
 // GET /api/admin/dashboard/stats - Get dashboard statistics
 router.get('/stats', authAdmin, async (req, res) => {
@@ -299,4 +300,4 @@ router.get('/system-status', authAdmin, requireRole(['admin', 'tech']), async (r
   }
 });
 
-module.exports = router;
+export default router;

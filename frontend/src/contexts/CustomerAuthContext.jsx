@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiRequest, directApiRequest } from '../config/api.js';
 
 const CustomerAuthContext = createContext();
 
@@ -32,10 +33,9 @@ export const CustomerAuthProvider = ({ children }) => {
         }
 
         // Verify token with backend
-        const response = await fetch('/api/auth/verify-token', {
+        const response = await apiRequest('/auth/verify-token', {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Authorization': `Bearer ${token}`
           }
         });
 
@@ -89,11 +89,8 @@ export const CustomerAuthProvider = ({ children }) => {
     try {
       setIsLoading(true);
 
-      const response = await fetch('/api/auth/customer/login', {
+      const response = await apiRequest('/auth/customer/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ email, password, rememberMe })
       });
 
@@ -129,11 +126,8 @@ export const CustomerAuthProvider = ({ children }) => {
     try {
       setIsLoading(true);
 
-      const response = await fetch('/api/auth/customer/register', {
+      const response = await apiRequest('/auth/customer/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(registrationData)
       });
 
@@ -160,11 +154,10 @@ export const CustomerAuthProvider = ({ children }) => {
       // Call logout endpoint
       const token = localStorage.getItem('customer_access_token');
       if (token) {
-        await fetch('/api/auth/logout', {
+        await apiRequest('/auth/logout', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Authorization': `Bearer ${token}`
           }
         });
       }
@@ -187,11 +180,10 @@ export const CustomerAuthProvider = ({ children }) => {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch('/api/customer/profile', {
+      const response = await directApiRequest('/api/customer/profile', {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(profileData)
       });

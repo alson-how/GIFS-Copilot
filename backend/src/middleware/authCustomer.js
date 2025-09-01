@@ -7,10 +7,12 @@ import jwt from 'jsonwebtoken';
 import logger from '../utils/logger.js';
 
 export const authCustomer = (req, res, next) => {
+  console.log('authCustomer (REQUIRED) called for:', req.path);
   try {
     const authHeader = req.header('Authorization');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('authCustomer rejecting - no auth header');
       return res.status(401).json({ 
         success: false, 
         error: 'Access denied. No valid token provided.' 
@@ -77,10 +79,12 @@ export const authCustomer = (req, res, next) => {
 
 // Optional authentication - allows both authenticated and guest access
 export const authCustomerOptional = (req, res, next) => {
+  console.log('authCustomerOptional called for:', req.path);
   const authHeader = req.header('Authorization');
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     // No token provided - continue as guest
+    console.log('No auth header, continuing as guest');
     req.customer = null;
     return next();
   }

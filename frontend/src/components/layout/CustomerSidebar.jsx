@@ -34,6 +34,13 @@ const CustomerSidebar = ({ isCollapsed, onToggleCollapse, customer, onLogout }) 
       description: 'View and manage shipments'
     },
     {
+      id: 'address-book',
+      label: 'Address Book',
+      icon: '📍',
+      path: '/dashboard/addresses',
+      description: 'Manage shipping and billing addresses'
+    },
+    {
       id: 'permit-documents',
       label: 'Permit Documents',
       icon: '📄',

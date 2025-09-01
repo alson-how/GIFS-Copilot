@@ -1,0 +1,265 @@
+@use "../../../styles/abstracts/variables" as *;
+@use "../../../styles/abstracts/mixins" as *;
+
+.address-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 600px;
+  
+  &__header {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  
+  &__title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: $color-text-primary;
+    margin-bottom: 0.5rem;
+  }
+  
+  &__subtitle {
+    font-size: 1rem;
+    color: $color-text-secondary;
+    margin: 0;
+  }
+  
+  &__sections {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+  
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  &__section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: $color-text-primary;
+    margin: 0 0 0.5rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid $color-border;
+  }
+  
+  &__fields {
+    display: grid;
+    gap: 1rem;
+    
+    &--location {
+      grid-template-columns: 1fr 1fr;
+      
+      @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+      }
+      
+      .address-form-field:nth-child(1) {
+        grid-column: 1 / -1; // Country spans full width
+      }
+    }
+  }
+  
+  &__validation {
+    margin-top: 1rem;
+  }
+  
+  &__address-type {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  &__checkbox-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    cursor: pointer;
+    padding: 1rem;
+    background-color: $color-surface-secondary;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    transition: all $transition-base;
+    
+    &:hover {
+      background-color: $color-neutral-100;
+      border-color: $color-primary;
+    }
+  }
+  
+  &__checkbox {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: $color-primary;
+    cursor: pointer;
+  }
+  
+  &__checkbox-label {
+    font-weight: 500;
+    color: $color-text-primary;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    
+    &::before {
+      content: '';
+      width: 1.25rem;
+      height: 1.25rem;
+      border: 2px solid $color-border;
+      border-radius: $border-radius-sm;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all $transition-base;
+      flex-shrink: 0;
+    }
+  }
+  
+  &__checkbox:checked + &__checkbox-label::before {
+    background-color: $color-primary;
+    border-color: $color-primary;
+    background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='m13.854 3.646-7-7a.5.5 0 0 0-.708 0l-3.5 3.5a.5.5 0 1 0 .708.708L6.5 7.707l6.646-6.647a.5.5 0 0 1 .708.708'/%3e%3c/svg%3e");
+  }
+  
+  &__checkbox-help {
+    font-size: 0.875rem;
+    color: $color-text-secondary;
+    margin-left: 2rem;
+    line-height: 1.4;
+  }
+  
+  &__actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    padding-top: 1rem;
+    border-top: 1px solid $color-border;
+    
+    @media (max-width: 480px) {
+      flex-direction: column;
+      
+      .address-form__cancel-button,
+      .address-form__submit-button {
+        width: 100%;
+      }
+      
+      .address-form__submit-button {
+        order: -1; // Submit button first on mobile
+      }
+    }
+  }
+  
+  &__cancel-button {
+    min-width: 120px;
+  }
+  
+  &__submit-button {
+    min-width: 140px;
+  }
+  
+  &__error {
+    color: $color-error;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    
+    &::before {
+      content: '⚠';
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+  }
+  
+  // Loading state
+  &--loading {
+    opacity: 0.7;
+    pointer-events: none;
+    
+    .address-form__title::after {
+      content: '';
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid $color-border;
+      border-top: 2px solid $color-primary;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 0.5rem;
+    }
+  }
+  
+  // Responsive design
+  @media (max-width: 768px) {
+    gap: 1.5rem;
+    
+    &__header {
+      text-align: left;
+    }
+    
+    &__title {
+      font-size: 1.25rem;
+    }
+    
+    &__subtitle {
+      font-size: 0.875rem;
+    }
+    
+    &__sections {
+      gap: 1.5rem;
+    }
+    
+    &__section {
+      gap: 0.75rem;
+    }
+    
+    &__section-title {
+      font-size: 1rem;
+    }
+    
+    &__fields {
+      gap: 0.75rem;
+    }
+    
+    &__checkbox-field {
+      padding: 0.75rem;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    &__fields--location {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// Focus styles for better accessibility
+.address-form {
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($color-primary, 0.2);
+  }
+  
+  // High contrast mode support
+  @media (prefers-contrast: high) {
+    &__section-title {
+      border-bottom-width: 3px;
+    }
+    
+    &__checkbox-field {
+      border-width: 2px;
+    }
+  }
+}

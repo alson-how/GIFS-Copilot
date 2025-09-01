@@ -1,0 +1,214 @@
+@use "../../../styles/abstracts/variables" as *;
+@use "../../../styles/abstracts/mixins" as *;
+
+.state-selector {
+  position: relative;
+  width: 100%;
+  
+  &__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: $color-light-surface;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    cursor: pointer;
+    transition: all $transition-base;
+    
+    &:hover {
+      border-color: $color-primary;
+    }
+    
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+      box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+    }
+  }
+  
+  &__text-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: $color-light-surface;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    font-size: 1rem;
+    transition: all $transition-base;
+    
+    &:hover {
+      border-color: $color-primary;
+    }
+    
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+      box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+    }
+    
+    &::placeholder {
+      color: $color-text-secondary;
+    }
+  }
+  
+  &__value {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  &__selected {
+    color: $color-text-primary;
+    font-weight: 500;
+  }
+  
+  &__placeholder {
+    color: $color-text-secondary;
+    font-style: italic;
+  }
+  
+  &__arrow {
+    color: $color-text-secondary;
+    flex-shrink: 0;
+    transition: transform $transition-base;
+    
+    svg {
+      display: block;
+    }
+  }
+  
+  &__dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    margin-top: 0.25rem;
+    background-color: $color-light-surface;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    box-shadow: $shadow-lg;
+    max-height: 300px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  &__search {
+    padding: 0.75rem;
+    border-bottom: 1px solid $color-border;
+  }
+  
+  &__search-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid $color-border;
+    border-radius: $border-radius-sm;
+    font-size: 0.875rem;
+    
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+      box-shadow: 0 0 0 2px rgba($color-primary, 0.1);
+    }
+  }
+  
+  &__options {
+    overflow-y: auto;
+    max-height: 200px;
+  }
+  
+  &__option {
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: background-color $transition-base;
+    
+    &:hover,
+    &--focused {
+      background-color: $color-surface-secondary;
+    }
+    
+    &--selected {
+      background-color: rgba($color-primary, 0.1);
+      color: $color-primary;
+      font-weight: 500;
+    }
+  }
+  
+  &__no-options {
+    padding: 1rem;
+    text-align: center;
+    color: $color-text-secondary;
+    font-style: italic;
+  }
+  
+  &__error {
+    margin-top: 0.25rem;
+    color: $color-error;
+    font-size: 0.875rem;
+  }
+  
+  // State modifiers
+  &--open {
+    .state-selector__trigger {
+      border-color: $color-primary;
+      box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+    }
+    
+    .state-selector__arrow {
+      transform: rotate(180deg);
+    }
+  }
+  
+  &--error {
+    .state-selector__trigger,
+    .state-selector__text-input {
+      border-color: $color-error;
+      
+      &:hover {
+        border-color: $color-error;
+      }
+      
+      &:focus {
+        border-color: $color-error;
+        box-shadow: 0 0 0 3px rgba($color-error, 0.1);
+      }
+    }
+  }
+  
+  &--disabled {
+    opacity: 0.6;
+    
+    .state-selector__trigger,
+    .state-selector__text-input {
+      cursor: not-allowed;
+      background-color: $color-surface-disabled;
+      
+      &:hover {
+        border-color: $color-border;
+      }
+    }
+  }
+  
+  // Responsive design
+  @media (max-width: 768px) {
+    &__dropdown {
+      position: fixed;
+      top: auto;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-height: 50vh;
+      border-radius: $border-radius $border-radius 0 0;
+      margin-top: 0;
+    }
+    
+    &__option {
+      padding: 1rem 0.75rem;
+    }
+    
+    &__search {
+      padding: 1rem;
+    }
+  }
+}

@@ -1,0 +1,119 @@
+@use "../../../styles/abstracts/variables" as *;
+@use "../../../styles/abstracts/mixins" as *;
+
+.postcode-input {
+  width: 100%;
+  
+  &__input-wrapper {
+    position: relative;
+    width: 100%;
+  }
+  
+  &__input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    padding-right: 2.5rem; // Space for validation icon
+    background-color: $color-light-surface;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    font-size: 1rem;
+    font-family: $font-mono;
+    letter-spacing: 0.025em;
+    transition: all $transition-base;
+    
+    &:hover {
+      border-color: $color-primary;
+    }
+    
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+      box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+    }
+    
+    &::placeholder {
+      color: $color-text-secondary;
+      font-family: $font-mono;
+    }
+  }
+  
+  &__icon {
+    position: absolute;
+    top: 50%;
+    right: 0.75rem;
+    transform: translateY(-50%);
+    pointer-events: none;
+    
+    &--valid {
+      color: $color-success;
+    }
+    
+    &--invalid {
+      color: $color-error;
+    }
+  }
+  
+  &__hint {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: $color-text-secondary;
+    font-family: $font-mono;
+  }
+  
+  &__error {
+    margin-top: 0.25rem;
+    color: $color-error;
+    font-size: 0.875rem;
+  }
+  
+  // State modifiers
+  &--valid {
+    .postcode-input__input {
+      border-color: $color-success;
+      
+      &:focus {
+        border-color: $color-success;
+        box-shadow: 0 0 0 3px rgba($color-success, 0.1);
+      }
+    }
+  }
+  
+  &--invalid {
+    .postcode-input__input {
+      border-color: $color-error;
+      
+      &:focus {
+        border-color: $color-error;
+        box-shadow: 0 0 0 3px rgba($color-error, 0.1);
+      }
+    }
+  }
+  
+  &--error {
+    .postcode-input__input {
+      border-color: $color-error;
+      
+      &:hover {
+        border-color: $color-error;
+      }
+      
+      &:focus {
+        border-color: $color-error;
+        box-shadow: 0 0 0 3px rgba($color-error, 0.1);
+      }
+    }
+  }
+  
+  &--disabled {
+    opacity: 0.6;
+    
+    .postcode-input__input {
+      cursor: not-allowed;
+      background-color: $color-surface-disabled;
+      
+      &:hover {
+        border-color: $color-border;
+      }
+    }
+  }
+}

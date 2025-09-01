@@ -14,6 +14,7 @@ import TraditionalWorkflow from '../../pages/workflow/TraditionalWorkflow';
 import ShipmentOrdersList from '../ShipmentOrdersList';
 import PermitDocument from '../PermitDocument';
 import ShipmentDetails from '../ShipmentDetails';
+import AddressBookPage from '../../pages/customer/addresses/AddressBookPage';
 
 // Import canvas workflow components
 import StepBasics from '../StepBasics';
@@ -290,6 +291,7 @@ const CustomerDashboard = () => {
               <Route path="/ai-query" element={<AIQuery onOpenCanvas={handleOpenCanvas} />} />
               <Route path="/traditional-workflow" element={<TraditionalWorkflow />} />
               <Route path="/shipping-list" element={<ShipmentOrdersList />} />
+              <Route path="/addresses" element={<AddressBookPage />} />
               <Route path="/permit-documents" element={<PermitDocument />} />
               
               {/* Detail routes */}

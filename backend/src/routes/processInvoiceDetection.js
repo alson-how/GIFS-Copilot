@@ -204,17 +204,52 @@ async function extractTextFromFile(filePath, mimeType) {
 /**
  * Create shipment record in database
  */
-async function createShipment(shipmentData) {
+async function createShipment(shipmentData, ocrData) {
   const shipmentId = uuidv4();
   
   try {
+    // Extract data from OCR results for comprehensive shipment record
+    const commercialValue = ocrData?.commercial_value || 0;
+    const currency = ocrData?.currency || 'USD';
+    const quantity = ocrData?.quantity || 0;
+    const endUserName = ocrData?.consignee_name || '';
+    const incoterms = ocrData?.incoterms || '';
+    
+    // Get first product's HS code as primary HS code
+    const primaryHsCode = ocrData?.product_items?.[0]?.hs_code || ocrData?.hs_code || '';
+    
     await pool.query(`
       INSERT INTO shipments (
-        shipment_id, destination_country
-      ) VALUES ($1, $2)
-    `, [shipmentId, shipmentData.destination || 'Unknown']);
+        shipment_id, 
+        destination_country, 
+        commercial_value, 
+        currency, 
+        quantity,
+        end_user_name,
+        incoterms,
+        hs_code,
+        tech_origin,
+        export_date,
+        product_type,
+        step1_status,
+        created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+    `, [
+      shipmentId, 
+      shipmentData.destination || 'Unknown',
+      commercialValue,
+      currency,
+      quantity,
+      endUserName,
+      incoterms,
+      primaryHsCode,
+      ocrData?.technology_origin || 'Unknown',
+      new Date(), // Set export_date to current date for now
+      'Commercial Invoice Processing', // Set product type based on processing
+      'Under Review' // Set initial status to Under Review for manual verification
+    ]);
     
-    console.log(`✅ Created shipment record: ${shipmentId}`);
+    console.log(`✅ Created comprehensive shipment record: ${shipmentId}`);
     return shipmentId;
   } catch (error) {
     console.error('❌ Error creating shipment:', error);
@@ -533,7 +568,7 @@ router.post('/upload', upload.single('document'), async (req, res) => {
     const shipmentId = await createShipment({
       destination: destination,
       intent: intent
-    });
+    }, ocrData);
     
     // Step 7: Move file to shipment-specific folder
     const finalFilePath = await moveFileToShipmentFolder(

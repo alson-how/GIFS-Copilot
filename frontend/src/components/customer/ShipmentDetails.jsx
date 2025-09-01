@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { apiRequest } from '../../config/api.js';
 import StepBasics from './StepBasics.jsx';
 import StepAI from './StepAI.jsx';
 import StepScreening from './StepScreening.jsx';
 import StepDocs from './StepDocs.jsx';
+import Sidebar from '../Sidebar.jsx';
 
 export default function ShipmentDetails() {
   const { shipmentId } = useParams();
@@ -15,11 +17,23 @@ export default function ShipmentDetails() {
   const [basics, setBasics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Strategic compliance state
+  const [strategicStatus, setStrategicStatus] = useState(null);
+  const [strategicLoading, setStrategicLoading] = useState(false);
+  const [strategicError, setStrategicError] = useState(null);
+  const [detectionLoading, setDetectionLoading] = useState(false);
+  const [detectionError, setDetectionError] = useState(null);
+  
+  // Sidebar state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [currentView, setCurrentView] = useState('shipment-details');
 
   // Load shipment data on mount and when shipmentId changes
   useEffect(() => {
     if (shipmentId) {
       loadShipmentData(shipmentId);
+      loadStrategicStatus(shipmentId);
     }
   }, [shipmentId]);
 
@@ -30,8 +44,8 @@ export default function ShipmentDetails() {
       
       // Fetch both shipment metadata and invoice processing data
       const [shipmentResponse, invoiceResponse] = await Promise.all([
-        fetch(`/api/shipments/${id}`),
-        fetch(`/api/invoice-detection/${id}`)
+        apiRequest(`/shipments/${id}`),
+        apiRequest(`/invoice-detection/${id}`)
       ]);
       
       if (!shipmentResponse.ok) {
@@ -89,11 +103,122 @@ export default function ShipmentDetails() {
         });
       }
       
+      // Run strategic detection if we have product items from invoice data
+      if (mergedData?.invoiceProcessingData?.product_items && mergedData.invoiceProcessingData.product_items.length > 0) {
+        console.log('🔍 Triggering strategic detection for loaded shipment data');
+        runStrategicDetection(id, mergedData.invoiceProcessingData.product_items);
+      } else {
+        console.log('ℹ️ No product items found in shipment data for strategic detection');
+      }
+      
     } catch (err) {
       console.error('❌ Error loading shipment:', err);
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Load strategic status for compliance checking
+  const loadStrategicStatus = async (id) => {
+    try {
+      setStrategicLoading(true);
+      setStrategicError(null);
+      
+      console.log('🔍 Loading strategic status for shipment:', id);
+      const response = await apiRequest(`/strategic/status/${id}`);
+      
+      if (!response.ok) {
+        // If 404, shipment might not have been processed yet for strategic items
+        if (response.status === 404) {
+          console.log('ℹ️ No strategic status found for this shipment (not yet processed)');
+          setStrategicStatus(null);
+          return;
+        }
+        throw new Error(`Failed to load strategic status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('🔍 Strategic status loaded:', result);
+      
+      if (result.success && result.data) {
+        setStrategicStatus(result.data);
+      } else {
+        console.log('⚠️ Strategic status request succeeded but no data returned');
+        setStrategicStatus(null);
+      }
+      
+    } catch (err) {
+      console.error('❌ Error loading strategic status:', err);
+      setStrategicError(err.message);
+    } finally {
+      setStrategicLoading(false);
+    }
+  };
+
+  // Run strategic detection on product items
+  const runStrategicDetection = async (id, productItems) => {
+    try {
+      setDetectionLoading(true);
+      setDetectionError(null);
+      
+      console.log('🔍 Running strategic detection for shipment:', id, 'with', productItems?.length, 'items');
+      
+      if (!productItems || productItems.length === 0) {
+        console.log('⚠️ No product items found for strategic detection');
+        return;
+      }
+      
+      // Format product items for the API
+      const formattedItems = productItems.map(item => ({
+        product_description: item.product_description || item.description || item.item_description,
+        hs_code: item.hs_code,
+        quantity: item.quantity || 1,
+        value: item.value || item.unit_price || 0,
+        item_id: item.id || item.item_id
+      })).filter(item => item.product_description); // Only include items with descriptions
+      
+      if (formattedItems.length === 0) {
+        console.log('⚠️ No valid product items for strategic detection (no descriptions found)');
+        return;
+      }
+      
+      const requestBody = {
+        shipment_id: id,
+        product_items: formattedItems
+      };
+      
+      console.log('🔍 Strategic detection request:', requestBody);
+      
+      const response = await apiRequest('/strategic/detect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Strategic detection failed: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('✅ Strategic detection completed:', result);
+      
+      if (result.success) {
+        // After detection, reload the strategic status to get updated data
+        setTimeout(() => {
+          loadStrategicStatus(id);
+        }, 1000); // Small delay to ensure database is updated
+      } else {
+        throw new Error(result.error || 'Strategic detection failed');
+      }
+      
+    } catch (err) {
+      console.error('❌ Error running strategic detection:', err);
+      setDetectionError(err.message);
+    } finally {
+      setDetectionLoading(false);
     }
   };
 
@@ -112,6 +237,24 @@ export default function ShipmentDetails() {
     } else {
       // For other steps, just move to the next step
       setCurrentCanvasStep(stepNumber + 1);
+    }
+  };
+
+  // Handle sidebar toggle
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  // Handle view changes (for sidebar navigation)
+  const handleViewChange = (viewId) => {
+    if (viewId === 'shipments') {
+      navigate('/dashboard/shipments');
+    } else if (viewId === 'enhanced-workflow') {
+      navigate('/dashboard/enhanced-workflow');
+    } else if (viewId === 'traditional-workflow') {
+      navigate('/dashboard/traditional-workflow');
+    } else {
+      setCurrentView(viewId);
     }
   };
 
@@ -145,8 +288,23 @@ export default function ShipmentDetails() {
 
   if (loading) {
     return (
-      <div className="app-container">
-        <div className="main-content">
+      <div className="app" style={{ display: 'flex', minHeight: '100vh' }}>
+        <Sidebar 
+          currentView={currentView}
+          onViewChange={handleViewChange}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={handleToggleSidebar}
+        />
+        <div style={{
+          flex: 1,
+          marginLeft: sidebarCollapsed ? '60px' : '280px',
+          transition: 'margin-left 0.3s ease',
+          background: '#f5f7fa',
+          minHeight: '100vh',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
           <div className="loading-container" style={{ 
             display: 'flex', 
             justifyContent: 'center', 
@@ -164,8 +322,23 @@ export default function ShipmentDetails() {
 
   if (error) {
     return (
-      <div className="app-container">
-        <div className="main-content">
+      <div className="app" style={{ display: 'flex', minHeight: '100vh' }}>
+        <Sidebar 
+          currentView={currentView}
+          onViewChange={handleViewChange}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={handleToggleSidebar}
+        />
+        <div style={{
+          flex: 1,
+          marginLeft: sidebarCollapsed ? '60px' : '280px',
+          transition: 'margin-left 0.3s ease',
+          background: '#f5f7fa',
+          minHeight: '100vh',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
           <div className="error-container" style={{ 
             display: 'flex', 
             justifyContent: 'center', 
@@ -189,8 +362,23 @@ export default function ShipmentDetails() {
 
   if (!shipmentData) {
     return (
-      <div className="app-container">
-        <div className="main-content">
+      <div className="app" style={{ display: 'flex', minHeight: '100vh' }}>
+        <Sidebar 
+          currentView={currentView}
+          onViewChange={handleViewChange}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={handleToggleSidebar}
+        />
+        <div style={{
+          flex: 1,
+          marginLeft: sidebarCollapsed ? '60px' : '280px',
+          transition: 'margin-left 0.3s ease',
+          background: '#f5f7fa',
+          minHeight: '100vh',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
           <div className="error-container" style={{ 
             display: 'flex', 
             justifyContent: 'center', 
@@ -213,8 +401,23 @@ export default function ShipmentDetails() {
   }
 
   return (
-    <div className="app-container">
-      <div className="main-content">
+    <div className="app" style={{ display: 'flex', minHeight: '100vh' }}>
+      {/* Sidebar Navigation */}
+      <Sidebar 
+        currentView={currentView}
+        onViewChange={handleViewChange}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={handleToggleSidebar}
+      />
+
+      {/* Main Content */}
+      <div style={{
+        flex: 1,
+        marginLeft: sidebarCollapsed ? '60px' : '280px',
+        transition: 'margin-left 0.3s ease',
+        background: '#f5f7fa',
+        minHeight: '100vh'
+      }}>
         {/* Canvas Header */}
         <div className="canvas-header" style={{
           display: 'flex',
@@ -245,6 +448,122 @@ export default function ShipmentDetails() {
             </button>
           </div>
         </div>
+
+        {/* Strategic Compliance Status */}
+        {(strategicStatus || strategicLoading || strategicError || detectionLoading || detectionError) && (
+          <div className="strategic-compliance-section" style={{
+            padding: '1rem',
+            borderBottom: '1px solid var(--border)',
+            backgroundColor: strategicStatus?.strategic_status?.exports_blocked ? '#fef2f2' : 
+                           strategicStatus?.strategic_status?.strategic_items_detected > 0 ? '#fffbeb' : '#f0fdf4'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ fontSize: '1.5rem' }}>
+                {detectionLoading ? '🔄' :
+                 strategicLoading ? '⏳' : 
+                 detectionError ? '❌' :
+                 strategicError ? '❌' : 
+                 strategicStatus?.strategic_status?.exports_blocked ? '🚫' : 
+                 strategicStatus?.strategic_status?.strategic_items_detected > 0 ? '⚠️' : '✅'}
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>
+                  Strategic Compliance Status
+                </h3>
+                <p style={{ margin: '0.25rem 0 0 0', color: 'var(--text-secondary)' }}>
+                  {detectionLoading ? 'Running strategic items detection...' :
+                   strategicLoading ? 'Checking strategic compliance...' :
+                   detectionError ? `Error running detection: ${detectionError}` :
+                   strategicError ? `Error loading compliance status: ${strategicError}` :
+                   !strategicStatus ? 'No strategic items detected' :
+                   strategicStatus.strategic_status?.exports_blocked ? 
+                     `Export BLOCKED - ${strategicStatus.strategic_status.exports_blocked_count} blocked items require permits` :
+                   strategicStatus.strategic_status?.strategic_items_detected > 0 ? 
+                     `${strategicStatus.strategic_status.strategic_items_detected} strategic items detected - Review required` :
+                   'All clear - No strategic items detected'}
+                </p>
+              </div>
+              {strategicStatus && (
+                <div style={{ textAlign: 'right', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  <div>Total Items: {strategicStatus.strategic_status?.total_items || 0}</div>
+                  <div>Strategic: {strategicStatus.strategic_status?.strategic_items_detected || 0}</div>
+                  <div>Permits Required: {strategicStatus.strategic_status?.permits_required_count || 0}</div>
+                </div>
+              )}
+              {!detectionLoading && !strategicLoading && (
+                <div style={{ display: 'flex', gap: '0.5rem', flexDirection: 'column' }}>
+                  {shipmentData?.invoiceProcessingData?.product_items && (
+                    <button 
+                      onClick={() => runStrategicDetection(shipmentId, shipmentData.invoiceProcessingData.product_items)}
+                      className="btn btn-primary btn-sm"
+                      style={{ minWidth: '120px', fontSize: '0.8rem' }}
+                      disabled={detectionLoading}
+                    >
+                      🔍 Run Detection
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => loadStrategicStatus(shipmentId)}
+                    className="btn btn-outline btn-sm"
+                    style={{ minWidth: '120px', fontSize: '0.8rem' }}
+                    disabled={strategicLoading}
+                  >
+                    🔄 Refresh Status
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            {/* Strategic Items Details */}
+            {strategicStatus?.detection_results && strategicStatus.detection_results.length > 0 && (
+              <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: '6px' }}>
+                <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.925rem', fontWeight: '600' }}>
+                  Strategic Items Detected ({strategicStatus.detection_results.length})
+                </h4>
+                <div style={{ display: 'grid', gap: '0.5rem', maxHeight: '200px', overflow: 'auto' }}>
+                  {strategicStatus.detection_results.map((result, index) => (
+                    <div key={index} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '0.5rem',
+                      backgroundColor: result.export_blocked ? '#fef2f2' : result.is_strategic ? '#fffbeb' : '#f9fafb',
+                      borderRadius: '4px',
+                      fontSize: '0.875rem'
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>
+                          {result.item_description}
+                        </div>
+                        {result.hs_code && (
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                            HS Code: {result.hs_code}
+                          </div>
+                        )}
+                        {result.strategic_codes && result.strategic_codes.length > 0 && (
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                            Strategic Codes: {result.strategic_codes.join(', ')}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '1rem' }}>
+                        <div style={{ textAlign: 'right', fontSize: '0.8rem' }}>
+                          <div>Confidence: {Math.round((result.final_confidence_score || 0) * 100)}%</div>
+                          {result.manual_review_required && (
+                            <div style={{ color: '#f59e0b', fontWeight: '500' }}>Review Required</div>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '1.25rem' }}>
+                          {result.export_blocked ? '🚫' : result.is_strategic ? '⚠️' : '✅'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Canvas Navigation */}
         <div className="canvas-nav" style={{

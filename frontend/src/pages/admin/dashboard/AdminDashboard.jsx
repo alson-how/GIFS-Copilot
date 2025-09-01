@@ -1,316 +1,361 @@
 /**
  * Admin Dashboard Page
- * Main dashboard for admin portal with analytics and overview
+ * Main dashboard for admin portal with quote management and analytics
  */
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAdminAuth } from '../../../contexts/AdminAuthContext';
-import { StatusBadge, LoadingSpinner } from '../../../components/atoms';
-import { WarningAlert } from '../../../components/molecules';
-import { AIQuery } from '../../../components/shared/AIQuery';
+import React, { useState, useEffect, useCallback } from 'react';
+import { apiRequest } from '../../../config/api.js';
+import { Card } from '../../molecules/Card/Card';
+import { StatusBadge } from '../../atoms/StatusBadge/StatusBadge';
+import { Button } from '../../atoms/Button/Button';
+import { LoadingSpinner } from '../../atoms/LoadingSpinner/LoadingSpinner';
+import { ErrorMessage } from '../../atoms/ErrorMessage/ErrorMessage';
+import { Modal } from '../../atoms/Modal/Modal';
+import { QuoteGenerationModal } from '../../organisms/QuoteGenerationModal/QuoteGenerationModal';
 import './AdminDashboard.scss';
 
 const AdminDashboard = () => {
-  const [stats, setStats] = useState(null);
-  const [notifications, setNotifications] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [selectedTimeframe, setSelectedTimeframe] = useState('30d');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Dashboard data
+  const [dashboardStats, setDashboardStats] = useState({
+    pendingQuotes: 0,
+    activeShipments: 0,
+    todaysDeliveries: 0,
+    monthlyRevenue: 0
+  });
+  
+  const [pendingShipments, setPendingShipments] = useState([]);
+  const [activeQuotes, setActiveQuotes] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+  
+  // Modal states
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [selectedShipment, setSelectedShipment] = useState(null);
 
-  const { admin, makeAuthenticatedRequest, canAccess } = useAdminAuth();
-  const navigate = useNavigate();
+  // Load dashboard data
+  const loadDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch dashboard data (replace with actual API calls)
+      const [statsResponse, shipmentsResponse, quotesResponse] = await Promise.all([
+        fetch('/api/admin/dashboard/stats'),
+        fetch('/api/admin/quotes'),
+        fetch('/api/admin/dashboard/activity')
+      ]);
+
+      if (!statsResponse.ok || !shipmentsResponse.ok || !quotesResponse.ok) {
+        throw new Error('Failed to load dashboard data');
+      }
+
+      const stats = await statsResponse.json();
+      const shipmentsData = await shipmentsResponse.json();
+      const quotesData = await quotesResponse.json();
+
+      setDashboardStats(stats.data || {});
+      setPendingShipments(shipmentsData.data?.pendingShipments || []);
+      setActiveQuotes(shipmentsData.data?.activeQuotes || []);
+      
+    } catch (err) {
+      setError(err.message);
+      console.error('Dashboard loading error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadDashboardData();
-  }, [selectedTimeframe]);
+  }, [loadDashboardData]);
 
-  const loadDashboardData = async () => {
+  // Handle quote generation
+  const handleGenerateQuote = useCallback((shipment) => {
+    setSelectedShipment(shipment);
+    setShowQuoteModal(true);
+  }, []);
+
+  const handleQuoteGenerated = useCallback(() => {
+    setShowQuoteModal(false);
+    setSelectedShipment(null);
+    loadDashboardData(); // Refresh data
+  }, [loadDashboardData]);
+
+  // Handle shipment review
+  const handleReviewShipment = useCallback(async (shipmentId) => {
     try {
-      setIsLoading(true);
-      setError('');
+      const response = await apiRequest(`/shipments/${shipmentId}/status`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({
+          status: 'UNDER_REVIEW',
+          notes: 'Admin started review process'
+        })
+      });
 
-      // Load dashboard stats
-      const [statsResponse, notificationsResponse] = await Promise.all([
-        makeAuthenticatedRequest(`/api/admin/dashboard/stats?timeframe=${selectedTimeframe}`),
-        makeAuthenticatedRequest('/api/admin/dashboard/notifications?unreadOnly=true&limit=5')
-      ]);
-
-      if (statsResponse.ok && notificationsResponse.ok) {
-        const statsResult = await statsResponse.json();
-        const notificationsResult = await notificationsResponse.json();
-
-        if (statsResult.success) {
-          setStats(statsResult.data);
-        }
-
-        if (notificationsResult.success) {
-          setNotifications(notificationsResult.data.notifications);
-        }
-      } else {
-        setError('Failed to load dashboard data');
+      if (!response.ok) {
+        throw new Error('Failed to update shipment status');
       }
+
+      // Refresh data
+      loadDashboardData();
     } catch (err) {
-      console.error('Dashboard load error:', err);
-      setError('Failed to load dashboard data');
-    } finally {
-      setIsLoading(false);
+      console.error('Failed to review shipment:', err);
+      setError(err.message);
     }
-  };
+  }, [loadDashboardData]);
 
-  const handleNotificationClick = (notification) => {
-    if (notification.link) {
-      navigate(notification.link);
-    }
-  };
-
-  const formatNumber = (num) => {
-    if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M`;
-    }
-    if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K`;
-    }
-    return num?.toLocaleString() || '0';
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0
-    }).format(amount || 0);
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="admin-dashboard__loading">
-        <LoadingSpinner size="large" message="Loading dashboard..." />
+      <div className="admin-dashboard admin-dashboard--loading">
+        <LoadingSpinner size="large" />
+        <p>Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="admin-dashboard">
+        <ErrorMessage message={error} />
+        <Button onClick={loadDashboardData}>Retry</Button>
       </div>
     );
   }
 
   return (
     <div className="admin-dashboard">
+      {/* Header */}
       <div className="admin-dashboard__header">
-        <div className="admin-dashboard__welcome">
-          <h1>Welcome back, {admin?.firstName || admin?.username}! 👋</h1>
-          <p>Here's what's happening with your logistics operations today.</p>
+        <h1 className="admin-dashboard__title">Admin Dashboard</h1>
+        <p className="admin-dashboard__subtitle">
+          Manage quotes, shipments, and track logistics operations
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="admin-dashboard__stats">
+        <Card className="admin-dashboard__stat-card">
+          <div className="admin-dashboard__stat-icon">💰</div>
+          <div className="admin-dashboard__stat-content">
+            <h3 className="admin-dashboard__stat-value">{dashboardStats.pendingQuotes}</h3>
+            <p className="admin-dashboard__stat-label">Pending Quotes</p>
+          </div>
+        </Card>
+
+        <Card className="admin-dashboard__stat-card">
+          <div className="admin-dashboard__stat-icon">📦</div>
+          <div className="admin-dashboard__stat-content">
+            <h3 className="admin-dashboard__stat-value">{dashboardStats.activeShipments}</h3>
+            <p className="admin-dashboard__stat-label">Active Shipments</p>
+          </div>
+        </Card>
+
+        <Card className="admin-dashboard__stat-card">
+          <div className="admin-dashboard__stat-icon">🚚</div>
+          <div className="admin-dashboard__stat-content">
+            <h3 className="admin-dashboard__stat-value">{dashboardStats.todaysDeliveries}</h3>
+            <p className="admin-dashboard__stat-label">Today's Deliveries</p>
+          </div>
+        </Card>
+
+        <Card className="admin-dashboard__stat-card">
+          <div className="admin-dashboard__stat-icon">💵</div>
+          <div className="admin-dashboard__stat-content">
+            <h3 className="admin-dashboard__stat-value">
+              ${dashboardStats.monthlyRevenue?.toLocaleString() || '0'}
+            </h3>
+            <p className="admin-dashboard__stat-label">Revenue This Month</p>
+          </div>
+        </Card>
+      </div>
+
+      {/* Main Content */}
+      <div className="admin-dashboard__content">
+        {/* Pending Quote Requests */}
+        <div className="admin-dashboard__section">
+          <Card>
+            <div className="admin-dashboard__section-header">
+              <h2 className="admin-dashboard__section-title">
+                🔍 Pending Quote Requests
+              </h2>
+              <StatusBadge 
+                status={pendingShipments.length > 0 ? 'warning' : 'success'} 
+                text={`${pendingShipments.length} pending`}
+              />
+            </div>
+
+            <div className="admin-dashboard__quote-requests">
+              {pendingShipments.length === 0 ? (
+                <div className="admin-dashboard__empty">
+                  <p>No pending quote requests</p>
+                </div>
+              ) : (
+                pendingShipments.map((shipment) => (
+                  <div key={shipment.shipment_id} className="admin-dashboard__quote-card">
+                    <div className="admin-dashboard__quote-info">
+                      <div className="admin-dashboard__quote-header">
+                        <h4 className="admin-dashboard__quote-title">
+                          {shipment.reference || `Shipment #${shipment.shipment_id}`}
+                        </h4>
+                        <StatusBadge status={shipment.status.toLowerCase()} />
+                      </div>
+                      
+                      <div className="admin-dashboard__quote-details">
+                        <p><strong>Customer:</strong> {shipment.customer_name}</p>
+                        <p><strong>Route:</strong> {shipment.origin} → {shipment.destination}</p>
+                        <p><strong>Documents:</strong> {shipment.document_count} uploaded</p>
+                        {shipment.package_weight_kg && (
+                          <p><strong>Weight:</strong> {shipment.package_weight_kg} kg</p>
+                        )}
+                      </div>
+
+                      {shipment.documents && shipment.documents.length > 0 && (
+                        <div className="admin-dashboard__quote-documents">
+                          <strong>Documents:</strong>
+                          <ul>
+                            {shipment.documents.slice(0, 3).map((doc, index) => (
+                              <li key={index}>{doc}</li>
+                            ))}
+                            {shipment.documents.length > 3 && (
+                              <li>+{shipment.documents.length - 3} more...</li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="admin-dashboard__quote-actions">
+                      {shipment.status === 'PENDING_QUOTE' && (
+                        <Button
+                          variant="secondary"
+                          size="small"
+                          onClick={() => handleReviewShipment(shipment.shipment_id)}
+                        >
+                          Start Review
+                        </Button>
+                      )}
+                      
+                      <Button
+                        variant="primary"
+                        size="small"
+                        onClick={() => handleGenerateQuote(shipment)}
+                      >
+                        Generate Quote
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
         </div>
 
-        <div className="admin-dashboard__controls">
-          <select 
-            value={selectedTimeframe}
-            onChange={(e) => setSelectedTimeframe(e.target.value)}
-            className="admin-dashboard__timeframe"
-          >
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
-            <option value="1y">Last year</option>
-          </select>
+        {/* Active Quotes */}
+        {activeQuotes.length > 0 && (
+          <div className="admin-dashboard__section">
+            <Card>
+              <div className="admin-dashboard__section-header">
+                <h2 className="admin-dashboard__section-title">
+                  📋 Active Quotes
+                </h2>
+                <StatusBadge 
+                  status="info" 
+                  text={`${activeQuotes.length} active`}
+                />
+              </div>
+
+              <div className="admin-dashboard__active-quotes">
+                {activeQuotes.map((quote) => (
+                  <div key={quote.id} className="admin-dashboard__quote-card">
+                    <div className="admin-dashboard__quote-info">
+                      <div className="admin-dashboard__quote-header">
+                        <h4 className="admin-dashboard__quote-title">
+                          {quote.quote_number}
+                        </h4>
+                        <div className="admin-dashboard__quote-value">
+                          ${quote.total_cost?.toLocaleString()}
+                        </div>
+                      </div>
+                      
+                      <div className="admin-dashboard__quote-details">
+                        <p><strong>Customer:</strong> {quote.customer_name}</p>
+                        <p><strong>Shipment:</strong> {quote.reference}</p>
+                        <p><strong>Valid Until:</strong> {new Date(quote.valid_until).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+
+                    <div className="admin-dashboard__quote-actions">
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        onClick={() => window.open(`/admin/quotes/${quote.id}`, '_blank')}
+                      >
+                        View Details
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Quick Actions */}
+        <div className="admin-dashboard__section">
+          <Card>
+            <h2 className="admin-dashboard__section-title">⚡ Quick Actions</h2>
+            <div className="admin-dashboard__quick-actions">
+              <Button
+                variant="primary"
+                onClick={() => window.location.href = '/admin/shipments'}
+              >
+                📦 Manage All Shipments
+              </Button>
+              
+              <Button
+                variant="secondary"
+                onClick={() => window.location.href = '/admin/quotes'}
+              >
+                💰 View All Quotes
+              </Button>
+              
+              <Button
+                variant="secondary"
+                onClick={() => window.location.href = '/admin/analytics'}
+              >
+                📊 View Analytics
+              </Button>
+              
+              <Button
+                variant="secondary"
+                onClick={() => window.location.href = '/admin/calendar'}
+              >
+                📅 View Calendar
+              </Button>
+            </div>
+          </Card>
         </div>
       </div>
 
-      {error && (
-        <WarningAlert
-          variant="error"
-          title="Dashboard Error"
-          message={error}
-          className="admin-dashboard__error"
-        />
-      )}
-
-      {stats && (
-        <>
-          {/* Key Metrics Overview */}
-          <div className="admin-dashboard__metrics">
-            <div className="admin-dashboard__metric">
-              <div className="admin-dashboard__metric-icon">📦</div>
-              <div className="admin-dashboard__metric-content">
-                <div className="admin-dashboard__metric-value">
-                  {formatNumber(stats.overview.totalShipments)}
-                </div>
-                <div className="admin-dashboard__metric-label">Total Shipments</div>
-              </div>
-            </div>
-
-            <div className="admin-dashboard__metric">
-              <div className="admin-dashboard__metric-icon">📋</div>
-              <div className="admin-dashboard__metric-content">
-                <div className="admin-dashboard__metric-value">
-                  {formatNumber(stats.overview.activeOrders)}
-                </div>
-                <div className="admin-dashboard__metric-label">Active Orders</div>
-              </div>
-            </div>
-
-            <div className="admin-dashboard__metric">
-              <div className="admin-dashboard__metric-icon">💰</div>
-              <div className="admin-dashboard__metric-content">
-                <div className="admin-dashboard__metric-value">
-                  {formatCurrency(stats.overview.totalRevenue)}
-                </div>
-                <div className="admin-dashboard__metric-label">Total Revenue</div>
-              </div>
-            </div>
-
-            <div className="admin-dashboard__metric">
-              <div className="admin-dashboard__metric-icon">📈</div>
-              <div className="admin-dashboard__metric-content">
-                <div className="admin-dashboard__metric-value">
-                  {formatCurrency(stats.overview.averageOrderValue)}
-                </div>
-                <div className="admin-dashboard__metric-label">Avg Order Value</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content Grid */}
-          <div className="admin-dashboard__grid">
-            {/* Alerts & Notifications */}
-            <div className="admin-dashboard__card">
-              <div className="admin-dashboard__card-header">
-                <h3>🚨 Priority Alerts</h3>
-                <StatusBadge variant="error" size="small">
-                  {stats.alerts.length}
-                </StatusBadge>
-              </div>
-              <div className="admin-dashboard__card-content">
-                {stats.alerts.map((alert) => (
-                  <div key={alert.id} className="admin-dashboard__alert">
-                    <div className="admin-dashboard__alert-content">
-                      <strong>{alert.message}</strong>
-                      <span className="admin-dashboard__alert-count">
-                        {alert.count} items
-                      </span>
-                    </div>
-                    <StatusBadge 
-                      variant={alert.priority === 'high' ? 'error' : 'warning'}
-                      size="small"
-                    >
-                      {alert.priority}
-                    </StatusBadge>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="admin-dashboard__card">
-              <div className="admin-dashboard__card-header">
-                <h3>📊 Recent Activity</h3>
-              </div>
-              <div className="admin-dashboard__card-content">
-                {stats.recentActivity.map((activity) => (
-                  <div key={activity.id} className="admin-dashboard__activity">
-                    <div className="admin-dashboard__activity-content">
-                      <div className="admin-dashboard__activity-description">
-                        {activity.description}
-                      </div>
-                      <div className="admin-dashboard__activity-time">
-                        {new Date(activity.timestamp).toLocaleTimeString()}
-                      </div>
-                    </div>
-                    <StatusBadge 
-                      variant={
-                        activity.priority === 'urgent' ? 'error' :
-                        activity.priority === 'high' ? 'warning' : 'info'
-                      }
-                      size="small"
-                    >
-                      {activity.priority}
-                    </StatusBadge>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="admin-dashboard__card">
-              <div className="admin-dashboard__card-header">
-                <h3>📈 Quick Stats</h3>
-              </div>
-              <div className="admin-dashboard__card-content">
-                <div className="admin-dashboard__stats-grid">
-                  <div className="admin-dashboard__stat">
-                    <div className="admin-dashboard__stat-label">In Transit</div>
-                    <div className="admin-dashboard__stat-value">
-                      {stats.shipments.inTransit}
-                    </div>
-                  </div>
-                  <div className="admin-dashboard__stat">
-                    <div className="admin-dashboard__stat-label">Pending Quotes</div>
-                    <div className="admin-dashboard__stat-value">
-                      {stats.quotes.pending}
-                    </div>
-                  </div>
-                  <div className="admin-dashboard__stat">
-                    <div className="admin-dashboard__stat-label">Active Customers</div>
-                    <div className="admin-dashboard__stat-value">
-                      {stats.customers.totalActive}
-                    </div>
-                  </div>
-                  <div className="admin-dashboard__stat">
-                    <div className="admin-dashboard__stat-label">Delivered</div>
-                    <div className="admin-dashboard__stat-value">
-                      {stats.shipments.delivered}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Top Customers */}
-            <div className="admin-dashboard__card admin-dashboard__card--wide">
-              <div className="admin-dashboard__card-header">
-                <h3>🏆 Top Customers</h3>
-              </div>
-              <div className="admin-dashboard__card-content">
-                <div className="admin-dashboard__customers">
-                  {stats.customers.topCustomers.map((customer) => (
-                    <div key={customer.id} className="admin-dashboard__customer">
-                      <div className="admin-dashboard__customer-info">
-                        <div className="admin-dashboard__customer-name">
-                          {customer.name}
-                        </div>
-                        <div className="admin-dashboard__customer-stats">
-                          {customer.orderCount} orders • {formatCurrency(customer.revenue)}
-                        </div>
-                      </div>
-                      <div className="admin-dashboard__customer-actions">
-                        <button 
-                          className="admin-dashboard__customer-btn"
-                          onClick={() => navigate(`/admin/customers/${customer.id}`)}
-                        >
-                          View Details
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* AI Query Section - Shared Component */}
-          {canAccess('ai_query') && (
-            <div className="admin-dashboard__ai-section">
-              <div className="admin-dashboard__card">
-                <div className="admin-dashboard__card-header">
-                  <h3>🤖 AI Assistant</h3>
-                  <p>Ask questions about operations, compliance, or get insights</p>
-                </div>
-                <div className="admin-dashboard__card-content">
-                  <AIQuery 
-                    context="admin"
-                    placeholder="Ask about shipments, compliance, customers..."
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </>
+      {/* Quote Generation Modal */}
+      {showQuoteModal && selectedShipment && (
+        <Modal
+          isOpen={showQuoteModal}
+          onClose={() => setShowQuoteModal(false)}
+          title="Generate Quote"
+          size="large"
+        >
+          <QuoteGenerationModal
+            shipment={selectedShipment}
+            onQuoteGenerated={handleQuoteGenerated}
+            onCancel={() => setShowQuoteModal(false)}
+          />
+        </Modal>
       )}
     </div>
   );

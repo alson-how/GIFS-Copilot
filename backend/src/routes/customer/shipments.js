@@ -9,18 +9,24 @@ import { authCustomer, authCustomerOptional } from '../../middleware/authCustome
 
 const router = express.Router();
 
+// Test route without auth
+router.get('/test', (req, res) => {
+  res.json({ success: true, message: 'Customer shipments route is working', timestamp: new Date() });
+});
+
 // GET /api/customer/shipments - List customer's shipments
-router.get('/', authCustomer, async (req, res) => {
+router.get('/', authCustomerOptional, async (req, res) => {
   try {
     const { page = 1, limit = 10, status, search } = req.query;
-    const customerId = req.customer.id;
+    const customerId = req.customer?.id;
 
-    logger.info(`Fetching shipments for customer: ${customerId}`, {
-      page, limit, status, search
+    logger.info(`Fetching shipments${customerId ? ` for customer: ${customerId}` : ' (public access)'}`, {
+      page, limit, status, search, hasAuth: !!customerId
     });
 
     // Build query filters
-    const filters = { customerId };
+    const filters = {};
+    if (customerId) filters.customerId = customerId;
     if (status) filters.status = status;
     if (search) {
       filters.$or = [
@@ -33,12 +39,12 @@ router.get('/', authCustomer, async (req, res) => {
     // Pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // TODO: Replace with actual database query
+    // Mock data - include sample shipments for demonstration
     const mockShipments = [
       {
         id: 'SH001',
         shipmentId: 'SH001',
-        customerId,
+        customerId: customerId || 'DEMO001',
         status: 'in_transit',
         destination: 'China',
         exportDate: '2024-01-15',
@@ -50,7 +56,7 @@ router.get('/', authCustomer, async (req, res) => {
       {
         id: 'SH002',
         shipmentId: 'SH002',
-        customerId,
+        customerId: customerId || 'DEMO002',
         status: 'delivered',
         destination: 'Singapore',
         exportDate: '2024-01-20',
@@ -58,15 +64,44 @@ router.get('/', authCustomer, async (req, res) => {
         itemCount: 3,
         createdAt: new Date('2024-01-15'),
         updatedAt: new Date('2024-01-22')
+      },
+      {
+        id: 'SH003',
+        shipmentId: 'SH003',
+        customerId: customerId || 'DEMO003',
+        status: 'pending_quote',
+        destination: 'Germany',
+        exportDate: '2024-01-25',
+        totalValue: 35000,
+        itemCount: 8,
+        createdAt: new Date('2024-01-20'),
+        updatedAt: new Date('2024-01-20')
+      },
+      {
+        id: 'SH004',
+        shipmentId: 'SH004',
+        customerId: customerId || 'DEMO004',
+        status: 'draft',
+        destination: 'USA',
+        exportDate: '2024-02-01',
+        totalValue: 45000,
+        itemCount: 12,
+        createdAt: new Date('2024-01-25'),
+        updatedAt: new Date('2024-01-25')
       }
     ];
 
-    const totalShipments = mockShipments.length;
+    // Filter by customer if authenticated, otherwise show all demo data
+    const filteredShipments = customerId 
+      ? mockShipments.filter(s => s.customerId === customerId)
+      : mockShipments;
+
+    const totalShipments = filteredShipments.length;
 
     res.json({
       success: true,
       data: {
-        shipments: mockShipments.slice(skip, skip + parseInt(limit)),
+        shipments: filteredShipments.slice(skip, skip + parseInt(limit)),
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),

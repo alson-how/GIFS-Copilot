@@ -56,7 +56,36 @@ $color-error: #ef4444;
 $color-error-light: #fee2e2;
 $color-error-dark: #dc2626;
 
+// Semantic Color Aliases for Components
+$color-primary: $color-primary-500;
+$color-primary-light: $color-primary-400;
+$color-secondary: $color-secondary-400;
+$color-border: #e5e7eb;
+$color-border-dark: #374151;
+$color-text-primary: #111827;
+$color-text-secondary: #6b7280;
+$color-text-tertiary: #9ca3af;
+$color-text-primary-dark: #f9fafb;
+$color-surface-primary: #f8fafc;
+$color-surface-secondary: #f9fafb;
+
+// Common Design Tokens
+$border-radius: 0.5rem;
+$border-radius-sm: 0.25rem;
+$border-radius-lg: 0.75rem;
+$border-radius-xl: 1rem;
+
+// Additional semantic colors
+$color-surface-disabled: #f3f4f6;
+$color-surface-dark: #1f2937;
+$color-accent: $color-accent-300;
 $color-info: #3b82f6;
+
+// Spacing variables
+$spacing-1: 0.25rem;
+$spacing-2: 0.5rem;
+$spacing-3: 0.75rem;
+$spacing-4: 1rem;
 $color-info-light: #dbeafe;
 $color-info-dark: #1d4ed8;
 

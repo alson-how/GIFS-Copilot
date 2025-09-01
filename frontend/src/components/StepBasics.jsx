@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/apiMigration.js';
-import StrategicItemPermitInterface from './StrategicItemPermitInterface.jsx';
+
+import AddressSelector from './molecules/AddressSelector/AddressSelector.jsx';
 
 export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isCanvas }) {
   console.log('🚀 StepBasics component rendered');
@@ -23,6 +24,8 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   const [mode, setMode] = useState('air');
   const [destination, setDestination] = useState('China');
   const [endUser, setEndUser] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState(null);
+  const [enableAddressBook, setEnableAddressBook] = useState(true);
 
   // Update shipmentId when canvasData contains a new shipmentId from invoice processing
   useEffect(() => {
@@ -63,7 +66,6 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   
-  // Strategic Items Compliance State
   const [strategicItemsDetected, setStrategicItemsDetected] = useState(false);
   const [strategicDetectionComplete, setStrategicDetectionComplete] = useState(false);
   const [strategicDetectionLoading, setStrategicDetectionLoading] = useState(false);
@@ -212,12 +214,12 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           if (data.data.export_blocked) {
             calculatedComplianceScore = 0; // Blocked due to missing permits - 0% compliance
           } else {
-            calculatedComplianceScore = 90; // Strategic items detected but compliant
+            calculatedComplianceScore = 25; // Strategic items detected - requires permits, low compliance until permits uploaded
           }
         }
         
         setStrategicItemsDetected(strategicItemsCount > 0);
-        setExportBlocked(data.data.export_blocked || (strategicItemsCount > 0));
+        setExportBlocked(data.data.export_blocked || (strategicItemsCount > 0)); // Block export if strategic items found
         setComplianceScore(data.data.overall_compliance_score || calculatedComplianceScore);
         // Set missing permits based on required permits (all are missing until uploaded)
         const requiredPermits = data.data.required_permits || [];
@@ -260,6 +262,17 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
     setMissingPermits(complianceData.missingPermits || []);
     
     console.log('🔒 Compliance status updated:', complianceData);
+  };
+
+  // Handle delivery address selection
+  const handleDeliveryAddressChange = (address) => {
+    setDeliveryAddress(address);
+    
+    if (address) {
+      // Extract destination country and end user from selected address
+      setDestination(address.country || 'China');
+      setEndUser(address.contact_name || address.label || '');
+    }
   };
 
   // Calculate totals and summaries
@@ -1061,19 +1074,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           </div>
         )}
 
-                    {/* Strategic Items Permit Interface - Must be at top for compliance */}
-            <StrategicItemPermitInterface 
-              shipmentId={shipmentId}
-              onComplianceChange={handleComplianceChange}
-              strategicItemsDetected={strategicItemsDetected}
-              exportBlocked={exportBlocked}
-              complianceScore={complianceScore}
-              missingPermits={missingPermits}
-              strategicDetectionComplete={strategicDetectionComplete}
-              strategicDetectionLoading={strategicDetectionLoading}
-              canvasData={canvasData}
-              strategicItemsCount={getStrategicCount()}
-            />
+                    {/* Strategic Items Permit Interface moved to ShipmentDetails */}
 
         {/* Section 1: Basic Information */}
         <div style={{ marginBottom: '2rem' }}>
@@ -1108,46 +1109,6 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
               </select>
             </div>
 
-            <div className="form-field">
-              <label className="form-label">Destination Country *</label>
-              <select 
-                className="form-select"
-                value={destination} 
-                onChange={e=>setDestination(e.target.value)}
-                required
-              >
-                <option value="China">🇨🇳 China</option>
-                <option value="United States">🇺🇸 United States</option>
-                <option value="Singapore">🇸🇬 Singapore</option>
-                <option value="Thailand">🇹🇭 Thailand</option>
-                <option value="Vietnam">🇻🇳 Vietnam</option>
-                <option value="Japan">🇯🇵 Japan</option>
-                <option value="South Korea">🇰🇷 South Korea</option>
-                <option value="Taiwan">🇹🇼 Taiwan</option>
-                <option value="Indonesia">🇮🇩 Indonesia</option>
-                <option value="Philippines">🇵🇭 Philippines</option>
-                <option value="India">🇮🇳 India</option>
-                <option value="Germany">🇩🇪 Germany</option>
-                <option value="United Kingdom">🇬🇧 United Kingdom</option>
-                <option value="France">🇫🇷 France</option>
-                <option value="Netherlands">🇳🇱 Netherlands</option>
-                <option value="Australia">🇦🇺 Australia</option>
-                <option value="Canada">🇨🇦 Canada</option>
-                <option value="Mexico">🇲🇽 Mexico</option>
-                <option value="Brazil">🇧🇷 Brazil</option>
-              </select>
-            </div>
-
-            <div className="form-field">
-              <label className="form-label">End User / Consignee *</label>
-              <input 
-                className="form-input"
-                placeholder="Company name receiving the goods"
-                value={endUser} 
-                onChange={e=>setEndUser(e.target.value)}
-                required
-              />
-            </div>
           </div>
         </div>
 
@@ -1304,11 +1265,115 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           </div>
         </div>
 
-        {/* Section 4: Parties & Destination */}
+        {/* Section 4: Delivery Address & Destination */}
         <div style={{ marginBottom: '2rem' }}>
-          <h3 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem' }}>
-            🏢 Parties & Destination
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem', flex: 1 }}>
+              🏢 Delivery Address & Destination
+            </h3>
+            {enableAddressBook && (
+              <button
+                type="button"
+                onClick={() => setEnableAddressBook(false)}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  marginLeft: '1rem'
+                }}
+              >
+                Manual Entry
+              </button>
+            )}
+          </div>
+          
+          {enableAddressBook ? (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <AddressSelector
+                value={deliveryAddress}
+                onChange={handleDeliveryAddressChange}
+                type="shipping"
+                label="Delivery Address"
+                required={true}
+                placeholder="Choose a saved delivery address or enter a new one"
+                className="step-basics__address-selector"
+              />
+              
+              {!deliveryAddress && (
+                <div style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                  💡 Tip: Save addresses in your <a href="/dashboard/addresses" target="_blank" style={{ color: 'var(--primary)' }}>Address Book</a> for quick selection in future shipments
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div className="form-row">
+                <div className="form-field">
+                  <label className="form-label">Destination Country *</label>
+                  <select 
+                    className="form-select"
+                    value={destination} 
+                    onChange={e=>setDestination(e.target.value)}
+                    required
+                  >
+                    <option value="China">🇨🇳 China</option>
+                    <option value="United States">🇺🇸 United States</option>
+                    <option value="Singapore">🇸🇬 Singapore</option>
+                    <option value="Thailand">🇹🇭 Thailand</option>
+                    <option value="Vietnam">🇻🇳 Vietnam</option>
+                    <option value="Japan">🇯🇵 Japan</option>
+                    <option value="South Korea">🇰🇷 South Korea</option>
+                    <option value="Taiwan">🇹🇼 Taiwan</option>
+                    <option value="Indonesia">🇮🇩 Indonesia</option>
+                    <option value="Philippines">🇵🇭 Philippines</option>
+                    <option value="India">🇮🇳 India</option>
+                    <option value="Germany">🇩🇪 Germany</option>
+                    <option value="United Kingdom">🇬🇧 United Kingdom</option>
+                    <option value="France">🇫🇷 France</option>
+                    <option value="Netherlands">🇳🇱 Netherlands</option>
+                    <option value="Australia">🇦🇺 Australia</option>
+                    <option value="Canada">🇨🇦 Canada</option>
+                    <option value="Mexico">🇲🇽 Mexico</option>
+                    <option value="Brazil">🇧🇷 Brazil</option>
+                  </select>
+                </div>
+
+                <div className="form-field">
+                  <label className="form-label">End User / Consignee *</label>
+                  <input 
+                    className="form-input"
+                    placeholder="Company name receiving the goods"
+                    value={endUser} 
+                    onChange={e=>setEndUser(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div style={{ marginTop: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setEnableAddressBook(true)}
+                  style={{
+                    background: 'var(--primary)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '4px',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  📍 Use Address Book Instead
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="form-row">
             <div className="form-field">
               <label className="form-label">Consignee Registration (Optional)</label>

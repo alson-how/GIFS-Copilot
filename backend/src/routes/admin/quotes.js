@@ -3,125 +3,179 @@
  * Routes for admin portal quote processing and management
  */
 
-const express = require('express');
+import express from 'express';
+import QuoteService from '../../services/QuoteService.js';
+import StatusTransitionService from '../../services/StatusTransitionService.js';
+import { ShipmentRepository } from '../../repositories/ShipmentRepository.js';
+import { authAdmin, requireRole } from '../../middleware/authAdmin.js';
+import { serviceLogger } from '../../utils/logger.js';
+
 const router = express.Router();
-const logger = require('../../utils/logger');
-const { authAdmin, requireRole } = require('../../middleware/authAdmin');
+const quoteService = new QuoteService();
+const statusTransitionService = new StatusTransitionService();
+const shipmentRepo = new ShipmentRepository();
 
-// GET /api/admin/quotes - List all quote requests
-router.get('/', authAdmin, async (req, res) => {
+// Apply authentication middleware
+router.use(authAdmin);
+router.use(requireRole(['admin', 'manager']));
+
+/**
+ * GET /api/admin/quotes - Get pending quotes and shipments requiring quotes
+ */
+router.get('/', async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 10, 
-      status, 
-      priority,
-      assignedTo,
-      search,
-      dateRange 
-    } = req.query;
+    serviceLogger.start('AdminQuotesAPI', 'getPendingQuotes', { query: req.query });
 
-    logger.info(`Admin fetching quotes: ${req.admin.email}`, {
-      page, limit, status, priority, assignedTo, search
+    // Get shipments that need quotes (PENDING_QUOTE, UNDER_REVIEW)
+    const pendingShipments = await shipmentRepo.rawQuery(`
+      SELECT s.*, 
+             u.first_name || ' ' || u.last_name as customer_name,
+             u.email as customer_email,
+             COUNT(sf.id) as document_count,
+             ARRAY_AGG(sf.original_name ORDER BY sf.uploaded_at) FILTER (WHERE sf.original_name IS NOT NULL) as documents
+      FROM shipments s
+      LEFT JOIN users u ON s.customer_id = u.id
+      LEFT JOIN shipment_files sf ON s.shipment_id = sf.shipment_id
+      WHERE s.status IN ('PENDING_QUOTE', 'UNDER_REVIEW')
+      GROUP BY s.shipment_id, u.id
+      ORDER BY s.created_at DESC
+    `);
+
+    // Get existing quotes
+    const filters = {
+      status: req.query.status || 'ACTIVE',
+      validOnly: true,
+      limit: 50
+    };
+    
+    const quotes = await quoteService.getQuotesForDashboard(filters);
+
+    serviceLogger.success('AdminQuotesAPI', 'getPendingQuotes', { 
+      shipments: pendingShipments.rows.length,
+      quotes: quotes.length 
     });
-
-    // Build query filters
-    const filters = {};
-    if (status) filters.status = status;
-    if (priority) filters.priority = priority;
-    if (assignedTo) filters.assignedTo = assignedTo;
-
-    // TODO: Replace with actual database query
-    const mockQuotes = [
-      {
-        id: 'QR001',
-        quoteId: 'QR001',
-        customerId: 'CUST001',
-        customerName: 'Tech Corp Ltd',
-        customerEmail: 'admin@techcorp.com',
-        status: 'pending',
-        priority: 'high',
-        title: 'Electronics Shipment to China',
-        destination: 'Shanghai, China',
-        estimatedValue: 75000,
-        products: [
-          {
-            description: 'AI Accelerator Components',
-            quantity: 50,
-            estimatedValue: 75000,
-            isStrategic: true
-          }
-        ],
-        requirements: [
-          'Strategic items assessment',
-          'Export license verification',
-          'High-value insurance'
-        ],
-        submittedAt: new Date('2024-01-10'),
-        dueDate: new Date('2024-01-13'),
-        assignedTo: null,
-        notes: 'Urgent production requirement'
-      },
-      {
-        id: 'QR002',
-        quoteId: 'QR002',
-        customerId: 'CUST002',
-        customerName: 'Electronics Inc',
-        customerEmail: 'quotes@electronics.com',
-        status: 'in_progress',
-        priority: 'medium',
-        title: 'Standard Components to Singapore',
-        destination: 'Singapore',
-        estimatedValue: 25000,
-        products: [
-          {
-            description: 'Standard IC Components',
-            quantity: 200,
-            estimatedValue: 25000,
-            isStrategic: false
-          }
-        ],
-        requirements: ['Standard shipping', 'Commercial invoice'],
-        submittedAt: new Date('2024-01-08'),
-        dueDate: new Date('2024-01-15'),
-        assignedTo: req.admin.id,
-        notes: 'Regular customer - standard processing'
-      }
-    ];
-
-    const totalQuotes = mockQuotes.length;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
 
     res.json({
       success: true,
       data: {
-        quotes: mockQuotes.slice(skip, skip + parseInt(limit)),
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total: totalQuotes,
-          pages: Math.ceil(totalQuotes / parseInt(limit))
-        },
+        pendingShipments: pendingShipments.rows,
+        activeQuotes: quotes,
         summary: {
-          pending: mockQuotes.filter(q => q.status === 'pending').length,
-          inProgress: mockQuotes.filter(q => q.status === 'in_progress').length,
-          completed: mockQuotes.filter(q => q.status === 'completed').length,
-          overdue: mockQuotes.filter(q => new Date(q.dueDate) < new Date()).length
+          pendingQuotes: pendingShipments.rows.filter(s => s.status === 'PENDING_QUOTE').length,
+          underReview: pendingShipments.rows.filter(s => s.status === 'UNDER_REVIEW').length,
+          activeQuotes: quotes.length
         }
       }
     });
 
   } catch (error) {
-    logger.error('Error fetching quotes:', error);
+    serviceLogger.error('AdminQuotesAPI', 'getPendingQuotes', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch quotes'
+      message: 'Failed to fetch quotes data',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/admin/quotes/generate
+ * Generate quote for a shipment
+ */
+router.post('/generate', async (req, res) => {
+  try {
+    const { shipmentId, options = {} } = req.body;
+    const adminId = req.admin.id;
+    
+    serviceLogger.start('AdminQuotesAPI', 'generateQuote', { shipmentId, adminId });
+
+    if (!shipmentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Shipment ID is required'
+      });
+    }
+
+    // First, transition shipment to UNDER_REVIEW if it's PENDING_QUOTE
+    const shipment = await shipmentRepo.findById(shipmentId);
+    if (shipment.status === 'PENDING_QUOTE') {
+      await statusTransitionService.transitionStatus(
+        shipmentId, 
+        'UNDER_REVIEW', 
+        adminId, 
+        'ADMIN',
+        'Admin reviewing for quote generation'
+      );
+    }
+
+    const quote = await quoteService.generateQuote(shipmentId, adminId, options);
+    
+    serviceLogger.success('AdminQuotesAPI', 'generateQuote', { 
+      quoteId: quote.id, 
+      quoteNumber: quote.quote_number 
+    });
+    
+    res.status(201).json({
+      success: true,
+      data: quote,
+      message: `Quote ${quote.quote_number} generated successfully`
+    });
+  } catch (error) {
+    serviceLogger.error('AdminQuotesAPI', 'generateQuote', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate quote',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/admin/quotes/shipment/:shipmentId
+ * Get shipment details for quote generation
+ */
+router.get('/shipment/:shipmentId', async (req, res) => {
+  try {
+    const shipmentId = parseInt(req.params.shipmentId);
+    serviceLogger.start('AdminQuotesAPI', 'getShipmentForQuote', { shipmentId });
+
+    const shipment = await shipmentRepo.findCompleteById(shipmentId);
+    
+    if (!shipment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shipment not found'
+      });
+    }
+
+    // Get existing quotes for this shipment
+    const quotes = await quoteService.quoteRepo.findByShipmentId(shipmentId);
+
+    // Calculate sample carrier rates
+    const carrierRates = await quoteService.calculateCarrierRates(shipment);
+
+    serviceLogger.success('AdminQuotesAPI', 'getShipmentForQuote', { shipmentId });
+    
+    res.json({
+      success: true,
+      data: {
+        shipment,
+        existingQuotes: quotes,
+        suggestedRates: carrierRates
+      }
+    });
+  } catch (error) {
+    serviceLogger.error('AdminQuotesAPI', 'getShipmentForQuote', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch shipment details',
+      error: error.message
     });
   }
 });
 
 // GET /api/admin/quotes/:id - Get specific quote details
-router.get('/:id', authAdmin, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -420,4 +474,125 @@ router.get('/analytics/summary', authAdmin, requireRole(['admin', 'manager']), a
   }
 });
 
-module.exports = router;
+/**
+ * POST /api/admin/quotes/:id/send
+ * Send quote to customer
+ */
+router.post('/:id/send', async (req, res) => {
+  try {
+    const quoteId = parseInt(req.params.id);
+    serviceLogger.start('AdminQuotesAPI', 'sendQuote', { quoteId });
+
+    const result = await quoteService.sendQuoteToCustomer(quoteId);
+    
+    serviceLogger.success('AdminQuotesAPI', 'sendQuote', { quoteId });
+    res.json({
+      success: true,
+      data: result,
+      message: 'Quote sent to customer successfully'
+    });
+  } catch (error) {
+    serviceLogger.error('AdminQuotesAPI', 'sendQuote', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send quote',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/admin/quotes/carriers/rates
+ * Get carrier rates for shipment comparison
+ */
+router.get('/carriers/rates', async (req, res) => {
+  try {
+    const { origin, destination, weight } = req.query;
+    serviceLogger.start('AdminQuotesAPI', 'getCarrierRates', { origin, destination, weight });
+
+    if (!origin || !destination || !weight) {
+      return res.status(400).json({
+        success: false,
+        message: 'Origin, destination, and weight are required'
+      });
+    }
+
+    // Mock carrier rates - replace with actual carrier API integration
+    const mockRates = [
+      {
+        carrier_name: 'DHL Express',
+        service_type: 'Express Worldwide',
+        transit_days: 3,
+        rate_per_kg: 45.50,
+        total_cost: parseFloat((45.50 * parseFloat(weight)).toFixed(2))
+      },
+      {
+        carrier_name: 'FedEx International',
+        service_type: 'Priority',
+        transit_days: 4,
+        rate_per_kg: 42.80,
+        total_cost: parseFloat((42.80 * parseFloat(weight)).toFixed(2))
+      },
+      {
+        carrier_name: 'UPS Worldwide',
+        service_type: 'Express',
+        transit_days: 5,
+        rate_per_kg: 38.90,
+        total_cost: parseFloat((38.90 * parseFloat(weight)).toFixed(2))
+      },
+      {
+        carrier_name: 'Singapore Post',
+        service_type: 'EMS',
+        transit_days: 7,
+        rate_per_kg: 28.50,
+        total_cost: parseFloat((28.50 * parseFloat(weight)).toFixed(2))
+      }
+    ];
+
+    serviceLogger.success('AdminQuotesAPI', 'getCarrierRates', { 
+      carriers: mockRates.length 
+    });
+
+    res.json({
+      success: true,
+      data: mockRates,
+      query: { origin, destination, weight: parseFloat(weight) },
+      timestamp: new Date()
+    });
+
+  } catch (error) {
+    serviceLogger.error('AdminQuotesAPI', 'getCarrierRates', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch carrier rates',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/admin/quotes/stats
+ * Get quote dashboard statistics
+ */
+router.get('/stats', async (req, res) => {
+  try {
+    serviceLogger.start('AdminQuotesAPI', 'getStats');
+
+    const stats = await quoteService.getQuoteStatistics();
+    
+    serviceLogger.success('AdminQuotesAPI', 'getStats', { stats });
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    serviceLogger.error('AdminQuotesAPI', 'getStats', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch statistics',
+      error: error.message
+    });
+  }
+});
+
+export default router;

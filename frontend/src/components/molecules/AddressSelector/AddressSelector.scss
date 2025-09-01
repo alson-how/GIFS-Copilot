@@ -1,0 +1,252 @@
+@use "../../../styles/abstracts/variables" as *;
+@use "../../../styles/abstracts/mixins" as *;
+
+.address-selector {
+  width: 100%;
+  
+  &__label {
+    display: block;
+    font-weight: 600;
+    color: $color-text-primary;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  &__required {
+    color: $color-error;
+    margin-left: 0.25rem;
+  }
+  
+  &__dropdown {
+    position: relative;
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  
+  &__select {
+    flex: 1;
+    padding: 0.75rem;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    background-color: $color-light-surface;
+    color: $color-text-primary;
+    font-size: 0.9rem;
+    transition: all $transition-base;
+    
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+      box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+    }
+    
+    &:disabled {
+      background-color: $color-surface-disabled;
+      cursor: not-allowed;
+    }
+  }
+  
+  &__new-btn {
+    white-space: nowrap;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+  }
+  
+  &__loading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    color: $color-text-secondary;
+    font-size: 0.9rem;
+  }
+  
+  &__preview {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    background-color: rgba($color-primary, 0.05);
+  }
+  
+  &__address-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  &__address-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  &__address-label {
+    font-weight: 600;
+    color: $color-text-primary;
+    font-size: 0.95rem;
+  }
+  
+  &__address-details {
+    font-size: 0.9rem;
+    color: $color-text-secondary;
+    line-height: 1.4;
+    
+    > div {
+      margin-bottom: 0.25rem;
+    }
+  }
+  
+  &__contact {
+    font-size: 0.85rem;
+    color: $color-text-tertiary;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid $color-border;
+  }
+  
+  &__new-form {
+    margin-top: 1rem;
+    padding: 1.5rem;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    background-color: rgba($color-primary, 0.03);
+  }
+  
+  &__form-header {
+    margin-bottom: 1.5rem;
+    
+    h4 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: $color-text-primary;
+    }
+  }
+  
+  &__form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+    
+    // Full width for single field rows
+    &:has(.address-selector__form-field:only-child) {
+      grid-template-columns: 1fr;
+    }
+    
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+  }
+  
+  &__form-field {
+    display: flex;
+    flex-direction: column;
+    
+    label {
+      font-weight: 500;
+      color: $color-text-primary;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+    }
+    
+    input,
+    select {
+      padding: 0.75rem;
+      border: 1px solid $color-border;
+      border-radius: $border-radius-sm;
+      background-color: $color-light-surface;
+      color: $color-text-primary;
+      font-size: 0.9rem;
+      transition: all $transition-base;
+      
+      &:focus {
+        outline: none;
+        border-color: $color-primary;
+        box-shadow: 0 0 0 2px rgba($color-primary, 0.1);
+      }
+      
+      &::placeholder {
+        color: $color-text-tertiary;
+      }
+    }
+  }
+  
+  &__form-note {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid $color-border;
+    
+    small {
+      color: $color-text-secondary;
+      font-size: 0.8rem;
+      font-style: italic;
+    }
+  }
+  
+  &__error {
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background-color: rgba($color-error, 0.1);
+    border: 1px solid rgba($color-error, 0.2);
+    border-radius: $border-radius-sm;
+    color: $color-error;
+    font-size: 0.85rem;
+  }
+  
+  // Integration variants
+  &--compact {
+    .address-selector__preview {
+      padding: 0.75rem;
+    }
+    
+    .address-selector__new-form {
+      padding: 1rem;
+    }
+    
+    .address-selector__form-row {
+      margin-bottom: 0.75rem;
+    }
+  }
+  
+  &--inline {
+    .address-selector__dropdown {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .address-selector__new-btn {
+      align-self: flex-start;
+    }
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .address-selector {
+    &__select,
+    &__form-field input,
+    &__form-field select {
+      background-color: $color-dark-surface;
+      color: $color-dark-text-primary;
+      border-color: $color-border-dark;
+      
+      &:focus {
+        border-color: $color-primary;
+        box-shadow: 0 0 0 3px rgba($color-primary, 0.15);
+      }
+    }
+    
+    &__preview,
+    &__new-form {
+      background-color: $color-dark-surface-light;
+      border-color: $color-border-dark;
+    }
+  }
+}
