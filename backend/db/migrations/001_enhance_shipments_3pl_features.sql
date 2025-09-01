@@ -4,7 +4,7 @@
 
 -- 1. Shipment Status Enum
 CREATE TYPE shipment_status_enum AS ENUM (
-    'DRAFT',
+    'CREATED',
     'PENDING_QUOTE',
     'UNDER_REVIEW',
     'QUOTED',
@@ -52,7 +52,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;
 
 -- 6. Enhance shipments table with 3PL features
 ALTER TABLE shipments 
-ADD COLUMN IF NOT EXISTS status shipment_status_enum DEFAULT 'DRAFT',
+ADD COLUMN IF NOT EXISTS status shipment_status_enum DEFAULT 'CREATED',
 ADD COLUMN IF NOT EXISTS pickup_method pickup_method_enum,
 ADD COLUMN IF NOT EXISTS pickup_address TEXT,
 ADD COLUMN IF NOT EXISTS pickup_contact_person VARCHAR(255),
@@ -207,7 +207,7 @@ ON CONFLICT DO NOTHING;
 
 -- Insert status transition rules
 INSERT INTO status_transition_rules (from_status, to_status, allowed_roles) VALUES
-('DRAFT', 'PENDING_QUOTE', ARRAY['CUSTOMER']),
+('CREATED', 'PENDING_QUOTE', ARRAY['CUSTOMER']),
 ('PENDING_QUOTE', 'UNDER_REVIEW', ARRAY['ADMIN', 'SYSTEM']),
 ('UNDER_REVIEW', 'QUOTED', ARRAY['ADMIN']),
 ('QUOTED', 'CONFIRMED', ARRAY['CUSTOMER']),
@@ -222,7 +222,7 @@ INSERT INTO status_transition_rules (from_status, to_status, allowed_roles) VALU
 ('CUSTOMS_IMPORT', 'OUT_FOR_DELIVERY', ARRAY['CARRIER', 'ADMIN']),
 ('OUT_FOR_DELIVERY', 'DELIVERED', ARRAY['CARRIER', 'ADMIN']),
 -- Allow cancellation from most statuses
-('DRAFT', 'CANCELLED', ARRAY['CUSTOMER', 'ADMIN']),
+('CREATED', 'CANCELLED', ARRAY['CUSTOMER', 'ADMIN']),
 ('PENDING_QUOTE', 'CANCELLED', ARRAY['CUSTOMER', 'ADMIN']),
 ('UNDER_REVIEW', 'CANCELLED', ARRAY['CUSTOMER', 'ADMIN']),
 ('QUOTED', 'CANCELLED', ARRAY['CUSTOMER', 'ADMIN']),
@@ -234,7 +234,7 @@ ON CONFLICT DO NOTHING;
 -- =============================================
 
 -- Set default status for existing shipments
-UPDATE shipments SET status = 'DRAFT' WHERE status IS NULL;
+UPDATE shipments SET status = 'CREATED' WHERE status IS NULL;
 
 -- Create admin user if not exists
 INSERT INTO users (email, password_hash, first_name, last_name, role, is_active) 

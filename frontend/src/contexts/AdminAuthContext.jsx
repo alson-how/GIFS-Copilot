@@ -26,9 +26,27 @@ export const AdminAuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
-        const token = localStorage.getItem('admin_token');
+        // Clean up any bad tokens first
+        const token1 = localStorage.getItem('admin_access_token');
+        const token2 = localStorage.getItem('admin_token');
         
-        if (!token) {
+        console.log('🔍 Auth check - token1:', token1?.substring(0, 50) + '...' || token1);
+        console.log('🔍 Auth check - token2:', token2?.substring(0, 50) + '...' || token2);
+        
+        // Remove any tokens that are the string 'null' or 'undefined'
+        if (token1 === 'null' || token1 === 'undefined') {
+          console.log('🧹 Cleaning up bad admin_access_token:', token1);
+          localStorage.removeItem('admin_access_token');
+        }
+        if (token2 === 'null' || token2 === 'undefined') {
+          console.log('🧹 Cleaning up bad admin_token:', token2);
+          localStorage.removeItem('admin_token');
+        }
+        
+        const token = localStorage.getItem('admin_access_token') || localStorage.getItem('admin_token');
+        
+        if (!token || token === 'null' || token === 'undefined') {
+          console.log('🔍 No valid token found, skipping auth check');
           setIsLoading(false);
           return;
         }
@@ -90,6 +108,10 @@ export const AdminAuthProvider = ({ children }) => {
   const login = async (username, password, rememberMe = false) => {
     try {
       setIsLoading(true);
+      
+      // Clear any existing bad tokens first
+      console.log('🧹 Clearing existing tokens before login...');
+      clearAllTokens();
 
       const response = await apiRequest('/auth/admin/login', {
         method: 'POST',
@@ -97,12 +119,36 @@ export const AdminAuthProvider = ({ children }) => {
       });
 
       const result = await response.json();
+      console.log('Admin login result:', result);
+      console.log('AccessToken from result:', result?.data?.accessToken);
+      console.log('AccessToken type:', typeof result?.data?.accessToken);
+      console.log('AccessToken length:', result?.data?.accessToken?.length);
 
       if (result.success) {
-        const { token, admin: adminData } = result.data;
+        const { accessToken, admin: adminData } = result.data;
         
-        // Store token
-        localStorage.setItem('admin_token', token);
+        console.log('Extracted accessToken:', accessToken);
+        console.log('Extracted accessToken type:', typeof accessToken);
+        console.log('Extracted accessToken is null/undefined?', accessToken === null || accessToken === undefined);
+        
+        // Validate token before storing
+        if (!accessToken || accessToken === 'null' || accessToken === 'undefined') {
+          console.error('❌ Invalid token received from login API:', accessToken);
+          return { 
+            success: false, 
+            error: 'Invalid authentication token received from server' 
+          };
+        }
+        
+        console.log('✅ Storing valid accessToken:', accessToken.substring(0, 50) + '...');
+        // Store token with correct key for API compatibility
+        localStorage.setItem('admin_access_token', accessToken);
+        localStorage.setItem('admin_token', accessToken); // Keep for backward compatibility
+        
+        // Verify token was stored correctly
+        const storedToken = localStorage.getItem('admin_access_token');
+        console.log('✅ Verified stored token:', storedToken?.substring(0, 50) + '...');
+        console.log('✅ Token stored successfully:', storedToken === accessToken);
         
         // Update state
         setAdmin(adminData);
@@ -126,7 +172,7 @@ export const AdminAuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       // Call logout endpoint
-      const token = localStorage.getItem('admin_token');
+      const token = localStorage.getItem('admin_access_token') || localStorage.getItem('admin_token');
       if (token) {
         await apiRequest('/auth/logout', {
           method: 'POST',
@@ -138,7 +184,11 @@ export const AdminAuthProvider = ({ children }) => {
     } catch (error) {
     } finally {
       // Clear local state regardless of API call result
+      localStorage.removeItem('admin_access_token');
       localStorage.removeItem('admin_token');
+      // Also clear any other potential token keys that might exist
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('admin_access_token');
       setAdmin(null);
       setPermissions([]);
       setIsAuthenticated(false);
@@ -185,7 +235,7 @@ export const AdminAuthProvider = ({ children }) => {
 
   const updateProfile = async (profileData) => {
     try {
-      const token = localStorage.getItem('admin_token');
+      const token = localStorage.getItem('admin_access_token') || localStorage.getItem('admin_token');
       
       if (!token) {
         throw new Error('No authentication token found');
@@ -216,7 +266,27 @@ export const AdminAuthProvider = ({ children }) => {
   };
 
   const getToken = () => {
-    return localStorage.getItem('admin_token');
+    const token1 = localStorage.getItem('admin_access_token');
+    const token2 = localStorage.getItem('admin_token');
+    
+    // Clean up bad tokens
+    if (token1 === 'null' || token1 === 'undefined') {
+      localStorage.removeItem('admin_access_token');
+    }
+    if (token2 === 'null' || token2 === 'undefined') {
+      localStorage.removeItem('admin_token');
+    }
+    
+    const finalToken = (token1 !== 'null' && token1 !== 'undefined' ? token1 : null) || 
+                      (token2 !== 'null' && token2 !== 'undefined' ? token2 : null);
+    
+    console.log('🔍 getToken() debug:');
+    console.log('  - admin_access_token:', token1?.substring(0, 50) + '...' || token1);
+    console.log('  - admin_token:', token2?.substring(0, 50) + '...' || token2);
+    console.log('  - final token:', finalToken?.substring(0, 50) + '...' || finalToken);
+    console.log('  - is null string?', finalToken === 'null');
+    
+    return finalToken;
   };
 
   const makeAuthenticatedRequest = async (url, options = {}) => {
@@ -251,6 +321,25 @@ export const AdminAuthProvider = ({ children }) => {
     return response;
   };
 
+  const clearAllTokens = () => {
+    console.log('🧹 Clearing all admin tokens from localStorage');
+    localStorage.removeItem('admin_access_token');
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('admin_access_token');
+    
+    // Also clear any other variations that might exist
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.includes('admin') && key.includes('token')) {
+        console.log('🧹 Removing additional admin token key:', key);
+        localStorage.removeItem(key);
+      }
+    });
+    
+    console.log('✅ All admin tokens cleared');
+  };
+
   const switchRole = async (newRole) => {
     // Only allow role switching for super admins or if explicitly permitted
     if (!hasRole('super_admin') && !hasPermission('switch_role')) {
@@ -258,7 +347,7 @@ export const AdminAuthProvider = ({ children }) => {
     }
 
     try {
-      const token = localStorage.getItem('admin_token');
+      const token = localStorage.getItem('admin_access_token') || localStorage.getItem('admin_token');
       const response = await directApiRequest('/api/admin/switch-role', {
         method: 'POST',
         headers: {
@@ -296,7 +385,8 @@ export const AdminAuthProvider = ({ children }) => {
     updateProfile,
     switchRole,
     getToken,
-    makeAuthenticatedRequest
+    makeAuthenticatedRequest,
+    clearAllTokens
   };
 
   return (

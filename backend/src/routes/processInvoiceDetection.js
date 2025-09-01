@@ -246,7 +246,7 @@ async function createShipment(shipmentData, ocrData) {
       ocrData?.technology_origin || 'Unknown',
       new Date(), // Set export_date to current date for now
       'Commercial Invoice Processing', // Set product type based on processing
-      'Under Review' // Set initial status to Under Review for manual verification
+      'CREATED' // Set initial status to CREATED when invoice is uploaded
     ]);
     
     console.log(`✅ Created comprehensive shipment record: ${shipmentId}`);

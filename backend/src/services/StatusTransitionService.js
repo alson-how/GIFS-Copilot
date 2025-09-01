@@ -9,7 +9,7 @@ import { serviceLogger } from '../utils/logger.js';
 
 // Status transition rules
 const STATUS_TRANSITIONS = {
-  'DRAFT': ['PENDING_QUOTE', 'CANCELLED'],
+  'CREATED': ['PENDING_QUOTE', 'CANCELLED'],
   'PENDING_QUOTE': ['UNDER_REVIEW', 'CANCELLED'],
   'UNDER_REVIEW': ['QUOTED', 'CANCELLED'],
   'QUOTED': ['CONFIRMED', 'EXPIRED', 'CANCELLED'],
@@ -29,7 +29,7 @@ const STATUS_TRANSITIONS = {
 
 // Role-based transition permissions
 const ROLE_PERMISSIONS = {
-  'CUSTOMER': ['DRAFT->PENDING_QUOTE', 'QUOTED->CONFIRMED'],
+  'CUSTOMER': ['CREATED->PENDING_QUOTE', 'QUOTED->CONFIRMED'],
   'ADMIN': [
     'PENDING_QUOTE->UNDER_REVIEW', 
     'UNDER_REVIEW->QUOTED',
@@ -43,7 +43,7 @@ const ROLE_PERMISSIONS = {
     'CUSTOMS_IMPORT->OUT_FOR_DELIVERY',
     'OUT_FOR_DELIVERY->DELIVERED',
     // Cancellation permissions
-    'DRAFT->CANCELLED',
+    'CREATED->CANCELLED',
     'PENDING_QUOTE->CANCELLED',
     'UNDER_REVIEW->CANCELLED',
     'QUOTED->CANCELLED',
@@ -263,7 +263,7 @@ export class StatusTransitionService {
 
     // All possible statuses in order
     const allStatuses = [
-      'DRAFT', 'PENDING_QUOTE', 'UNDER_REVIEW', 'QUOTED', 
+      'CREATED', 'PENDING_QUOTE', 'UNDER_REVIEW', 'QUOTED', 
       'CONFIRMED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'AT_WAREHOUSE',
       'CUSTOMS_EXPORT', 'IN_TRANSIT', 'ARRIVED_DESTINATION',
       'CUSTOMS_IMPORT', 'OUT_FOR_DELIVERY', 'DELIVERED'

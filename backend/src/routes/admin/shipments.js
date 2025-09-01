@@ -1,11 +1,12 @@
 /**
- * Public Shipments Routes  
- * Public API endpoints for shipments (no authentication required)
+ * Admin Shipments Routes
+ * Routes for admin portal shipment management
  */
 
 import express from 'express';
 import pkg from 'pg';
-import { logger } from '../../utils/logger.js';
+import logger from '../../utils/logger.js';
+import { authAdmin } from '../../middleware/authAdmin.js';
 
 const { Pool } = pkg;
 const pool = new Pool({
@@ -14,12 +15,13 @@ const pool = new Pool({
 
 const router = express.Router();
 
-// GET /api/shipments - List shipments (public access)
-router.get('/', async (req, res) => {
+// GET /api/admin/shipments - List all shipments (admin access)
+router.get('/', authAdmin, async (req, res) => {
   try {
     const { page = 1, limit = 10, status, search, shipmentId, endUser } = req.query;
+    const adminId = req.admin.id;
 
-    logger.info(`Fetching shipments (public access)`, {
+    logger.info(`Fetching shipments for admin: ${adminId}`, {
       page, limit, status, search, shipmentId, endUser
     });
 
@@ -38,6 +40,12 @@ router.get('/', async (req, res) => {
       paramCount++;
       whereConditions.push(`end_user_name ILIKE $${paramCount}`);
       queryParams.push(`%${endUser}%`);
+    }
+
+    if (status) {
+      paramCount++;
+      whereConditions.push(`status = $${paramCount}`);
+      queryParams.push(status);
     }
 
     if (search) {
@@ -64,7 +72,7 @@ router.get('/', async (req, res) => {
     paramCount++;
     queryParams.push(offset);
 
-    // Fetch shipments with pagination
+    // Fetch shipments with pagination - admin gets all fields
     const shipmentsQuery = `
       SELECT 
         shipment_id,
@@ -84,7 +92,10 @@ router.get('/', async (req, res) => {
         customer_id,
         tracking_number,
         carrier_reference,
-        description
+        description,
+        estimated_delivery_date,
+        actual_pickup_date,
+        actual_delivery_date
       FROM shipments 
       ${whereClause}
       ORDER BY updated_at DESC 
@@ -93,7 +104,7 @@ router.get('/', async (req, res) => {
 
     const shipmentsResult = await pool.query(shipmentsQuery, queryParams);
     
-    // Format shipments for frontend
+    // Format shipments for frontend - admin gets enhanced data
     const shipments = shipmentsResult.rows.map(row => ({
       shipment_id: row.shipment_id,
       id: row.shipment_id,
@@ -121,13 +132,16 @@ router.get('/', async (req, res) => {
       customer_id: row.customer_id,
       tracking_number: row.tracking_number,
       carrier_reference: row.carrier_reference,
+      estimated_delivery_date: row.estimated_delivery_date,
+      actual_pickup_date: row.actual_pickup_date,
+      actual_delivery_date: row.actual_delivery_date,
       createdAt: row.created_at,
       created_at: row.created_at,
       updatedAt: row.updated_at,
       updated_at: row.updated_at
     }));
 
-    logger.info(`Found ${shipments.length} shipments out of ${totalShipments} total`);
+    logger.info(`Admin found ${shipments.length} shipments out of ${totalShipments} total`);
 
     res.json({
       success: true,
@@ -135,7 +149,7 @@ router.get('/', async (req, res) => {
         shipments: shipments,
         pagination: {
           page: parseInt(page),
-          limit: parseInt(limit), 
+          limit: parseInt(limit),
           total: totalShipments,
           pages: Math.ceil(totalShipments / parseInt(limit))
         }
@@ -143,7 +157,7 @@ router.get('/', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error fetching public shipments:', error);
+    logger.error('Error fetching admin shipments:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch shipments'
@@ -151,14 +165,27 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/shipments/:id - Get specific shipment details (public access)
-router.get('/:id', async (req, res) => {
+// GET /api/admin/shipments/:id - Get specific shipment details (admin access)
+router.get('/:id', authAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const adminId = req.admin.id;
 
-    logger.info(`Fetching shipment details: ${id} (public access)`);
+    logger.info(`Admin ${adminId} fetching shipment details: ${id}`, {
+      paramType: typeof id,
+      paramValue: id,
+      paramLength: id?.length
+    });
 
-    // Query shipment details with related documents
+    // Validate the shipment ID format
+    if (!id || id.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid shipment ID'
+      });
+    }
+
+    // Query shipment details with related documents - admin gets full access
     const shipmentQuery = `
       SELECT 
         s.shipment_id,
@@ -179,6 +206,9 @@ router.get('/:id', async (req, res) => {
         s.tracking_number,
         s.carrier_reference,
         s.description,
+        s.estimated_delivery_date,
+        s.actual_pickup_date,
+        s.actual_delivery_date,
         d.original_filename,
         d.file_path,
         d.document_type,
@@ -190,7 +220,22 @@ router.get('/:id', async (req, res) => {
       WHERE s.shipment_id = $1
     `;
 
+    logger.info('Executing shipment query', { 
+      shipmentId: id,
+      queryLength: shipmentQuery.length,
+      parameters: [id],
+      queryPreview: shipmentQuery.substring(0, 200) + '...'
+    });
+    
+    // Let's try to identify the issue at position 939
+    const queryChars = shipmentQuery.length;
+    logger.info('Query character analysis', {
+      totalChars: queryChars,
+      position939: queryChars >= 939 ? shipmentQuery.substring(930, 950) : 'position not in query'
+    });
+    
     const result = await pool.query(shipmentQuery, [id]);
+    logger.info('Query executed successfully', { rowCount: result.rows.length });
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -201,7 +246,7 @@ router.get('/:id', async (req, res) => {
 
     const row = result.rows[0];
 
-    // Format the response
+    // Format the response with admin-specific data
     const shipment = {
       shipment_id: row.shipment_id,
       id: row.shipment_id,
@@ -229,10 +274,15 @@ router.get('/:id', async (req, res) => {
       customer_id: row.customer_id,
       tracking_number: row.tracking_number,
       carrier_reference: row.carrier_reference,
+      estimated_delivery_date: row.estimated_delivery_date,
+      actual_pickup_date: row.actual_pickup_date,
+      actual_delivery_date: row.actual_delivery_date,
       createdAt: row.created_at,
       created_at: row.created_at,
       updatedAt: row.updated_at,
       updated_at: row.updated_at,
+      // Admin-specific data (customer lookup would require separate query due to schema mismatch)
+      customer: null, // TODO: Fix customer_id schema mismatch (INTEGER vs UUID)
       document: row.original_filename ? {
         filename: row.original_filename,
         filePath: row.file_path,
@@ -249,10 +299,82 @@ router.get('/:id', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error fetching shipment details:', error);
+    logger.error('Error fetching admin shipment details:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch shipment details'
+    });
+  }
+});
+
+// PUT /api/admin/shipments/:id/status - Update shipment status (admin only)
+router.put('/:id/status', authAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, notes } = req.body;
+    const adminId = req.admin.id;
+
+    logger.info(`Admin ${adminId} updating shipment ${id} status to: ${status}`);
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        error: 'Status is required'
+      });
+    }
+
+    // Validate status enum
+    const validStatuses = [
+      'CREATED', 'PENDING_QUOTE', 'UNDER_REVIEW', 'QUOTED', 'CONFIRMED',
+      'PICKUP_SCHEDULED', 'PICKED_UP', 'AT_WAREHOUSE', 'CUSTOMS_EXPORT',
+      'IN_TRANSIT', 'ARRIVED_DESTINATION', 'CUSTOMS_IMPORT', 'OUT_FOR_DELIVERY',
+      'DELIVERED', 'CANCELLED', 'EXPIRED'
+    ];
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    // Update shipment status
+    const updateQuery = `
+      UPDATE shipments 
+      SET status = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE shipment_id = $2
+      RETURNING *
+    `;
+
+    const result = await pool.query(updateQuery, [status, id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Shipment not found'
+      });
+    }
+
+    const updatedShipment = result.rows[0];
+
+    // TODO: Create status history entry
+    logger.info(`Shipment ${id} status updated to ${status} by admin ${adminId}`);
+
+    res.json({
+      success: true,
+      data: {
+        shipment_id: updatedShipment.shipment_id,
+        status: updatedShipment.status,
+        updated_at: updatedShipment.updated_at
+      },
+      message: 'Shipment status updated successfully'
+    });
+
+  } catch (error) {
+    logger.error('Error updating shipment status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update shipment status'
     });
   }
 });

@@ -77,24 +77,37 @@ export default function ShipmentDetails() {
         }
       }
       
+      // Debug: Log the raw API response
+      console.log('🔍 DEBUG - Raw shipmentData from API:', shipmentData);
+      console.log('🔍 DEBUG - Raw invoiceData from API:', invoiceData);
+      console.log('🔍 DEBUG - shipmentData.data:', shipmentData.data);
+      
+      // Extract the actual data from the nested structure
+      const actualShipmentData = shipmentData.data || shipmentData;
+      
       // Merge shipment metadata with invoice processing data
       const mergedData = {
-        ...shipmentData,
+        ...actualShipmentData,
         // Override with invoice processing data if available
         ...(invoiceData && {
-          export_date: invoiceData.extracted_fields?.target_export_date || shipmentData.export_date,
-          mode: invoiceData.extracted_fields?.transport_mode || shipmentData.mode,
-          destination_country: invoiceData.destination || shipmentData.destination_country,
-          end_user_name: invoiceData.consignee_name || shipmentData.end_user_name,
-          commercial_value: invoiceData.commercial_value || shipmentData.commercial_value,
-          currency: invoiceData.extracted_fields?.currency || shipmentData.currency,
-          quantity: invoiceData.extracted_fields?.quantity || shipmentData.quantity,
-          incoterms: invoiceData.extracted_fields?.incoterms || shipmentData.incoterms,
-          tech_origin: invoiceData.technology_origin || shipmentData.tech_origin,
+          export_date: invoiceData.extracted_fields?.target_export_date || actualShipmentData.export_date || actualShipmentData.exportDate,
+          mode: invoiceData.extracted_fields?.transport_mode || actualShipmentData.mode,
+          destination_country: invoiceData.destination || actualShipmentData.destination_country || actualShipmentData.destination,
+          end_user_name: invoiceData.consignee_name || actualShipmentData.end_user_name || actualShipmentData.endUser,
+          commercial_value: invoiceData.commercial_value || actualShipmentData.commercial_value,
+          currency: invoiceData.extracted_fields?.currency || actualShipmentData.currency,
+          quantity: invoiceData.extracted_fields?.quantity || actualShipmentData.quantity,
+          incoterms: invoiceData.extracted_fields?.incoterms || actualShipmentData.incoterms,
+          tech_origin: invoiceData.technology_origin || actualShipmentData.tech_origin || actualShipmentData.techOrigin,
           // Add invoice processing specific data
           invoiceProcessingData: invoiceData
         })
       };
+      
+      // Debug: Log the merged data
+      console.log('🔍 DEBUG - Merged data being passed to setShipmentData:', mergedData);
+      console.log('🔍 DEBUG - end_user_name in merged data:', mergedData.end_user_name);
+      console.log('🔍 DEBUG - endUser in merged data:', mergedData.endUser);
       
       setShipmentData(mergedData);
       
@@ -151,6 +164,16 @@ export default function ShipmentDetails() {
     shipmentId: shipmentData.shipment_id,
     extractedDate: shipmentData.export_date,
     extractedDestination: shipmentData.destination_country,
+    // Also include the direct fields for StepBasics component
+    end_user_name: shipmentData.end_user_name,
+    endUser: shipmentData.endUser,
+    export_date: shipmentData.export_date,
+    exportDate: shipmentData.exportDate,
+    destination_country: shipmentData.destination_country,
+    destination: shipmentData.destination,
+    mode: shipmentData.mode,
+    currency: shipmentData.currency,
+    incoterms: shipmentData.incoterms,
     files: [],
     originalQuery: `Loaded shipment ${shipmentData.shipment_id}`,
     invoiceData: shipmentData.invoiceProcessingData,
@@ -167,14 +190,36 @@ export default function ShipmentDetails() {
         destination_country: shipmentData.invoiceProcessingData.destination,
         // Create product_items that supports both array methods and .value property
         product_items: (() => {
-          const items = shipmentData.invoiceProcessingData.product_items || [];
+          const items = shipmentData.invoiceProcessingData.extracted_fields?.product_items || 
+                       shipmentData.invoiceProcessingData.product_items || [];
           // Add .value property to the array for compatibility
           items.value = items;
           return items;
-        })()
+        })(),
+        // Add invoice table data if available (check nested location first)
+        invoice_table: shipmentData.invoiceProcessingData.extracted_fields?.invoice_table || 
+                      shipmentData.invoiceProcessingData.invoice_table || (
+          // Fallback: create table structure from product_items if no table data exists
+          shipmentData.invoiceProcessingData.extracted_fields?.product_items?.length > 0 ? {
+            headers: ['Description', 'Quantity', 'Unit Price', 'Total Amount'],
+            rows: shipmentData.invoiceProcessingData.extracted_fields.product_items.map(item => [
+              item.description || item.product_description || '',
+              item.quantity || '',
+              item.unit_price || '',
+              item.line_total || item.total_amount || ''
+            ])
+          } : null
+        )
       }
     } : null
   } : null;
+  
+  // Debug: Log canvasData being passed to StepBasics
+  if (canvasData) {
+    console.log('🔍 DEBUG - canvasData being passed to StepBasics:', canvasData);
+    console.log('🔍 DEBUG - canvasData.end_user_name:', canvasData.end_user_name);
+    console.log('🔍 DEBUG - canvasData.endUser:', canvasData.endUser);
+  }
 
   if (loading) {
     return (
@@ -375,66 +420,356 @@ export default function ShipmentDetails() {
           </div>
         </div>
 
-        {/* Canvas Navigation */}
-        <div className="canvas-nav" style={{
-          display: 'flex',
-          padding: '1rem',
-          borderBottom: '1px solid var(--border)',
-          backgroundColor: 'var(--bg-secondary)'
+        {/* Status Timeline */}
+        <div className="status-flow" style={{
+          background: '#f7fafc',
+          borderRadius: '10px',
+          padding: '20px',
+          marginTop: '30px'
         }}>
-          {[
-            { step: 1, label: '📋 Basics', active: currentCanvasStep === 1 },
-            { step: 2, label: '🤖 AI Chips', active: currentCanvasStep === 2, show: basics?.productType === 'ai_accelerator_gpu_tpu_npu' },
-            { step: 3, label: '🔍 Screening', active: currentCanvasStep === 3 },
-            { step: 4, label: '📄 Documents', active: currentCanvasStep === 4 }
-          ].filter(item => item.show !== false).map((item) => (
-            <button
-              key={item.step}
-              onClick={() => setCurrentCanvasStep(item.step)}
-              className={`btn ${item.active ? 'btn-primary' : 'btn-outline'}`}
-              style={{ marginRight: '0.5rem' }}
-            >
-              {item.label}
-            </button>
-          ))}
+          <h2 style={{
+            color: '#2d3748',
+            marginBottom: '20px',
+            fontSize: '18px'
+          }}>📈 Complete Status Progression Timeline</h2>
+          
+          <div className="status-timeline" style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            position: 'relative',
+            padding: '20px 0'
+          }}>
+            {/* Status Timeline Line */}
+            <div style={{
+              position: 'absolute',
+              top: '35px',
+              left: '50px',
+              right: '50px',
+              height: '2px',
+              background: 'linear-gradient(90deg, #48bb78 0%, #ed8936 50%, #667eea 100%)'
+            }}></div>
+            
+            {/* Create Order - Always active */}
+            <div className="status-item active" style={{
+              textAlign: 'center',
+              position: 'relative',
+              zIndex: 1,
+              flex: 1
+            }}>
+              <div className="status-icon" style={{
+                width: '50px',
+                height: '50px',
+                background: '#f0fff4',
+                border: '3px solid #48bb78',
+                borderRadius: '50%',
+                margin: '0 auto 10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px'
+              }}>📝</div>
+              <div className="status-label" style={{
+                fontSize: '12px',
+                color: '#4a5568',
+                fontWeight: 600
+              }}>Create Order</div>
+              <div className="status-owner" style={{
+                fontSize: '10px',
+                color: '#a0aec0',
+                marginTop: '3px'
+              }}>Customer</div>
+            </div>
+
+            {/* Under Review - Active if shipment exists */}
+            <div className={`status-item ${shipmentData ? 'active' : ''}`} style={{
+              textAlign: 'center',
+              position: 'relative',
+              zIndex: 1,
+              flex: 1
+            }}>
+              <div className="status-icon" style={{
+                width: '50px',
+                height: '50px',
+                background: shipmentData ? '#f0fff4' : 'white',
+                border: `3px solid ${shipmentData ? '#48bb78' : '#cbd5e0'}`,
+                borderRadius: '50%',
+                margin: '0 auto 10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px'
+              }}>👀</div>
+              <div className="status-label" style={{
+                fontSize: '12px',
+                color: '#4a5568',
+                fontWeight: 600
+              }}>Under Review</div>
+              <div className="status-owner" style={{
+                fontSize: '10px',
+                color: '#a0aec0',
+                marginTop: '3px'
+              }}>3PL Admin</div>
+            </div>
+
+            {/* Quoted */}
+            <div className="status-item" style={{
+              textAlign: 'center',
+              position: 'relative',
+              zIndex: 1,
+              flex: 1
+            }}>
+              <div className="status-icon" style={{
+                width: '50px',
+                height: '50px',
+                background: 'white',
+                border: '3px solid #cbd5e0',
+                borderRadius: '50%',
+                margin: '0 auto 10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px'
+              }}>💰</div>
+              <div className="status-label" style={{
+                fontSize: '12px',
+                color: '#4a5568',
+                fontWeight: 600
+              }}>Quoted</div>
+              <div className="status-owner" style={{
+                fontSize: '10px',
+                color: '#a0aec0',
+                marginTop: '3px'
+              }}>3PL Admin</div>
+            </div>
+
+            {/* Confirmed */}
+            <div className="status-item" style={{
+              textAlign: 'center',
+              position: 'relative',
+              zIndex: 1,
+              flex: 1
+            }}>
+              <div className="status-icon" style={{
+                width: '50px',
+                height: '50px',
+                background: 'white',
+                border: '3px solid #cbd5e0',
+                borderRadius: '50%',
+                margin: '0 auto 10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px'
+              }}>✅</div>
+              <div className="status-label" style={{
+                fontSize: '12px',
+                color: '#4a5568',
+                fontWeight: 600
+              }}>Confirmed</div>
+              <div className="status-owner" style={{
+                fontSize: '10px',
+                color: '#a0aec0',
+                marginTop: '3px'
+              }}>Customer</div>
+            </div>
+
+            {/* Pickup Scheduled */}
+            <div className="status-item" style={{
+              textAlign: 'center',
+              position: 'relative',
+              zIndex: 1,
+              flex: 1
+            }}>
+              <div className="status-icon" style={{
+                width: '50px',
+                height: '50px',
+                background: 'white',
+                border: '3px solid #cbd5e0',
+                borderRadius: '50%',
+                margin: '0 auto 10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px'
+              }}>📅</div>
+              <div className="status-label" style={{
+                fontSize: '12px',
+                color: '#4a5568',
+                fontWeight: 600
+              }}>Pickup Scheduled</div>
+              <div className="status-owner" style={{
+                fontSize: '10px',
+                color: '#a0aec0',
+                marginTop: '3px'
+              }}>3PL Admin</div>
+            </div>
+
+            {/* Picked Up */}
+            <div className="status-item" style={{
+              textAlign: 'center',
+              position: 'relative',
+              zIndex: 1,
+              flex: 1
+            }}>
+              <div className="status-icon" style={{
+                width: '50px',
+                height: '50px',
+                background: 'white',
+                border: '3px solid #cbd5e0',
+                borderRadius: '50%',
+                margin: '0 auto 10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px'
+              }}>🚚</div>
+              <div className="status-label" style={{
+                fontSize: '12px',
+                color: '#4a5568',
+                fontWeight: 600
+              }}>Picked Up</div>
+              <div className="status-owner" style={{
+                fontSize: '10px',
+                color: '#a0aec0',
+                marginTop: '3px'
+              }}>Carrier</div>
+            </div>
+
+            {/* At Warehouse */}
+            <div className="status-item" style={{
+              textAlign: 'center',
+              position: 'relative',
+              zIndex: 1,
+              flex: 1
+            }}>
+              <div className="status-icon" style={{
+                width: '50px',
+                height: '50px',
+                background: 'white',
+                border: '3px solid #cbd5e0',
+                borderRadius: '50%',
+                margin: '0 auto 10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px'
+              }}>🏭</div>
+              <div className="status-label" style={{
+                fontSize: '12px',
+                color: '#4a5568',
+                fontWeight: 600
+              }}>At Warehouse</div>
+              <div className="status-owner" style={{
+                fontSize: '10px',
+                color: '#a0aec0',
+                marginTop: '3px'
+              }}>3PL</div>
+            </div>
+
+            {/* Customs */}
+            <div className="status-item" style={{
+              textAlign: 'center',
+              position: 'relative',
+              zIndex: 1,
+              flex: 1
+            }}>
+              <div className="status-icon" style={{
+                width: '50px',
+                height: '50px',
+                background: 'white',
+                border: '3px solid #cbd5e0',
+                borderRadius: '50%',
+                margin: '0 auto 10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px'
+              }}>🛃</div>
+              <div className="status-label" style={{
+                fontSize: '12px',
+                color: '#4a5568',
+                fontWeight: 600
+              }}>Customs</div>
+              <div className="status-owner" style={{
+                fontSize: '10px',
+                color: '#a0aec0',
+                marginTop: '3px'
+              }}>3PL/Broker</div>
+            </div>
+
+            {/* In Transit */}
+            <div className="status-item" style={{
+              textAlign: 'center',
+              position: 'relative',
+              zIndex: 1,
+              flex: 1
+            }}>
+              <div className="status-icon" style={{
+                width: '50px',
+                height: '50px',
+                background: 'white',
+                border: '3px solid #cbd5e0',
+                borderRadius: '50%',
+                margin: '0 auto 10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px'
+              }}>✈️</div>
+              <div className="status-label" style={{
+                fontSize: '12px',
+                color: '#4a5568',
+                fontWeight: 600
+              }}>In Transit</div>
+              <div className="status-owner" style={{
+                fontSize: '10px',
+                color: '#a0aec0',
+                marginTop: '3px'
+              }}>Carrier</div>
+            </div>
+
+            {/* Delivered */}
+            <div className="status-item" style={{
+              textAlign: 'center',
+              position: 'relative',
+              zIndex: 1,
+              flex: 1
+            }}>
+              <div className="status-icon" style={{
+                width: '50px',
+                height: '50px',
+                background: 'white',
+                border: '3px solid #cbd5e0',
+                borderRadius: '50%',
+                margin: '0 auto 10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px'
+              }}>📦</div>
+              <div className="status-label" style={{
+                fontSize: '12px',
+                color: '#4a5568',
+                fontWeight: 600
+              }}>Delivered</div>
+              <div className="status-owner" style={{
+                fontSize: '10px',
+                color: '#a0aec0',
+                marginTop: '3px'
+              }}>Carrier</div>
+            </div>
+          </div>
         </div>
 
-        {/* Canvas Content */}
+        {/* Canvas Content - Always Show */}
         <div className="canvas-content" style={{ padding: '1rem' }}>
-          {currentCanvasStep === 1 && (
-            <>
-              <StepBasics
-                defaultShipmentId={shipmentId}
-                canvasData={shipmentData}
-                onSaved={(id, data) => handleStepComplete(1, id, data)}
-                isCanvas={true}
-              />
-            </>
-          )}
+          <StepBasics
+            defaultShipmentId={shipmentId}
+            canvasData={canvasData}
+            onSaved={(id, data) => handleStepComplete(1, id, data)}
+            isCanvas={true}
+          />
           
-          {currentCanvasStep === 2 && basics?.productType === 'ai_accelerator_gpu_tpu_npu' && (
-            <StepAI
-              shipmentId={shipmentData.shipment_id}
-              onSaved={() => handleStepComplete(2, shipmentData.shipment_id, null)}
-              isCanvas={true}
-            />
-          )}
-          
-          {currentCanvasStep === 3 && (
-            <StepScreening
-              shipmentId={shipmentData.shipment_id}
-              onSaved={() => handleStepComplete(3, shipmentData.shipment_id, null)}
-              isCanvas={true}
-            />
-          )}
-          
-          {currentCanvasStep === 4 && (
-            <StepDocs
-              shipmentId={shipmentData.shipment_id}
-              onSaved={() => handleStepComplete(4, shipmentData.shipment_id, null)}
-              isCanvas={true}
-            />
-          )}
         </div>
       </div>
     </div>

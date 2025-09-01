@@ -124,15 +124,16 @@ router.post('/customer/login', async (req, res) => {
 // POST /api/auth/admin/login - Admin portal login
 router.post('/admin/login', async (req, res) => {
   try {
-    const { email, password, rememberMe = false } = req.body;
+    const { email, username, password, rememberMe = false } = req.body;
+    const loginEmail = email || username;
     const ipAddress = req.ip;
     const userAgent = req.get('User-Agent');
 
-    logger.info(`Admin login attempt: ${email}`);
+    logger.info(`Admin login attempt: ${loginEmail}`);
 
     // Validate required fields
-    if (!email || !password) {
-      await UserRepository.recordLoginAttempt(email || 'unknown', ipAddress, userAgent, false, 'Missing credentials');
+    if (!loginEmail || !password) {
+      await UserRepository.recordLoginAttempt(loginEmail || 'unknown', ipAddress, userAgent, false, 'Missing credentials');
       return res.status(400).json({
         success: false,
         error: 'Email and password are required'
@@ -140,9 +141,9 @@ router.post('/admin/login', async (req, res) => {
     }
 
     // Check rate limiting
-    const recentFailedAttempts = await UserRepository.getRecentFailedAttempts(email);
+    const recentFailedAttempts = await UserRepository.getRecentFailedAttempts(loginEmail);
     if (recentFailedAttempts >= 5) {
-      await UserRepository.recordLoginAttempt(email, ipAddress, userAgent, false, 'Rate limit exceeded');
+      await UserRepository.recordLoginAttempt(loginEmail, ipAddress, userAgent, false, 'Rate limit exceeded');
       return res.status(429).json({
         success: false,
         error: 'Too many failed attempts. Please try again in 15 minutes.'
@@ -150,9 +151,9 @@ router.post('/admin/login', async (req, res) => {
     }
 
     // Find user by email
-    const user = await UserRepository.findByEmail(email);
+    const user = await UserRepository.findByEmail(loginEmail);
     if (!user || user.role !== 'ADMIN') {
-      await UserRepository.recordLoginAttempt(email, ipAddress, userAgent, false, 'User not found');
+      await UserRepository.recordLoginAttempt(loginEmail, ipAddress, userAgent, false, 'User not found');
       return res.status(401).json({
         success: false,
         error: 'Invalid email or password'
@@ -161,7 +162,7 @@ router.post('/admin/login', async (req, res) => {
 
     // Check if account is locked
     if (AuthService.isAccountLocked(user)) {
-      await UserRepository.recordLoginAttempt(email, ipAddress, userAgent, false, 'Account locked');
+      await UserRepository.recordLoginAttempt(loginEmail, ipAddress, userAgent, false, 'Account locked');
       return res.status(401).json({
         success: false,
         error: 'Account is temporarily locked due to failed login attempts.'
@@ -170,7 +171,7 @@ router.post('/admin/login', async (req, res) => {
 
     // Check if account is active
     if (!user.is_active) {
-      await UserRepository.recordLoginAttempt(email, ipAddress, userAgent, false, 'Account inactive');
+      await UserRepository.recordLoginAttempt(loginEmail, ipAddress, userAgent, false, 'Account inactive');
       return res.status(401).json({
         success: false,
         error: 'Account is deactivated. Please contact system administrator.'
@@ -181,7 +182,7 @@ router.post('/admin/login', async (req, res) => {
     const isValidPassword = await AuthService.verifyPassword(password, user.password_hash);
     if (!isValidPassword) {
       await UserRepository.recordFailedLogin(user.id);
-      await UserRepository.recordLoginAttempt(email, ipAddress, userAgent, false, 'Invalid password');
+      await UserRepository.recordLoginAttempt(loginEmail, ipAddress, userAgent, false, 'Invalid password');
       
       // Lock account if too many failed attempts
       const updatedUser = await UserRepository.findById(user.id);
@@ -208,9 +209,9 @@ router.post('/admin/login', async (req, res) => {
     await UserRepository.updateRefreshToken(user.id, refreshToken);
 
     // Record successful login
-    await UserRepository.recordLoginAttempt(email, ipAddress, userAgent, true);
+    await UserRepository.recordLoginAttempt(loginEmail, ipAddress, userAgent, true);
 
-    logger.info(`Admin login successful: ${email}`);
+    logger.info(`Admin login successful: ${loginEmail}`);
 
     res.json({
       success: true,

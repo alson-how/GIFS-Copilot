@@ -56,6 +56,7 @@ const ShipmentOrdersList = () => {
             const data = await response.json();
             
             if (data.success) {
+                // Standardized response format: data.shipments[]
                 setShipments(data.data.shipments || []);
                 setTotalShipments(data.data.pagination?.total || 0);
             } else {

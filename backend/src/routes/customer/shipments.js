@@ -4,8 +4,14 @@
  */
 
 import express from 'express';
+import pkg from 'pg';
 import logger from '../../utils/logger.js';
 import { authCustomer, authCustomerOptional } from '../../middleware/authCustomer.js';
+
+const { Pool } = pkg;
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL
+});
 
 const router = express.Router();
 
@@ -17,91 +23,136 @@ router.get('/test', (req, res) => {
 // GET /api/customer/shipments - List customer's shipments
 router.get('/', authCustomerOptional, async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, search } = req.query;
+    const { page = 1, limit = 10, status, search, shipmentId, endUser } = req.query;
     const customerId = req.customer?.id;
 
     logger.info(`Fetching shipments${customerId ? ` for customer: ${customerId}` : ' (public access)'}`, {
-      page, limit, status, search, hasAuth: !!customerId
+      page, limit, status, search, shipmentId, endUser, hasAuth: !!customerId
     });
 
-    // Build query filters
-    const filters = {};
-    if (customerId) filters.customerId = customerId;
-    if (status) filters.status = status;
-    if (search) {
-      filters.$or = [
-        { shipmentId: { $regex: search, $options: 'i' } },
-        { destination: { $regex: search, $options: 'i' } },
-        { 'consignee.name': { $regex: search, $options: 'i' } }
-      ];
+    // Build WHERE clause for filtering
+    let whereConditions = [];
+    let queryParams = [];
+    let paramCount = 0;
+
+    // Filter by customer if authenticated
+    if (customerId) {
+      paramCount++;
+      whereConditions.push(`customer_id = $${paramCount}`);
+      queryParams.push(customerId);
     }
 
-    // Pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    if (shipmentId) {
+      paramCount++;
+      whereConditions.push(`shipment_id::text ILIKE $${paramCount}`);
+      queryParams.push(`%${shipmentId}%`);
+    }
 
-    // Mock data - include sample shipments for demonstration
-    const mockShipments = [
-      {
-        id: 'SH001',
-        shipmentId: 'SH001',
-        customerId: customerId || 'DEMO001',
-        status: 'in_transit',
-        destination: 'China',
-        exportDate: '2024-01-15',
-        totalValue: 25000,
-        itemCount: 5,
-        createdAt: new Date('2024-01-10'),
-        updatedAt: new Date('2024-01-15')
-      },
-      {
-        id: 'SH002',
-        shipmentId: 'SH002',
-        customerId: customerId || 'DEMO002',
-        status: 'delivered',
-        destination: 'Singapore',
-        exportDate: '2024-01-20',
-        totalValue: 15000,
-        itemCount: 3,
-        createdAt: new Date('2024-01-15'),
-        updatedAt: new Date('2024-01-22')
-      },
-      {
-        id: 'SH003',
-        shipmentId: 'SH003',
-        customerId: customerId || 'DEMO003',
-        status: 'pending_quote',
-        destination: 'Germany',
-        exportDate: '2024-01-25',
-        totalValue: 35000,
-        itemCount: 8,
-        createdAt: new Date('2024-01-20'),
-        updatedAt: new Date('2024-01-20')
-      },
-      {
-        id: 'SH004',
-        shipmentId: 'SH004',
-        customerId: customerId || 'DEMO004',
-        status: 'draft',
-        destination: 'USA',
-        exportDate: '2024-02-01',
-        totalValue: 45000,
-        itemCount: 12,
-        createdAt: new Date('2024-01-25'),
-        updatedAt: new Date('2024-01-25')
-      }
-    ];
+    if (endUser) {
+      paramCount++;
+      whereConditions.push(`end_user_name ILIKE $${paramCount}`);
+      queryParams.push(`%${endUser}%`);
+    }
 
-    // Filter by customer if authenticated, otherwise show all demo data
-    const filteredShipments = customerId 
-      ? mockShipments.filter(s => s.customerId === customerId)
-      : mockShipments;
+    if (status) {
+      paramCount++;
+      whereConditions.push(`status = $${paramCount}`);
+      queryParams.push(status);
+    }
 
-    const totalShipments = filteredShipments.length;
+    if (search) {
+      paramCount++;
+      whereConditions.push(`(
+        shipment_id::text ILIKE $${paramCount} OR 
+        destination_country ILIKE $${paramCount} OR 
+        end_user_name ILIKE $${paramCount}
+      )`);
+      queryParams.push(`%${search}%`);
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    // Get total count for pagination
+    const countQuery = `SELECT COUNT(*) FROM shipments ${whereClause}`;
+    const countResult = await pool.query(countQuery, queryParams);
+    const totalShipments = parseInt(countResult.rows[0].count);
+
+    // Calculate pagination
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    paramCount++;
+    queryParams.push(parseInt(limit));
+    paramCount++;
+    queryParams.push(offset);
+
+    // Fetch shipments with pagination
+    const shipmentsQuery = `
+      SELECT 
+        shipment_id,
+        destination_country,
+        commercial_value,
+        currency,
+        quantity,
+        end_user_name,
+        incoterms,
+        hs_code,
+        tech_origin,
+        export_date,
+        product_type,
+        created_at,
+        updated_at,
+        status,
+        customer_id,
+        tracking_number,
+        carrier_reference,
+        description
+      FROM shipments 
+      ${whereClause}
+      ORDER BY updated_at DESC 
+      LIMIT $${paramCount-1} OFFSET $${paramCount}
+    `;
+
+    const shipmentsResult = await pool.query(shipmentsQuery, queryParams);
+    
+    // Format shipments for frontend  
+    const shipments = shipmentsResult.rows.map(row => ({
+      shipment_id: row.shipment_id,
+      id: row.shipment_id,
+      shipmentId: row.shipment_id,
+      status: row.status || 'CREATED',
+      destination: row.destination_country,
+      destination_country: row.destination_country,
+      exportDate: row.export_date,
+      export_date: row.export_date,
+      totalValue: row.commercial_value,
+      commercial_value: row.commercial_value,
+      currency: row.currency || 'USD',
+      endUser: row.end_user_name,
+      end_user_name: row.end_user_name,
+      consignee: row.end_user_name,
+      hsCode: row.hs_code,
+      hs_code: row.hs_code,
+      incoterms: row.incoterms,
+      techOrigin: row.tech_origin,
+      tech_origin: row.tech_origin,
+      productType: row.product_type,
+      product_type: row.product_type,
+      quantity: row.quantity,
+      description: row.description,
+      customer_id: row.customer_id,
+      tracking_number: row.tracking_number,
+      carrier_reference: row.carrier_reference,
+      createdAt: row.created_at,
+      created_at: row.created_at,
+      updatedAt: row.updated_at,
+      updated_at: row.updated_at
+    }));
+
+    logger.info(`Found ${shipments.length} shipments out of ${totalShipments} total`);
 
     res.json({
       success: true,
       data: {
-        shipments: filteredShipments.slice(skip, skip + parseInt(limit)),
+        shipments: shipments,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),

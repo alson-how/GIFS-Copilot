@@ -34,11 +34,24 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
 
   // Load existing shipment data into form fields
   useEffect(() => {
+    console.log('🔍 DEBUG - StepBasics useEffect triggered with canvasData:', canvasData);
     if (canvasData && typeof canvasData === 'object') {
+      console.log('🔍 DEBUG - StepBasics processing canvasData fields:');
+      console.log('  - canvasData.end_user_name:', canvasData.end_user_name);
+      console.log('  - canvasData.endUser:', canvasData.endUser);
       
       // Pre-populate form fields from existing shipment data
       if (canvasData.export_date) {
         setExportDate(canvasData.export_date);
+      } else if (canvasData.exportDate) {
+        // Handle ISO date format from API response
+        const dateStr = canvasData.exportDate;
+        if (dateStr) {
+          // Convert ISO date to YYYY-MM-DD format for HTML input
+          const date = new Date(dateStr);
+          const formattedDate = date.toISOString().split('T')[0];
+          setExportDate(formattedDate);
+        }
       }
       
       if (canvasData.mode) {
@@ -47,10 +60,18 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
       
       if (canvasData.destination_country) {
         setDestination(canvasData.destination_country);
+      } else if (canvasData.destination) {
+        setDestination(canvasData.destination);
       }
       
       if (canvasData.end_user_name) {
+        console.log('🔍 DEBUG - Setting endUser from end_user_name:', canvasData.end_user_name);
         setEndUser(canvasData.end_user_name);
+      } else if (canvasData.endUser) {
+        console.log('🔍 DEBUG - Setting endUser from endUser:', canvasData.endUser);
+        setEndUser(canvasData.endUser);
+      } else {
+        console.log('🔍 DEBUG - No endUser data found in canvasData');
       }
       
       if (canvasData.incoterms) {
@@ -611,13 +632,15 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
   }
 
   async function save() {
-    // Check for export blocking due to strategic items compliance
-    if (exportBlocked) {
-      setStatus('❌ Export blocked due to strategic items compliance requirements. Please upload all required permits before proceeding.');
-      alert('🚫 EXPORT BLOCKED\n\nThis shipment contains strategic items subject to Malaysian Strategic Trade Act 2010.\n\nRequired actions:\n' + 
-            missingPermits.map(permit => `• Upload ${permit} permit`).join('\n') + 
-            '\n\nExport cannot proceed until all permits are uploaded and validated.');
-      return;
+    // Show warning for strategic items compliance but allow save
+    if (exportBlocked && missingPermits.length > 0) {
+      const confirmSave = confirm('⚠️ STRATEGIC ITEMS WARNING\n\nThis shipment contains strategic items subject to Malaysian Strategic Trade Act 2010.\n\nMissing permits:\n' + 
+            missingPermits.map(permit => `• ${permit} permit`).join('\n') + 
+            '\n\nThe shipment will be saved but cannot be exported until all permits are uploaded.\n\nDo you want to continue saving?');
+      
+      if (!confirmSave) {
+        return;
+      }
     }
     
     setLoading(true);
@@ -650,6 +673,11 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
         insurance_required: insuranceRequired,
         consignee_registration: consigneeRegistration || null,
         shipment_priority: shipmentPriority,
+        // Add required API fields
+        reference: shipmentId || `REF-${Date.now()}`, // Generate reference if not available
+        origin: 'Malaysia', // Default origin
+        destination: destination, // Map destination_country to destination
+        status: canvasData?.status?.toLowerCase()?.replace(/\s+/g, '_') || 'created', // Initial status when uploading invoice
         // Address information
         delivery_address: deliveryAddress ? {
           address_id: deliveryAddress.id,
@@ -960,6 +988,349 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
             }}
           />
         </div>
+
+        {/* Status Timeline - Only show when not in canvas mode */}
+        {!isCanvas && (
+          <div className="status-flow" style={{
+            background: '#f7fafc',
+            borderRadius: '10px',
+            padding: '20px',
+            marginTop: '30px'
+          }}>
+            <h2 style={{
+              color: '#2d3748',
+              marginBottom: '20px',
+              fontSize: '18px'
+            }}>📈 Complete Status Progression Timeline</h2>
+            
+            <div className="status-timeline" style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              position: 'relative',
+              padding: '20px 0'
+            }}>
+              {/* Status Timeline Line */}
+              <div style={{
+                position: 'absolute',
+                top: '35px',
+                left: '50px',
+                right: '50px',
+                height: '2px',
+                background: 'linear-gradient(90deg, #48bb78 0%, #ed8936 50%, #667eea 100%)'
+              }}></div>
+              
+              {/* Create Order - Always active */}
+              <div className="status-item active" style={{
+                textAlign: 'center',
+                position: 'relative',
+                zIndex: 1,
+                flex: 1
+              }}>
+                <div className="status-icon" style={{
+                  width: '50px',
+                  height: '50px',
+                  background: '#f0fff4',
+                  border: '3px solid #48bb78',
+                  borderRadius: '50%',
+                  margin: '0 auto 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px'
+                }}>📝</div>
+                <div className="status-label" style={{
+                  fontSize: '12px',
+                  color: '#4a5568',
+                  fontWeight: 600
+                }}>Create Order</div>
+                <div className="status-owner" style={{
+                  fontSize: '10px',
+                  color: '#a0aec0',
+                  marginTop: '3px'
+                }}>Customer</div>
+              </div>
+
+              {/* Under Review - Active if canvas exists */}
+              <div className={`status-item ${canvasData ? 'active' : ''}`} style={{
+                textAlign: 'center',
+                position: 'relative',
+                zIndex: 1,
+                flex: 1
+              }}>
+                <div className="status-icon" style={{
+                  width: '50px',
+                  height: '50px',
+                  background: canvasData ? '#f0fff4' : 'white',
+                  border: `3px solid ${canvasData ? '#48bb78' : '#cbd5e0'}`,
+                  borderRadius: '50%',
+                  margin: '0 auto 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px'
+                }}>👀</div>
+                <div className="status-label" style={{
+                  fontSize: '12px',
+                  color: '#4a5568',
+                  fontWeight: 600
+                }}>Under Review</div>
+                <div className="status-owner" style={{
+                  fontSize: '10px',
+                  color: '#a0aec0',
+                  marginTop: '3px'
+                }}>3PL Admin</div>
+              </div>
+
+              {/* Quoted */}
+              <div className="status-item" style={{
+                textAlign: 'center',
+                position: 'relative',
+                zIndex: 1,
+                flex: 1
+              }}>
+                <div className="status-icon" style={{
+                  width: '50px',
+                  height: '50px',
+                  background: 'white',
+                  border: '3px solid #cbd5e0',
+                  borderRadius: '50%',
+                  margin: '0 auto 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px'
+                }}>💰</div>
+                <div className="status-label" style={{
+                  fontSize: '12px',
+                  color: '#4a5568',
+                  fontWeight: 600
+                }}>Quoted</div>
+                <div className="status-owner" style={{
+                  fontSize: '10px',
+                  color: '#a0aec0',
+                  marginTop: '3px'
+                }}>3PL Admin</div>
+              </div>
+
+              {/* Confirmed */}
+              <div className="status-item" style={{
+                textAlign: 'center',
+                position: 'relative',
+                zIndex: 1,
+                flex: 1
+              }}>
+                <div className="status-icon" style={{
+                  width: '50px',
+                  height: '50px',
+                  background: 'white',
+                  border: '3px solid #cbd5e0',
+                  borderRadius: '50%',
+                  margin: '0 auto 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px'
+                }}>✅</div>
+                <div className="status-label" style={{
+                  fontSize: '12px',
+                  color: '#4a5568',
+                  fontWeight: 600
+                }}>Confirmed</div>
+                <div className="status-owner" style={{
+                  fontSize: '10px',
+                  color: '#a0aec0',
+                  marginTop: '3px'
+                }}>Customer</div>
+              </div>
+
+              {/* Pickup Scheduled */}
+              <div className="status-item" style={{
+                textAlign: 'center',
+                position: 'relative',
+                zIndex: 1,
+                flex: 1
+              }}>
+                <div className="status-icon" style={{
+                  width: '50px',
+                  height: '50px',
+                  background: 'white',
+                  border: '3px solid #cbd5e0',
+                  borderRadius: '50%',
+                  margin: '0 auto 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px'
+                }}>📅</div>
+                <div className="status-label" style={{
+                  fontSize: '12px',
+                  color: '#4a5568',
+                  fontWeight: 600
+                }}>Pickup Scheduled</div>
+                <div className="status-owner" style={{
+                  fontSize: '10px',
+                  color: '#a0aec0',
+                  marginTop: '3px'
+                }}>3PL Admin</div>
+              </div>
+
+              {/* Picked Up */}
+              <div className="status-item" style={{
+                textAlign: 'center',
+                position: 'relative',
+                zIndex: 1,
+                flex: 1
+              }}>
+                <div className="status-icon" style={{
+                  width: '50px',
+                  height: '50px',
+                  background: 'white',
+                  border: '3px solid #cbd5e0',
+                  borderRadius: '50%',
+                  margin: '0 auto 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px'
+                }}>🚚</div>
+                <div className="status-label" style={{
+                  fontSize: '12px',
+                  color: '#4a5568',
+                  fontWeight: 600
+                }}>Picked Up</div>
+                <div className="status-owner" style={{
+                  fontSize: '10px',
+                  color: '#a0aec0',
+                  marginTop: '3px'
+                }}>Carrier</div>
+              </div>
+
+              {/* At Warehouse */}
+              <div className="status-item" style={{
+                textAlign: 'center',
+                position: 'relative',
+                zIndex: 1,
+                flex: 1
+              }}>
+                <div className="status-icon" style={{
+                  width: '50px',
+                  height: '50px',
+                  background: 'white',
+                  border: '3px solid #cbd5e0',
+                  borderRadius: '50%',
+                  margin: '0 auto 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px'
+                }}>🏭</div>
+                <div className="status-label" style={{
+                  fontSize: '12px',
+                  color: '#4a5568',
+                  fontWeight: 600
+                }}>At Warehouse</div>
+                <div className="status-owner" style={{
+                  fontSize: '10px',
+                  color: '#a0aec0',
+                  marginTop: '3px'
+                }}>3PL</div>
+              </div>
+
+              {/* Customs */}
+              <div className="status-item" style={{
+                textAlign: 'center',
+                position: 'relative',
+                zIndex: 1,
+                flex: 1
+              }}>
+                <div className="status-icon" style={{
+                  width: '50px',
+                  height: '50px',
+                  background: 'white',
+                  border: '3px solid #cbd5e0',
+                  borderRadius: '50%',
+                  margin: '0 auto 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px'
+                }}>🛃</div>
+                <div className="status-label" style={{
+                  fontSize: '12px',
+                  color: '#4a5568',
+                  fontWeight: 600
+                }}>Customs</div>
+                <div className="status-owner" style={{
+                  fontSize: '10px',
+                  color: '#a0aec0',
+                  marginTop: '3px'
+                }}>3PL/Broker</div>
+              </div>
+
+              {/* In Transit */}
+              <div className="status-item" style={{
+                textAlign: 'center',
+                position: 'relative',
+                zIndex: 1,
+                flex: 1
+              }}>
+                <div className="status-icon" style={{
+                  width: '50px',
+                  height: '50px',
+                  background: 'white',
+                  border: '3px solid #cbd5e0',
+                  borderRadius: '50%',
+                  margin: '0 auto 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px'
+                }}>✈️</div>
+                <div className="status-label" style={{
+                  fontSize: '12px',
+                  color: '#4a5568',
+                  fontWeight: 600
+                }}>In Transit</div>
+                <div className="status-owner" style={{
+                  fontSize: '10px',
+                  color: '#a0aec0',
+                  marginTop: '3px'
+                }}>Carrier</div>
+              </div>
+
+              {/* Delivered */}
+              <div className="status-item" style={{
+                textAlign: 'center',
+                position: 'relative',
+                zIndex: 1,
+                flex: 1
+              }}>
+                <div className="status-icon" style={{
+                  width: '50px',
+                  height: '50px',
+                  background: 'white',
+                  border: '3px solid #cbd5e0',
+                  borderRadius: '50%',
+                  margin: '0 auto 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px'
+                }}>📦</div>
+                <div className="status-label" style={{
+                  fontSize: '12px',
+                  color: '#4a5568',
+                  fontWeight: 600
+                }}>Delivered</div>
+                <div className="status-owner" style={{
+                  fontSize: '10px',
+                  color: '#a0aec0',
+                  marginTop: '3px'
+                }}>Carrier</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Section 1: Basic Information */}
         <div style={{ marginBottom: '2rem' }}>

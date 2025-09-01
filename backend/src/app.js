@@ -36,6 +36,7 @@ import publicShipmentsRouter from './routes/public/shipments.js';
 // Import admin routes  
 import adminDashboardRouter from './routes/admin/dashboard.js';
 import adminQuotesRouter from './routes/admin/quotes.js';
+import adminShipmentsRouter from './routes/admin/shipments.js';
 
 // Import legacy routes (to be migrated) - temporarily commented out to debug auth issue
 // import policyRouter from './routes/policy.js';
@@ -132,6 +133,7 @@ function createApp() {
   // Admin Routes
   app.use('/api/admin/dashboard', adminDashboardRouter);
   app.use('/api/admin/quotes', adminQuotesRouter);
+  app.use('/api/admin/shipments', adminShipmentsRouter);
   
   // Public shipments route (no authentication required)
   app.use('/api/shipments', publicShipmentsRouter);

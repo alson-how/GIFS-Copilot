@@ -287,6 +287,79 @@
     color: #e53e3e;
     border: 1px solid #fc8181;
   }
+
+  // Additional status badges for new enum values
+  &.status-created {
+    background: #f0f4f8;
+    color: #2d3748;
+    border: 1px solid #cbd5e0;
+  }
+
+  &.status-review {
+    background: #fef5e7;
+    color: #d69e2e;
+    border: 1px solid #f6e05e;
+  }
+
+  &.status-quoted {
+    background: #e6fffa;
+    color: #319795;
+    border: 1px solid #81e6d9;
+  }
+
+  &.status-confirmed {
+    background: #f0fff4;
+    color: #38a169;
+    border: 1px solid #9ae6b4;
+  }
+
+  &.status-scheduled {
+    background: #e6f3ff;
+    color: #2b6cb0;
+    border: 1px solid #bee3f8;
+  }
+
+  &.status-pickup {
+    background: #e6f3ff;
+    color: #2b6cb0;
+    border: 1px solid #bee3f8;
+  }
+
+  &.status-warehouse {
+    background: #f7fafc;
+    color: #4a5568;
+    border: 1px solid #cbd5e0;
+  }
+
+  &.status-customs {
+    background: #faf5ff;
+    color: #805ad5;
+    border: 1px solid #d6bcfa;
+  }
+
+  &.status-arrived {
+    background: #e6fffa;
+    color: #319795;
+    border: 1px solid #81e6d9;
+  }
+
+  &.status-delivery {
+    background: #e6f3ff;
+    color: #2b6cb0;
+    border: 1px solid #bee3f8;
+  }
+
+  &.status-expired {
+    background: #fed7d7;
+    color: #e53e3e;
+    border: 1px solid #fc8181;
+  }
+
+  &.status-default {
+    background: #f7fafc;
+    color: #4a5568;
+    border: 1px solid #cbd5e0;
+  }
 }
 
 .loading-container {
@@ -314,6 +387,99 @@
   p {
     color: #718096;
     margin: 0;
+  }
+}
+
+.error-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 80px 20px;
+
+  .error-message {
+    text-align: center;
+    background: white;
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #fed7d7;
+
+    h3 {
+      color: #e53e3e;
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 8px 0;
+    }
+
+    p {
+      color: #718096;
+      margin: 0 0 20px 0;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(26, 32, 44, 0.3);
+      }
+    }
+  }
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding: 0 16px;
+
+  .pagination-info {
+    color: #718096;
+    font-size: 14px;
+  }
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .pagination-btn {
+      background: white;
+      color: #4a5568;
+      border: 1px solid #e2e8f0;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background: #f7fafc;
+        border-color: #cbd5e0;
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #f7fafc;
+      }
+    }
+
+    .page-info {
+      color: #4a5568;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 0 8px;
+    }
   }
 }
 

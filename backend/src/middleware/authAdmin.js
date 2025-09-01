@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import logger from '../utils/logger.js';
 
 export const authAdmin = (req, res, next) => {
+  let token = null;
   try {
     const authHeader = req.header('Authorization');
     
@@ -17,17 +18,17 @@ export const authAdmin = (req, res, next) => {
       });
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    token = authHeader.replace('Bearer ', '');
     
-    if (!process.env.JWT_SECRET) {
-      logger.error('JWT_SECRET environment variable not set');
+    if (!process.env.ADMIN_JWT_SECRET && !process.env.JWT_SECRET) {
+      logger.error('ADMIN_JWT_SECRET or JWT_SECRET environment variable not set');
       return res.status(500).json({ 
         success: false, 
         error: 'Server configuration error' 
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET);
     
     // Ensure this is an admin token
     if (decoded.userType !== 'admin') {
@@ -55,6 +56,12 @@ export const authAdmin = (req, res, next) => {
 
     next();
   } catch (error) {
+    logger.error('Admin authentication error:', { 
+      errorName: error.name, 
+      errorMessage: error.message,
+      token: token ? 'present' : 'missing'
+    });
+    
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ 
         success: false, 
@@ -69,7 +76,6 @@ export const authAdmin = (req, res, next) => {
       });
     }
 
-    logger.error('Admin authentication error:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Admin authentication server error' 
