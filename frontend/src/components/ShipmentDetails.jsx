@@ -233,11 +233,11 @@ export default function ShipmentDetails() {
           />
         ) : (
           <CustomerSidebar 
-            isCollapsed={sidebarCollapsed}
-            onToggleCollapse={handleToggleSidebar}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={handleToggleSidebar}
             customer={user}
             onLogout={handleLogout}
-          />
+        />
         )}
         <div style={{
           flex: 1,
@@ -276,11 +276,11 @@ export default function ShipmentDetails() {
           />
         ) : (
           <CustomerSidebar 
-            isCollapsed={sidebarCollapsed}
-            onToggleCollapse={handleToggleSidebar}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={handleToggleSidebar}
             customer={user}
             onLogout={handleLogout}
-          />
+        />
         )}
         <div style={{
           flex: 1,
@@ -325,11 +325,11 @@ export default function ShipmentDetails() {
           />
         ) : (
           <CustomerSidebar 
-            isCollapsed={sidebarCollapsed}
-            onToggleCollapse={handleToggleSidebar}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={handleToggleSidebar}
             customer={user}
             onLogout={handleLogout}
-          />
+        />
         )}
         <div style={{
           flex: 1,
@@ -374,11 +374,11 @@ export default function ShipmentDetails() {
         />
       ) : (
         <CustomerSidebar 
-          isCollapsed={sidebarCollapsed}
-          onToggleCollapse={handleToggleSidebar}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={handleToggleSidebar}
           customer={user}
           onLogout={handleLogout}
-        />
+      />
       )}
 
       {/* Main Content */}
@@ -763,12 +763,12 @@ export default function ShipmentDetails() {
 
         {/* Canvas Content - Always Show */}
         <div className="canvas-content" style={{ padding: '1rem' }}>
-          <StepBasics
+            <StepBasics
             defaultShipmentId={shipmentId}
-            canvasData={canvasData}
-            onSaved={(id, data) => handleStepComplete(1, id, data)}
-            isCanvas={true}
-          />
+              canvasData={canvasData}
+              onSaved={(id, data) => handleStepComplete(1, id, data)}
+              isCanvas={true}
+            />
           
         </div>
       </div>

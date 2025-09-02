@@ -15,7 +15,7 @@ const CustomerSidebar = ({ isCollapsed, onToggleCollapse, customer, onLogout }) 
     {
       id: 'ai-query',
       label: 'AI Query',
-      icon: '🤖',
+      icon: '',
       path: '/dashboard/ai-query',
       description: 'Ask questions about your shipments'
     },

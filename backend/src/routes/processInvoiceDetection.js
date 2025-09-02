@@ -395,7 +395,7 @@ router.post('/upload', upload.single('document'), async (req, res) => {
         fs.unlinkSync(file.path);
       }
       
-      console.log(`🤖 Document text extraction failed, fallback to RAG chatbot for intent: "${intent}"`);
+      console.log(` Document text extraction failed, fallback to RAG chatbot for intent: "${intent}"`);
       
       try {
         // Use RAG chatbot utility to answer the user's question
@@ -450,7 +450,7 @@ router.post('/upload', upload.single('document'), async (req, res) => {
         fs.unlinkSync(file.path);
       }
       
-      console.log(`🤖 Document is not Commercial Invoice, fallback to RAG chatbot`);
+      console.log(` Document is not Commercial Invoice, fallback to RAG chatbot`);
       
       try {
         // Use RAG chatbot utility to answer the user's question about the uploaded document
@@ -505,7 +505,7 @@ router.post('/upload', upload.single('document'), async (req, res) => {
         fs.unlinkSync(file.path);
       }
       
-      console.log(`🤖 Fallback to RAG chatbot for intent: ${intentResult.intent}`);
+      console.log(` Fallback to RAG chatbot for intent: ${intentResult.intent}`);
       
       try {
         // Use RAG chatbot utility to answer the user's query
@@ -676,7 +676,7 @@ router.post('/chat', async (req, res) => {
       });
     }
     
-    console.log(`🤖 Processing chatbot query: "${query}"`);
+    console.log(` Processing chatbot query: "${query}"`);
     
     // Classify the intent
     const intentResult = await classifyIntent(query);

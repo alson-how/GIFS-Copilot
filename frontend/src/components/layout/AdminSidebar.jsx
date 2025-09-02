@@ -22,7 +22,7 @@ const AdminSidebar = ({ isCollapsed, onToggleCollapse, admin, onLogout }) => {
     {
       id: 'ai-query',
       label: 'AI Query',
-      icon: '🤖',
+      icon: '',
       path: '/admin/ai-query',
       description: 'AI-powered query interface'
     },
@@ -32,6 +32,20 @@ const AdminSidebar = ({ isCollapsed, onToggleCollapse, admin, onLogout }) => {
       icon: '📦',
       path: '/admin/manage-shipments',
       description: 'View and manage all shipments'
+    },
+    {
+      id: 'manage-carriers',
+      label: 'Manage Carriers',
+      icon: '🚚',
+      path: '/admin/manage-carriers',
+      description: 'Manage carriers and pricing'
+    },
+    {
+      id: 'manage-fees',
+      label: 'Manage Fees',
+      icon: '💰',
+      path: '/admin/manage-fees',
+      description: 'Configure additional fees and pricing'
     }
   ];
 
@@ -52,7 +66,6 @@ const AdminSidebar = ({ isCollapsed, onToggleCollapse, admin, onLogout }) => {
       <div className="sidebar-logo">
         {!isCollapsed ? (
           <div className="logo-content">
-            <div className="logo-icon admin">🛡️</div>
             <div className="logo-text">
               <h3>3PL Admin</h3>
               <span>Management Portal</span>
@@ -60,21 +73,6 @@ const AdminSidebar = ({ isCollapsed, onToggleCollapse, admin, onLogout }) => {
           </div>
         ) : (
           <div className="logo-collapsed admin">🛡️</div>
-        )}
-      </div>
-
-      {/* User Info */}
-      <div className="sidebar-user">
-        <div className="user-avatar admin">
-          {admin?.first_name?.charAt(0)}{admin?.last_name?.charAt(0)}
-        </div>
-        {!isCollapsed && (
-          <div className="user-details">
-            <div className="user-name">
-              {admin?.first_name} {admin?.last_name}
-            </div>
-            <div className="user-role">System Administrator</div>
-          </div>
         )}
       </div>
 

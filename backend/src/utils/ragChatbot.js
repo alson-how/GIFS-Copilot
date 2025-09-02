@@ -41,7 +41,7 @@ export async function processRagQuery(query, options = {}) {
   const dbPool = pool || createRagPool();
   
   try {
-    console.log(`🤖 Processing RAG query: "${query}"`);
+    console.log(` Processing RAG query: "${query}"`);
     
     // Use the existing RAG service
     const ragResponse = await answerFromRAG(query, dbPool, country);
@@ -97,7 +97,7 @@ export async function processBatchRagQueries(queries, options = {}) {
   const dbPool = createRagPool();
   
   try {
-    console.log(`🤖 Processing ${queries.length} RAG queries in batch`);
+    console.log(` Processing ${queries.length} RAG queries in batch`);
     
     const responses = await Promise.all(
       queries.map(query => processRagQuery(query, { ...options, pool: dbPool }))

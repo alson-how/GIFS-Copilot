@@ -37,9 +37,11 @@ import publicShipmentsRouter from './routes/public/shipments.js';
 import adminDashboardRouter from './routes/admin/dashboard.js';
 import adminQuotesRouter from './routes/admin/quotes.js';
 import adminShipmentsRouter from './routes/admin/shipments.js';
+import adminCarriersRouter from './routes/admin/carriers.js';
+import adminFeesRouter from './routes/admin/fees.js';
 
 // Import legacy routes (to be migrated) - temporarily commented out to debug auth issue
-// import policyRouter from './routes/policy.js';
+import policyRouter from './routes/policy.js';
 // import uploadsRouter from './routes/upload.js';
 // import opsRouter from './routes/ops.js';
 // import k2Router from './routes/form_k2.js';
@@ -80,7 +82,36 @@ function createApp() {
 
   // Basic middleware
   app.use(express.json({ limit: config.server.requestSizeLimit }));
-  app.use(cors({ origin: config.server.allowedOrigin }));
+  
+  // CORS configuration
+  const corsOptions = {
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      // Hardcoded allowed origins to override any .env file issues
+      const allowedOrigins = [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3001'
+      ];
+      
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  };
+  
+  app.use(cors(corsOptions));
+
+  // Handle preflight requests
+  app.options('*', cors(corsOptions));
 
   // Attach utilities to requests
   app.use(attachDatabase);
@@ -134,12 +165,14 @@ function createApp() {
   app.use('/api/admin/dashboard', adminDashboardRouter);
   app.use('/api/admin/quotes', adminQuotesRouter);
   app.use('/api/admin/shipments', adminShipmentsRouter);
+  app.use('/api/admin/carriers', adminCarriersRouter);
+  app.use('/api/admin/fees', adminFeesRouter);
   
   // Public shipments route (no authentication required)
   app.use('/api/shipments', publicShipmentsRouter);
 
   // API Routes - Legacy (to be migrated) - temporarily commented out to debug auth issue
-  // app.use('/api/policy', policyRouter);
+  app.use('/api/policy', policyRouter);
   // app.use('/api/uploads', uploadsRouter);
   // app.use('/api/ops', opsRouter);
   // app.use('/api/k2', k2Router);

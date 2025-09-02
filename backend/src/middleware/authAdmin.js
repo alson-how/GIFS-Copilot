@@ -93,8 +93,8 @@ export const requireRole = (requiredRoles) => {
       });
     }
 
-    const userRoles = Array.isArray(req.admin.role) ? req.admin.role : [req.admin.role];
-    const requiredRolesList = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
+    const userRoles = Array.isArray(req.admin.role) ? req.admin.role.map(r => r.toLowerCase()) : [req.admin.role.toLowerCase()];
+    const requiredRolesList = Array.isArray(requiredRoles) ? requiredRoles.map(r => r.toLowerCase()) : [requiredRoles.toLowerCase()];
     
     const hasRequiredRole = requiredRolesList.some(role => userRoles.includes(role));
     

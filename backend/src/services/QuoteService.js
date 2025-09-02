@@ -7,26 +7,13 @@ import { QuoteRepository } from '../repositories/QuoteRepository.js';
 import { ShipmentRepository } from '../repositories/ShipmentRepository.js';
 import StatusTransitionService from './StatusTransitionService.js';
 import { serviceLogger } from '../utils/logger.js';
+import pkg from 'pg';
+import AIQuoteGenerationService from './AIQuoteGenerationService.js';
 
-// Default carrier rates (in production, this would be from database or API)
-const CARRIER_RATES = {
-  'DHL': {
-    'Express Worldwide': { rate_per_kg: 25.50, minimum_charge: 50.00, transit_days: 2 },
-    'Economy Select': { rate_per_kg: 18.00, minimum_charge: 35.00, transit_days: 5 }
-  },
-  'FedEx': {
-    'International Priority': { rate_per_kg: 28.00, minimum_charge: 55.00, transit_days: 2 },
-    'International Economy': { rate_per_kg: 20.00, minimum_charge: 40.00, transit_days: 4 }
-  },
-  'Maersk': {
-    'Sea Freight LCL': { rate_per_kg: 5.50, minimum_charge: 200.00, transit_days: 25 },
-    'Sea Freight FCL': { rate_per_kg: 3.20, minimum_charge: 800.00, transit_days: 20 }
-  },
-  'Local Carrier': {
-    'Standard Service': { rate_per_kg: 8.00, minimum_charge: 20.00, transit_days: 1 },
-    'Express Service': { rate_per_kg: 12.00, minimum_charge: 30.00, transit_days: 1 }
-  }
-};
+const { Pool } = pkg;
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL
+});
 
 export class QuoteService {
   constructor() {
@@ -36,7 +23,179 @@ export class QuoteService {
   }
 
   /**
-   * Generate quote for a shipment
+   * Generate AI-powered quote for a shipment
+   * @param {number} shipmentId - Shipment ID
+   * @param {number} adminId - Admin user ID
+   * @param {Object} options - Quote generation options
+   * @returns {Object} Generated AI quote with 3 options
+   */
+  async generateAIQuote(shipmentId, adminId, options = {}) {
+    try {
+      serviceLogger.start(this.constructor.name, 'generateAIQuote', { shipmentId, adminId });
+
+      // Get shipment details
+      const shipment = await this.shipmentRepo.findById(shipmentId);
+      if (!shipment) {
+        throw new Error(`Shipment ${shipmentId} not found`);
+      }
+
+      if (shipment.status !== 'PENDING_QUOTE') {
+        throw new Error(`Shipment must be in PENDING_QUOTE status to generate quote. Current status: ${shipment.status}`);
+      }
+
+      // Prepare comprehensive shipment details for AI service
+      const shipmentDetails = {
+        origin: shipment.tech_origin || shipment.origin || 'Malaysia',
+        destination: shipment.destination_country || shipment.destination || 'Singapore',
+        weight: parseFloat(shipment.package_weight_kg) || parseFloat(shipment.quantity) || 1,
+        dimensions: {
+          length: parseFloat(shipment.package_length_cm) || 0,
+          width: parseFloat(shipment.package_width_cm) || 0,
+          height: parseFloat(shipment.package_height_cm) || 0
+        },
+        commodity: shipment.description || 'General Cargo',
+        declaredValue: shipment.estimated_value || shipment.commercial_value || 1000,
+        currency: shipment.currency || 'USD',
+        transportationMode: shipment.mode || 'AIR',
+        priority: shipment.shipment_priority || 'Standard',
+        specialHandling: shipment.special_handling || [],
+        isInternational: this.isInternationalShipment(shipment),
+        incoterms: shipment.incoterms || 'EXW',
+        insuranceRequired: shipment.insurance_required !== false,
+        hasStrategicItems: shipment.has_strategic_items || false,
+        hasAIChips: shipment.has_ai_chips || false,
+        riskLevel: shipment.risk_level || 'low'
+      };
+
+      // Generate AI quote
+      const aiQuoteResult = await AIQuoteGenerationService.generateQuote(shipmentDetails);
+      
+      if (!aiQuoteResult.success) {
+        throw new Error(`AI quote generation failed: ${aiQuoteResult.error}`);
+      }
+
+      // Create quotation records for each AI-generated option
+      const quotations = [];
+      for (const aiQuote of aiQuoteResult.quotes) {
+        const quotationData = {
+          shipment_id: shipmentId,
+          total_cost: aiQuote.total,
+          currency: options.currency || 'USD',
+          base_shipping_cost: aiQuote.details.baseRate,
+          additional_fees: aiQuote.details.additionalFees,
+          tax_amount: 0, // Set based on requirements
+          valid_until: new Date(Date.now() + (options.validityHours || 72) * 60 * 60 * 1000),
+          is_confirmed: false,
+          quotation_method: 'AI_GENERATED',
+          ai_model: 'gpt-4',
+          ai_prompt_version: '1.0',
+          ai_generation_metadata: aiQuoteResult.metadata,
+          carrier: aiQuote.carrier,
+          service_type: aiQuote.service,
+          estimated_delivery_days: aiQuote.transitTime,
+          quote_breakdown: {
+            type: aiQuote.type,
+            baseRate: aiQuote.details.baseRate,
+            fuelSurcharge: aiQuote.details.fuelSurcharge,
+            zoneAdjustment: aiQuote.details.zoneAdjustment,
+            additionalFees: aiQuote.details.additionalFees,
+            margin: aiQuote.details.margin,
+            details: aiQuote.details
+          },
+          notes: `AI-generated ${aiQuote.type} option`,
+          created_by: adminId
+        };
+
+        const quotation = await this.quoteRepo.createQuote(quotationData);
+        quotations.push(quotation);
+      }
+
+      // Status will transition to QUOTED when a quotation is confirmed via the trigger
+
+      serviceLogger.success(this.constructor.name, 'generateAIQuote', { 
+        shipmentId, 
+        quotationsGenerated: quotations.length 
+      });
+
+      return {
+        success: true,
+        quotations: quotations,
+        aiAnalysis: aiQuoteResult.aiAnalysis,
+        metadata: aiQuoteResult.metadata
+      };
+
+    } catch (error) {
+      serviceLogger.error(this.constructor.name, 'generateAIQuote', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Confirm a quotation (mark it as the selected quote for the shipment)
+   * @param {string} quotationId - Quotation UUID
+   * @param {string} adminId - Admin user ID
+   * @returns {Object} Confirmed quotation
+   */
+  async confirmQuotation(quotationId, adminId) {
+    try {
+      serviceLogger.start(this.constructor.name, 'confirmQuotation', { quotationId, adminId });
+
+      const quotation = await this.quoteRepo.findById(quotationId);
+      if (!quotation) {
+        throw new Error(`Quotation ${quotationId} not found`);
+      }
+
+      if (new Date() > new Date(quotation.valid_until)) {
+        throw new Error('Quotation has expired');
+      }
+
+      // Confirm the quotation (trigger will handle setting confirmed_quotation_id in shipments)
+      const confirmedQuotation = await this.quoteRepo.confirmQuotation(quotationId);
+
+      serviceLogger.success(this.constructor.name, 'confirmQuotation', { quotationId });
+      return confirmedQuotation;
+    } catch (error) {
+      serviceLogger.error(this.constructor.name, 'confirmQuotation', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all quotations for a shipment
+   * @param {string} shipmentId - Shipment ID
+   * @returns {Array} Quotations for the shipment
+   */
+  async getQuotationsByShipmentId(shipmentId) {
+    try {
+      serviceLogger.start(this.constructor.name, 'getQuotationsByShipmentId', { shipmentId });
+
+      const quotations = await this.quoteRepo.findByShipmentId(shipmentId);
+
+      serviceLogger.success(this.constructor.name, 'getQuotationsByShipmentId', { 
+        shipmentId, 
+        count: quotations.length 
+      });
+      
+      return quotations;
+    } catch (error) {
+      serviceLogger.error(this.constructor.name, 'getQuotationsByShipmentId', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if shipment is international
+   * @param {Object} shipment - Shipment data
+   * @returns {boolean} Is international shipment
+   */
+  isInternationalShipment(shipment) {
+    const origin = (shipment.tech_origin || shipment.origin || 'Malaysia').toLowerCase();
+    const destination = (shipment.destination_country || shipment.destination || 'Singapore').toLowerCase();
+    return origin !== destination;
+  }
+
+  /**
+   * Generate quote for a shipment (legacy method)
    * @param {number} shipmentId - Shipment ID
    * @param {number} adminId - Admin user ID
    * @param {Object} options - Quote generation options
@@ -52,8 +211,8 @@ export class QuoteService {
         throw new Error(`Shipment ${shipmentId} not found`);
       }
 
-      if (shipment.status !== 'UNDER_REVIEW') {
-        throw new Error(`Shipment must be in UNDER_REVIEW status to generate quote. Current status: ${shipment.status}`);
+      if (shipment.status !== 'PENDING_QUOTE') {
+        throw new Error(`Shipment must be in PENDING_QUOTE status to generate quote. Current status: ${shipment.status}`);
       }
 
       // Calculate carrier rates
@@ -69,37 +228,41 @@ export class QuoteService {
       const marginPercentage = options.marginPercentage || 15.0;
       const totalCost = (baseRate + (additionalFees.total || 0)) * (1 + marginPercentage / 100);
 
-      // Create quote
-      const quoteData = {
+      // Create quotation
+      const quotationData = {
         shipment_id: shipmentId,
-        carrier_rates: carrierRates,
-        base_rate: baseRate,
-        additional_fees: additionalFees,
-        margin_percentage: marginPercentage,
         total_cost: Math.round(totalCost * 100) / 100, // Round to 2 decimal places
         currency: options.currency || 'USD',
+        base_shipping_cost: baseRate,
+        additional_fees: additionalFees.total || 0,
+        tax_amount: 0, // Set based on requirements
         valid_until: new Date(Date.now() + (options.validityHours || 72) * 60 * 60 * 1000),
-        created_by: adminId,
-        notes: options.notes
+        is_confirmed: false,
+        quotation_method: 'MANUAL',
+        carrier: carrierRates.length > 0 ? carrierRates[0].carrier_name : 'Best Available',
+        service_type: carrierRates.length > 0 ? carrierRates[0].service_type : 'Standard Service',
+        estimated_delivery_days: carrierRates.length > 0 ? carrierRates[0].transit_days : 3,
+        quote_breakdown: {
+          carrierRates,
+          baseRate,
+          additionalFees,
+          marginPercentage,
+          calculationMethod: 'manual'
+        },
+        notes: options.notes,
+        created_by: adminId
       };
 
-      const quote = await this.quoteRepo.createQuote(quoteData);
+      const quotation = await this.quoteRepo.createQuote(quotationData);
 
-      // Transition shipment status to QUOTED
-      await this.statusTransitionService.transitionStatus(
-        shipmentId,
-        'QUOTED',
-        adminId,
-        'ADMIN',
-        `Quote ${quote.quote_number} generated`
-      );
+      // Status will transition to QUOTED when quotation is confirmed via trigger
 
       serviceLogger.success(this.constructor.name, 'generateQuote', { 
-        quoteId: quote.id, 
-        quoteNumber: quote.quote_number 
+        quotationId: quotation.id, 
+        quoteNumber: quotation.quote_number 
       });
 
-      return quote;
+      return quotation;
     } catch (error) {
       serviceLogger.error(this.constructor.name, 'generateQuote', error);
       throw error;
@@ -107,42 +270,111 @@ export class QuoteService {
   }
 
   /**
-   * Calculate carrier rates for a shipment
+   * Calculate carrier rates for a shipment using database pricing
    * @param {Object} shipment - Shipment data
-   * @param {Array} selectedCarriers - Optional array of selected carriers
+   * @param {Array} selectedCarriers - Optional array of selected carrier codes
    * @returns {Array} Carrier rate calculations
    */
   async calculateCarrierRates(shipment, selectedCarriers = null) {
-    const weight = shipment.package_weight_kg || 1;
-    const origin = shipment.origin || 'Malaysia';
-    const destination = shipment.destination || 'Singapore';
-    
-    const rates = [];
-    const carriersToCalculate = selectedCarriers || Object.keys(CARRIER_RATES);
+    try {
+      const weight = parseFloat(shipment.package_weight_kg) || parseFloat(shipment.quantity) || 1;
+      const origin = shipment.tech_origin || shipment.origin || 'Malaysia';
+      const destination = shipment.destination_country || shipment.destination || 'Singapore';
+      
+      serviceLogger.info('Calculating carrier rates', { 
+        weight, 
+        origin, 
+        destination, 
+        selectedCarriers 
+      });
 
-    for (const carrierName of carriersToCalculate) {
-      const carrier = CARRIER_RATES[carrierName];
-      if (!carrier) continue;
+      let carrierFilter = '';
+      const params = [origin, destination, weight, weight];
 
-      for (const [serviceName, rateInfo] of Object.entries(carrier)) {
-        const weightCost = weight * rateInfo.rate_per_kg;
-        const totalCost = Math.max(weightCost, rateInfo.minimum_charge);
+      if (selectedCarriers && selectedCarriers.length > 0) {
+        const placeholders = selectedCarriers.map((_, index) => `$${5 + index}`).join(',');
+        carrierFilter = `AND c.code IN (${placeholders})`;
+        params.push(...selectedCarriers);
+      }
 
-        rates.push({
-          carrier_name: carrierName,
-          service_type: serviceName,
-          rate_per_kg: rateInfo.rate_per_kg,
-          minimum_charge: rateInfo.minimum_charge,
-          weight_cost: Math.round(weightCost * 100) / 100,
-          total_cost: Math.round(totalCost * 100) / 100,
-          transit_days: rateInfo.transit_days,
+      const ratesQuery = `
+        SELECT 
+          c.name as carrier_name,
+          c.code as carrier_code,
+          c.default_margin_percentage,
+          cs.service_name,
+          cs.service_code,
+          cs.service_type,
+          cs.transit_days_min,
+          cs.transit_days_max,
+          cp.rate_per_kg,
+          cp.minimum_charge,
+          cp.fuel_surcharge_percentage,
+          cp.handling_fee,
+          cp.currency,
+          ($3 * cp.rate_per_kg) as weight_cost,
+          GREATEST($4 * cp.rate_per_kg, cp.minimum_charge) as base_cost,
+          (GREATEST($4 * cp.rate_per_kg, cp.minimum_charge) * cp.fuel_surcharge_percentage / 100) as fuel_surcharge,
+          cp.handling_fee as handling_cost,
+          (
+            GREATEST($4 * cp.rate_per_kg, cp.minimum_charge) +
+            (GREATEST($4 * cp.rate_per_kg, cp.minimum_charge) * cp.fuel_surcharge_percentage / 100) +
+            cp.handling_fee
+          ) as total_cost_before_margin
+        FROM carriers c
+        JOIN carrier_services cs ON c.carrier_id = cs.carrier_id
+        JOIN carrier_pricing cp ON cs.service_id = cp.service_id
+        WHERE cp.origin_country = $1 
+          AND cp.destination_country = $2
+          AND cp.weight_from_kg <= $3 
+          AND cp.weight_to_kg >= $4
+          AND cp.is_active = true
+          AND cs.is_active = true
+          AND c.is_active = true
+          ${carrierFilter}
+        ORDER BY total_cost_before_margin ASC
+      `;
+
+      const result = await pool.query(ratesQuery, params);
+
+      const rates = result.rows.map(row => {
+        const totalCostBeforeMargin = parseFloat(row.total_cost_before_margin);
+        const marginPercentage = parseFloat(row.default_margin_percentage);
+
+        return {
+          carrier_name: row.carrier_name,
+          carrier_code: row.carrier_code,
+          service_type: row.service_name,
+          service_code: row.service_code,
+          rate_per_kg: parseFloat(row.rate_per_kg),
+          minimum_charge: parseFloat(row.minimum_charge),
+          weight_cost: parseFloat(row.weight_cost),
+          base_cost: parseFloat(row.base_cost),
+          fuel_surcharge_percentage: parseFloat(row.fuel_surcharge_percentage),
+          fuel_surcharge: parseFloat(row.fuel_surcharge),
+          handling_fee: parseFloat(row.handling_fee),
+          total_cost: Math.round(totalCostBeforeMargin * 100) / 100,
+          total_cost_with_margin: Math.round(totalCostBeforeMargin * (1 + marginPercentage / 100) * 100) / 100,
+          margin_percentage: marginPercentage,
+          transit_days: row.transit_days_min,
+          transit_days_min: row.transit_days_min,
+          transit_days_max: row.transit_days_max,
+          currency: row.currency,
           origin,
           destination
-        });
-      }
-    }
+        };
+      });
 
-    return rates.sort((a, b) => a.total_cost - b.total_cost);
+      serviceLogger.success('calculateCarrierRates', `Found ${rates.length} carrier rates`);
+      return rates;
+
+    } catch (error) {
+      serviceLogger.error('calculateCarrierRates', error);
+      
+      // Fallback to empty array if database query fails
+      serviceLogger.info('Using fallback: returning empty rates array');
+      return [];
+    }
   }
 
   /**
@@ -242,42 +474,42 @@ export class QuoteService {
   }
 
   /**
-   * Customer accepts a quote
-   * @param {number} quoteId - Quote ID
-   * @param {number} customerId - Customer user ID
+   * Customer accepts a quotation
+   * @param {string} quotationId - Quotation UUID
+   * @param {string} customerId - Customer user ID
    * @returns {Object} Acceptance result
    */
-  async acceptQuote(quoteId, customerId) {
+  async acceptQuote(quotationId, customerId) {
     try {
-      serviceLogger.start(this.constructor.name, 'acceptQuote', { quoteId, customerId });
+      serviceLogger.start(this.constructor.name, 'acceptQuote', { quotationId, customerId });
 
-      const quote = await this.quoteRepo.findById(quoteId);
-      if (!quote) {
-        throw new Error(`Quote ${quoteId} not found`);
+      const quotation = await this.quoteRepo.findById(quotationId);
+      if (!quotation) {
+        throw new Error(`Quotation ${quotationId} not found`);
       }
 
-      if (quote.status !== 'ACTIVE') {
-        throw new Error(`Quote is not active. Current status: ${quote.status}`);
+      if (!quotation.is_confirmed) {
+        throw new Error('Quotation must be confirmed before it can be accepted');
       }
 
-      if (new Date() > new Date(quote.valid_until)) {
-        throw new Error('Quote has expired');
+      if (new Date() > new Date(quotation.valid_until)) {
+        throw new Error('Quotation has expired');
       }
 
-      // Accept the quote
-      const acceptedQuote = await this.quoteRepo.acceptQuote(quoteId);
+      // Accept the quotation
+      const acceptedQuotation = await this.quoteRepo.acceptQuote(quotationId);
 
       // Transition shipment status to CONFIRMED
       await this.statusTransitionService.transitionStatus(
-        quote.shipment_id,
+        quotation.shipment_id,
         'CONFIRMED',
         customerId,
         'CUSTOMER',
-        `Quote ${quote.quote_number} accepted by customer`
+        `Quotation ${quotation.quote_number} accepted by customer`
       );
 
-      serviceLogger.success(this.constructor.name, 'acceptQuote', { quoteId });
-      return acceptedQuote;
+      serviceLogger.success(this.constructor.name, 'acceptQuote', { quotationId });
+      return acceptedQuotation;
     } catch (error) {
       serviceLogger.error(this.constructor.name, 'acceptQuote', error);
       throw error;

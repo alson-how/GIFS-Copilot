@@ -77,7 +77,12 @@ export const schemas = {
         destination: { type: 'string', minLength: 1, maxLength: 100 },
         status: { 
           type: 'string', 
-          enum: ['pending', 'processing', 'in_transit', 'delivered', 'cancelled'] 
+          enum: [
+            'CREATED', 'PENDING_QUOTE', 'UNDER_REVIEW', 'QUOTED', 'CONFIRMED', 
+            'PICKUP_SCHEDULED', 'PICKED_UP', 'AT_WAREHOUSE', 'CUSTOMS_EXPORT', 
+            'IN_TRANSIT', 'ARRIVED_DESTINATION', 'CUSTOMS_IMPORT', 
+            'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'EXPIRED'
+          ] 
         },
         description: { type: 'string', maxLength: 1000 },
         metadata: { type: 'object' }
@@ -93,7 +98,12 @@ export const schemas = {
         destination: { type: 'string', minLength: 1, maxLength: 100 },
         status: { 
           type: 'string', 
-          enum: ['pending', 'processing', 'in_transit', 'delivered', 'cancelled'] 
+          enum: [
+            'CREATED', 'PENDING_QUOTE', 'UNDER_REVIEW', 'QUOTED', 'CONFIRMED', 
+            'PICKUP_SCHEDULED', 'PICKED_UP', 'AT_WAREHOUSE', 'CUSTOMS_EXPORT', 
+            'IN_TRANSIT', 'ARRIVED_DESTINATION', 'CUSTOMS_IMPORT', 
+            'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'EXPIRED'
+          ] 
         },
         description: { type: 'string', maxLength: 1000 },
         metadata: { type: 'object' }

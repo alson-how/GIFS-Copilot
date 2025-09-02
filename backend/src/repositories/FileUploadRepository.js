@@ -4,10 +4,12 @@
  */
 
 import { BaseRepository } from './BaseRepository.js';
+import { db } from '../utils/database.js';
 
 export class FileUploadRepository extends BaseRepository {
   constructor(database) {
-    super(database, 'shipment_files');
+    super('shipment_files');
+    this.database = database || db;
   }
 
   /**
@@ -26,11 +28,11 @@ export class FileUploadRepository extends BaseRepository {
         const query = `
           INSERT INTO shipment_files (
             shipment_id, tag, original_name, mime_type, 
-            file_path, size_bytes, upload_metadata
+            file_path, size_bytes
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          VALUES ($1, $2, $3, $4, $5, $6)
           RETURNING id, shipment_id, tag, original_name, mime_type, 
-                   file_path, size_bytes, upload_metadata, uploaded_at
+                   file_path, size_bytes, uploaded_at
         `;
         
         const values = [
@@ -39,8 +41,7 @@ export class FileUploadRepository extends BaseRepository {
           fileData.original_name,
           fileData.mime_type,
           fileData.file_path,
-          fileData.size_bytes,
-          JSON.stringify(fileData.metadata || {})
+          fileData.size_bytes
         ];
         
         const result = await client.query(query, values);
@@ -75,7 +76,7 @@ export class FileUploadRepository extends BaseRepository {
 
     let query = `
       SELECT id, shipment_id, tag, original_name, mime_type,
-             file_path, size_bytes, upload_metadata, uploaded_at
+             file_path, size_bytes, uploaded_at
       FROM shipment_files 
       WHERE shipment_id = $1
     `;
@@ -153,13 +154,13 @@ export class FileUploadRepository extends BaseRepository {
   async updateMetadata(fileId, metadata) {
     const query = `
       UPDATE shipment_files 
-      SET upload_metadata = $2, updated_at = CURRENT_TIMESTAMP
+      SET uploaded_at = CURRENT_TIMESTAMP
       WHERE id = $1
       RETURNING id, shipment_id, tag, original_name, mime_type,
-               file_path, size_bytes, upload_metadata, uploaded_at, updated_at
+               file_path, size_bytes, uploaded_at
     `;
     
-    const values = [fileId, JSON.stringify(metadata)];
+    const values = [fileId];
     const result = await this.database.query(query, values);
     
     if (result.rows.length === 0) {
@@ -178,7 +179,7 @@ export class FileUploadRepository extends BaseRepository {
   async getByIdAndShipmentId(fileId, shipmentId) {
     const query = `
       SELECT id, shipment_id, tag, original_name, mime_type,
-             file_path, size_bytes, upload_metadata, uploaded_at
+             file_path, size_bytes, uploaded_at
       FROM shipment_files 
       WHERE id = $1 AND shipment_id = $2
     `;
@@ -253,7 +254,7 @@ export class FileUploadRepository extends BaseRepository {
     // Data query
     const dataQuery = `
       SELECT id, shipment_id, tag, original_name, mime_type,
-             file_path, size_bytes, upload_metadata, uploaded_at
+             file_path, size_bytes, uploaded_at
       FROM shipment_files 
       ${whereClause}
       ORDER BY ${orderBy} ${orderDirection}

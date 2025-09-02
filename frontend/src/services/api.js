@@ -29,14 +29,14 @@ export async function uploadFiles({ shipment_id, tag, files }) {
   form.append('shipment_id', shipment_id);
   form.append('tag', tag || 'other');
   for (const f of files) form.append('files', f);
-  const r = await fetch(`${BASE}/api/uploads`, { method: 'POST', body: form });
+  const r = await fetch(`${BASE}/api/v2/uploads`, { method: 'POST', body: form });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
 
 export async function listFiles(shipment_id) {
   const BASE = import.meta.env.VITE_API || 'http://localhost:8080';
-  const r = await fetch(`${BASE}/api/uploads?shipment_id=${encodeURIComponent(shipment_id)}`);
+  const r = await fetch(`${BASE}/api/v2/uploads/${encodeURIComponent(shipment_id)}`);
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }

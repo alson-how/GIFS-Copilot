@@ -8,7 +8,7 @@ import { serviceLogger } from '../utils/logger.js';
 
 export class QuoteRepository extends BaseRepository {
   constructor() {
-    super('quotes', 'id');
+    super('quotations', 'id');
   }
 
   /**
@@ -51,7 +51,7 @@ export class QuoteRepository extends BaseRepository {
     // Get daily sequence number
     const query = `
       SELECT COUNT(*) + 1 as sequence 
-      FROM quotes 
+      FROM quotations 
       WHERE DATE(created_at) = CURRENT_DATE
     `;
     
@@ -94,10 +94,10 @@ export class QuoteRepository extends BaseRepository {
       const query = `
         SELECT q.*, s.reference as shipment_reference, 
                u.first_name || ' ' || u.last_name as customer_name
-        FROM quotes q
+        FROM quotations q
         JOIN shipments s ON q.shipment_id = s.shipment_id
         LEFT JOIN users u ON s.customer_id = u.id
-        WHERE q.status = 'ACTIVE' AND q.valid_until > CURRENT_TIMESTAMP
+        WHERE q.valid_until > CURRENT_TIMESTAMP
         ORDER BY q.created_at DESC
       `;
 
@@ -112,22 +112,43 @@ export class QuoteRepository extends BaseRepository {
   }
 
   /**
-   * Accept a quote
-   * @param {number} quoteId - Quote ID
-   * @returns {Object} Updated quote
+   * Confirm a quotation (mark as selected for the shipment)
+   * @param {string} quotationId - Quotation UUID
+   * @returns {Object} Updated quotation
    */
-  async acceptQuote(quoteId) {
+  async confirmQuotation(quotationId) {
     try {
-      serviceLogger.start(this.constructor.name, 'acceptQuote', { quoteId });
+      serviceLogger.start(this.constructor.name, 'confirmQuotation', { quotationId });
       
-      const quote = await this.updateById(quoteId, {
-        status: 'ACCEPTED',
+      const quotation = await this.updateById(quotationId, {
+        is_confirmed: true,
+        updated_at: new Date().toISOString()
+      });
+
+      serviceLogger.success(this.constructor.name, 'confirmQuotation', { quotation_id: quotationId });
+      return quotation;
+    } catch (error) {
+      serviceLogger.error(this.constructor.name, 'confirmQuotation', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Accept a quote (customer accepts the confirmed quotation)
+   * @param {string} quotationId - Quotation UUID
+   * @returns {Object} Updated quotation
+   */
+  async acceptQuote(quotationId) {
+    try {
+      serviceLogger.start(this.constructor.name, 'acceptQuote', { quotationId });
+      
+      const quotation = await this.updateById(quotationId, {
         accepted_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       });
 
-      serviceLogger.success(this.constructor.name, 'acceptQuote', { quote_id: quoteId });
-      return quote;
+      serviceLogger.success(this.constructor.name, 'acceptQuote', { quotation_id: quotationId });
+      return quotation;
     } catch (error) {
       serviceLogger.error(this.constructor.name, 'acceptQuote', error);
       throw error;
@@ -143,12 +164,10 @@ export class QuoteRepository extends BaseRepository {
       serviceLogger.start(this.constructor.name, 'expireOldQuotes');
       
       const query = `
-        UPDATE quotes 
-        SET status = 'EXPIRED', 
-            expired_at = CURRENT_TIMESTAMP,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE status = 'ACTIVE' 
-        AND valid_until < CURRENT_TIMESTAMP
+        UPDATE quotations 
+        SET updated_at = CURRENT_TIMESTAMP
+        WHERE valid_until < CURRENT_TIMESTAMP
+        AND is_confirmed = false
         RETURNING id
       `;
 
@@ -175,7 +194,7 @@ export class QuoteRepository extends BaseRepository {
         SELECT q.*, 
                s.reference, s.origin, s.destination, s.package_weight_kg, s.estimated_value,
                u.first_name || ' ' || u.last_name as customer_name, u.email as customer_email
-        FROM quotes q
+        FROM quotations q
         JOIN shipments s ON q.shipment_id = s.shipment_id
         LEFT JOIN users u ON s.customer_id = u.id
         WHERE q.id = $1

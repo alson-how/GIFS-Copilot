@@ -224,7 +224,7 @@
               }
 
               &.delete {
-                color: #e53e3e;
+                color: #667eea;
               }
             }
           }
@@ -284,7 +284,7 @@
 
   &.status-cancelled {
     background: #fed7d7;
-    color: #e53e3e;
+    color: #667eea;
     border: 1px solid #fc8181;
   }
 
@@ -351,7 +351,7 @@
 
   &.status-expired {
     background: #fed7d7;
-    color: #e53e3e;
+    color: #667eea;
     border: 1px solid #fc8181;
   }
 
@@ -405,7 +405,7 @@
     border: 1px solid #fed7d7;
 
     h3 {
-      color: #e53e3e;
+      color: #667eea;
       font-size: 18px;
       font-weight: 600;
       margin: 0 0 8px 0;

@@ -9,9 +9,11 @@ import { useAdminAuth } from '../../contexts/AdminAuthContext';
 import AdminSidebar from './AdminSidebar';
 
 // Import page components
-import AIQuery from '../AIQuery';
+import AIQuery from '../shared/AIQuery';
 import AdminDashboardHome from '../admin/AdminDashboardHome';
 import ManageShipments from '../admin/ManageShipments';
+import ManageCarriers from '../admin/ManageCarriers';
+import ManageFees from '../admin/ManageFees';
 import AdminShipmentDetails from '../admin/AdminShipmentDetails';
 import ShipmentDetails from '../ShipmentDetails';
 
@@ -82,6 +84,8 @@ const AdminDashboard = () => {
             <Route path="/dashboard" element={<AdminDashboardHome />} />
             <Route path="/ai-query" element={<AIQuery />} />
             <Route path="/manage-shipments" element={<ManageShipments />} />
+            <Route path="/manage-carriers" element={<ManageCarriers />} />
+            <Route path="/manage-fees" element={<ManageFees />} />
             <Route path="/shipment/:shipmentId" element={<AdminShipmentDetails />} />
             
             {/* Legacy route for backwards compatibility */}

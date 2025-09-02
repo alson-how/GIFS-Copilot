@@ -554,7 +554,7 @@ export default function ShipmentDetails() {
         }}>
           {[
             { step: 1, label: '📋 Basics', active: currentCanvasStep === 1 },
-            { step: 2, label: '🤖 AI Chips', active: currentCanvasStep === 2, show: basics?.productType === 'ai_accelerator_gpu_tpu_npu' },
+            { step: 2, label: ' AI Chips', active: currentCanvasStep === 2, show: basics?.productType === 'ai_accelerator_gpu_tpu_npu' },
             { step: 3, label: '🔍 Screening', active: currentCanvasStep === 3 },
             { step: 4, label: '📄 Documents', active: currentCanvasStep === 4 }
           ].filter(item => item.show !== false).map((item) => (

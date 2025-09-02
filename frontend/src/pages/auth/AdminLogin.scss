@@ -39,7 +39,7 @@
   
   .admin-badge {
     display: inline-block;
-    background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+    background: #586ce1;
     color: white;
     font-size: 12px;
     font-weight: 700;
@@ -88,12 +88,12 @@
       
       &:focus {
         outline: none;
-        border-color: #e53e3e;
+        border-color: #667eea;
         box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1);
       }
       
       &.error {
-        border-color: #e53e3e;
+        border-color: #667eea;
         box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1);
       }
       
@@ -120,14 +120,14 @@
           margin-right: 8px;
           width: 16px;
           height: 16px;
-          accent-color: #e53e3e;
+          accent-color: #667eea;
         }
       }
     }
   }
   
   .error-message {
-    color: #e53e3e;
+    color: #667eea;
     font-size: 13px;
     margin-top: 4px;
     display: block;
@@ -150,7 +150,7 @@
 
 .login-button {
   width: 100%;
-  background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+  background: linear-gradient(135deg, #667eea 0%, #c53030 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -188,7 +188,7 @@
     font-size: 14px;
     
     a {
-      color: #e53e3e;
+      color: #667eea;
       text-decoration: none;
       font-weight: 500;
       
@@ -285,7 +285,7 @@
     height: 40px;
     margin: 0 auto 16px;
     border: 3px solid #e2e8f0;
-    border-top: 3px solid #e53e3e;
+    border-top: 3px solid #667eea;
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }

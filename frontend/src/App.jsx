@@ -18,7 +18,7 @@ import StepSTA from './components/StepSTA.jsx';
 import StepAI from './components/StepAI.jsx';
 import StepScreening from './components/StepScreening.jsx';
 import StepDocs from './components/StepDocs.jsx';
-import AIQuery from './components/AIQuery.jsx';
+import AIQuery from './components/shared/AIQuery.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import EnhancedWorkflow from './components/EnhancedWorkflow.jsx';
 import ShipmentOrdersList from './components/ShipmentOrdersList.jsx';
@@ -303,7 +303,7 @@ function LegacyAppWithRouter() {
               }}>
                 {[
                   { step: 1, title: 'Shipment Basics', icon: '📋' },
-                  { step: 2, title: 'AI Chip Directive', icon: '🤖', condition: basics?.productType === 'ai_accelerator_gpu_tpu_npu' },
+                  { step: 2, title: 'AI Chip Directive', icon: '', condition: basics?.productType === 'ai_accelerator_gpu_tpu_npu' },
                   { step: 3, title: 'Screening', icon: '🔍' },
                   { step: 4, title: 'Documentation', icon: '📄' }
                 ].filter(item => item.condition !== false).map((item, index, filteredArray) => (

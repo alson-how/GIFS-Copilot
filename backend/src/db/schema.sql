@@ -61,9 +61,11 @@ CREATE TABLE IF NOT EXISTS knowledge_chunks (
   updated_at timestamptz DEFAULT now()
 );
 
--- Optional: IVFFLAT index for pgvector (requires ANALYZE and a list size setup)
--- CREATE INDEX IF NOT EXISTS idx_kn_emb ON knowledge_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
--- CREATE INDEX IF NOT EXISTS idx_kn_country ON knowledge_chunks (country);
+-- IVFFLAT index for pgvector (requires ANALYZE and a list size setup)
+CREATE INDEX IF NOT EXISTS idx_kn_emb ON knowledge_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+CREATE INDEX IF NOT EXISTS idx_kn_country ON knowledge_chunks (country);
+CREATE INDEX IF NOT EXISTS idx_kn_title ON knowledge_chunks (title);
+ANALYZE knowledge_chunks;
 
 -- Add columns for step 1 (shipment basics)
 ALTER TABLE shipments
@@ -97,6 +99,7 @@ ALTER TABLE shipments ADD COLUMN IF NOT EXISTS end_use_purpose VARCHAR(100);
 ALTER TABLE shipments ADD COLUMN IF NOT EXISTS insurance_required BOOLEAN DEFAULT true;
 ALTER TABLE shipments ADD COLUMN IF NOT EXISTS consignee_registration VARCHAR(50);
 ALTER TABLE shipments ADD COLUMN IF NOT EXISTS shipment_priority VARCHAR(20) DEFAULT 'Standard';
+ALTER TABLE shipments ADD COLUMN IF NOT EXISTS quote_id UUID;
 
 -- Add status tracking for step 1
 ALTER TABLE shipments ADD COLUMN IF NOT EXISTS step1_status VARCHAR(50) DEFAULT 'pending';

@@ -639,7 +639,7 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
             '\n\nThe shipment will be saved but cannot be exported until all permits are uploaded.\n\nDo you want to continue saving?');
       
       if (!confirmSave) {
-        return;
+      return;
       }
     }
     
@@ -978,9 +978,9 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
         {/* Strategic Items Detection */}
         <div style={{ marginBottom: '2rem' }}>
           <StrategicItemDetection
-            shipmentId={shipmentId}
+              shipmentId={shipmentId}
             productItems={productItems}
-            canvasData={canvasData}
+              canvasData={canvasData}
             onStrategicStatusChange={(status) => {
               setStrategicItemsDetected(status.hasStrategicItems);
               setExportBlocked(status.exportBlocked);
@@ -1525,10 +1525,10 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
         <div style={{ marginBottom: '2rem' }}>
           <h3 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.1rem', borderBottom: '2px solid var(--border)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
             📍 Pickup Address
-          </h3>
+            </h3>
           
-          <div style={{ marginBottom: '1.5rem' }}>
-            <AddressSelector
+            <div style={{ marginBottom: '1.5rem' }}>
+              <AddressSelector
               value={pickupAddress}
               onChange={handlePickupAddressChange}
               type="pickup"
@@ -1539,11 +1539,11 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
             />
             
             {!pickupAddress && (
-              <div style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                <div style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                 💡 Select where the goods will be collected from. Save addresses in your <a href="/dashboard/addresses" target="_blank" style={{ color: 'var(--primary)' }}>Address Book</a> for quick selection.
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
         </div>
 
         {/* Section 5: Delivery Address & Destination */}
@@ -1557,54 +1557,54 @@ export default function StepBasics({ onSaved, defaultShipmentId, canvasData, isC
           {/* Address Book Selector */}
 
           {/* Manual Destination Fields */}
-          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
             <h4 style={{ color: 'var(--text)', margin: '0 0 1rem 0', fontSize: '1rem' }}>
               Manual Destination Details
             </h4>
-            <div className="form-row">
-              <div className="form-field">
-                <label className="form-label">Destination Country *</label>
-                <select 
-                  className="form-select"
-                  value={destination} 
-                  onChange={e=>setDestination(e.target.value)}
-                  required
-                >
-                  <option value="China">🇨🇳 China</option>
-                  <option value="United States">🇺🇸 United States</option>
-                  <option value="Singapore">🇸🇬 Singapore</option>
-                  <option value="Thailand">🇹🇭 Thailand</option>
-                  <option value="Vietnam">🇻🇳 Vietnam</option>
-                  <option value="Japan">🇯🇵 Japan</option>
-                  <option value="South Korea">🇰🇷 South Korea</option>
-                  <option value="Taiwan">🇹🇼 Taiwan</option>
-                  <option value="Indonesia">🇮🇩 Indonesia</option>
-                  <option value="Philippines">🇵🇭 Philippines</option>
-                  <option value="India">🇮🇳 India</option>
-                  <option value="Germany">🇩🇪 Germany</option>
-                  <option value="United Kingdom">🇬🇧 United Kingdom</option>
-                  <option value="France">🇫🇷 France</option>
-                  <option value="Netherlands">🇳🇱 Netherlands</option>
-                  <option value="Australia">🇦🇺 Australia</option>
-                  <option value="Canada">🇨🇦 Canada</option>
-                  <option value="Mexico">🇲🇽 Mexico</option>
-                  <option value="Brazil">🇧🇷 Brazil</option>
-                </select>
-              </div>
+              <div className="form-row">
+                <div className="form-field">
+                  <label className="form-label">Destination Country *</label>
+                  <select 
+                    className="form-select"
+                    value={destination} 
+                    onChange={e=>setDestination(e.target.value)}
+                    required
+                  >
+                    <option value="China">🇨🇳 China</option>
+                    <option value="United States">🇺🇸 United States</option>
+                    <option value="Singapore">🇸🇬 Singapore</option>
+                    <option value="Thailand">🇹🇭 Thailand</option>
+                    <option value="Vietnam">🇻🇳 Vietnam</option>
+                    <option value="Japan">🇯🇵 Japan</option>
+                    <option value="South Korea">🇰🇷 South Korea</option>
+                    <option value="Taiwan">🇹🇼 Taiwan</option>
+                    <option value="Indonesia">🇮🇩 Indonesia</option>
+                    <option value="Philippines">🇵🇭 Philippines</option>
+                    <option value="India">🇮🇳 India</option>
+                    <option value="Germany">🇩🇪 Germany</option>
+                    <option value="United Kingdom">🇬🇧 United Kingdom</option>
+                    <option value="France">🇫🇷 France</option>
+                    <option value="Netherlands">🇳🇱 Netherlands</option>
+                    <option value="Australia">🇦🇺 Australia</option>
+                    <option value="Canada">🇨🇦 Canada</option>
+                    <option value="Mexico">🇲🇽 Mexico</option>
+                    <option value="Brazil">🇧🇷 Brazil</option>
+                  </select>
+                </div>
 
-              <div className="form-field">
-                <label className="form-label">End User / Consignee *</label>
-                <input 
-                  className="form-input"
-                  placeholder="Company name receiving the goods"
-                  value={endUser} 
-                  onChange={e=>setEndUser(e.target.value)}
-                  required
-                />
+                <div className="form-field">
+                  <label className="form-label">End User / Consignee *</label>
+                  <input 
+                    className="form-input"
+                    placeholder="Company name receiving the goods"
+                    value={endUser} 
+                    onChange={e=>setEndUser(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
               </div>
             </div>
-          </div>
-        </div>
 
         {/* Section 6: Additional Fields */}
         <div style={{ marginBottom: '2rem' }}>

@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { answerFromRAG } from '../services/rag.js';
+import { answerFromRAGOptimized, warmupCache, getCacheStats, clearCaches } from '../services/optimizedRag.js';
 import OpenAI from 'openai';
 const router = express.Router();
 
@@ -19,10 +19,60 @@ if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_ap
 }
 
 router.get('/answer', async (req,res)=>{
+  const startTime = Date.now();
   const q = (req.query.q || '').toString();
   if(!q) return res.status(400).json({ error: 'q required' });
-  const { answer, sources } = await answerFromRAG(q, req.db);
-  res.json({ answer, sources });
+  
+  try {
+    const { answer, sources, metadata } = await answerFromRAGOptimized(q, req.db);
+    const responseTime = Date.now() - startTime;
+    
+    res.json({ 
+      answer, 
+      sources,
+      metadata: {
+        ...metadata,
+        response_time_ms: responseTime
+      }
+    });
+  } catch (error) {
+    console.error('Policy answer error:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate answer',
+      details: error.message 
+    });
+  }
+});
+
+// Cache management endpoints
+router.post('/cache/warmup', async (req, res) => {
+  try {
+    await warmupCache(req.db, req.body.queries || []);
+    res.json({ success: true, message: 'Cache warmed up successfully' });
+  } catch (error) {
+    console.error('Cache warmup error:', error);
+    res.status(500).json({ error: 'Failed to warm up cache' });
+  }
+});
+
+router.get('/cache/stats', (req, res) => {
+  try {
+    const stats = getCacheStats();
+    res.json({ success: true, stats });
+  } catch (error) {
+    console.error('Cache stats error:', error);
+    res.status(500).json({ error: 'Failed to get cache stats' });
+  }
+});
+
+router.delete('/cache', (req, res) => {
+  try {
+    clearCaches();
+    res.json({ success: true, message: 'Caches cleared successfully' });
+  } catch (error) {
+    console.error('Cache clear error:', error);
+    res.status(500).json({ error: 'Failed to clear caches' });
+  }
 });
 
 // Step 2 data structure for OpenAI processing

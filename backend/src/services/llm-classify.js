@@ -192,7 +192,7 @@ Based on the content, structure, and key indicators, classify this document and 
 
     const result = JSON.parse(response.choices[0].message.content);
     
-    console.log('🤖 OpenAI Classification Result:', {
+    console.log(' OpenAI Classification Result:', {
       is_commercial_invoice: result.is_commercial_invoice,
       confidence: result.confidence,
       reason: result.reason.substring(0, 200) + '...'
@@ -239,7 +239,7 @@ export async function detectCommercialInvoice(extractedText) {
   let finalResult;
   
   if (needsLLMVerification) {
-    console.log('🤖 Heuristics uncertain, using OpenAI for verification...');
+    console.log(' Heuristics uncertain, using OpenAI for verification...');
     finalResult = await classifyWithLLM(extractedText, heuristics);
   } else {
     console.log('✅ Heuristics confident, skipping LLM verification');

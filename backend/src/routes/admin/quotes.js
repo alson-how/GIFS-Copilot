@@ -131,10 +131,125 @@ router.post('/generate', async (req, res) => {
 });
 
 /**
+ * POST /api/admin/quotes/generate-ai
+ * Generate AI-powered quotes for a shipment (3 options: Economy, Balanced, Fast)
+ */
+router.post('/generate-ai', async (req, res) => {
+  try {
+    const { shipmentId, options = {} } = req.body;
+    const adminId = req.admin.id;
+    
+    serviceLogger.start('AdminQuotesAPI', 'generateAIQuote', { shipmentId, adminId });
+
+    if (!shipmentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Shipment ID is required'
+      });
+    }
+
+    // Check if OpenAI API key is configured
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        message: 'AI quotation service not configured. Please contact administrator.'
+      });
+    }
+
+    // First, transition shipment to UNDER_REVIEW if it's PENDING_QUOTE
+    const shipment = await shipmentRepo.findById(shipmentId);
+    if (!shipment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shipment not found'
+      });
+    }
+
+    if (shipment.status === 'PENDING_QUOTE') {
+      await statusTransitionService.transitionStatus(
+        shipmentId, 
+        'UNDER_REVIEW', 
+        adminId, 
+        'ADMIN',
+        'Admin generating AI-powered quotes'
+      );
+    }
+
+    // Generate AI-powered quotes
+    const aiQuoteResult = await quoteService.generateAIQuote(shipmentId, adminId, options);
+    
+    serviceLogger.success('AdminQuotesAPI', 'generateAIQuote', { 
+      shipmentId,
+      quotesGenerated: aiQuoteResult.quotes?.length || 0
+    });
+    
+    res.status(201).json({
+      success: true,
+      data: aiQuoteResult,
+      message: `${aiQuoteResult.quotes?.length || 0} AI-powered quotes generated successfully`
+    });
+  } catch (error) {
+    serviceLogger.error('AdminQuotesAPI', 'generateAIQuote', error);
+    
+    // Provide more specific error messages for common issues
+    let errorMessage = 'Failed to generate AI quotes';
+    if (error.message.includes('OPENAI_API_KEY')) {
+      errorMessage = 'OpenAI API key not configured';
+    } else if (error.message.includes('quota')) {
+      errorMessage = 'AI service quota exceeded. Please try again later.';
+    } else if (error.message.includes('rate limit')) {
+      errorMessage = 'AI service rate limit reached. Please try again in a few minutes.';
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: errorMessage,
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/admin/quotes/shipment/:shipmentId
- * Get shipment details for quote generation
+ * Get all quotations for a specific shipment
  */
 router.get('/shipment/:shipmentId', async (req, res) => {
+  try {
+    const shipmentId = req.params.shipmentId;
+    serviceLogger.start('AdminQuotesAPI', 'getQuotationsByShipment', { shipmentId });
+
+    // Get all quotations for this shipment
+    const quotations = await quoteService.getQuotationsByShipmentId(shipmentId);
+
+    serviceLogger.success('AdminQuotesAPI', 'getQuotationsByShipment', { 
+      shipmentId, 
+      count: quotations.length 
+    });
+    
+    res.json({
+      success: true,
+      data: quotations,
+      meta: {
+        shipmentId,
+        totalQuotations: quotations.length,
+        confirmedQuotations: quotations.filter(q => q.is_confirmed).length
+      }
+    });
+  } catch (error) {
+    serviceLogger.error('AdminQuotesAPI', 'getQuotationsByShipment', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch quotations',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/admin/quotes/shipment/:shipmentId/details
+ * Get shipment details for quote generation (moved from above)
+ */
+router.get('/shipment/:shipmentId/details', async (req, res) => {
   try {
     const shipmentId = parseInt(req.params.shipmentId);
     serviceLogger.start('AdminQuotesAPI', 'getShipmentForQuote', { shipmentId });
@@ -148,8 +263,8 @@ router.get('/shipment/:shipmentId', async (req, res) => {
       });
     }
 
-    // Get existing quotes for this shipment
-    const quotes = await quoteService.quoteRepo.findByShipmentId(shipmentId);
+    // Get existing quotations for this shipment
+    const quotations = await quoteService.getQuotationsByShipmentId(shipmentId);
 
     // Calculate sample carrier rates
     const carrierRates = await quoteService.calculateCarrierRates(shipment);
@@ -160,7 +275,7 @@ router.get('/shipment/:shipmentId', async (req, res) => {
       success: true,
       data: {
         shipment,
-        existingQuotes: quotes,
+        existingQuotations: quotations,
         suggestedRates: carrierRates
       }
     });
@@ -169,6 +284,36 @@ router.get('/shipment/:shipmentId', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch shipment details',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/admin/quotes/:quotationId/confirm
+ * Confirm a quotation (make it the official quote for the shipment)
+ */
+router.post('/:quotationId/confirm', async (req, res) => {
+  try {
+    const quotationId = req.params.quotationId;
+    const adminId = req.admin.id;
+    
+    serviceLogger.start('AdminQuotesAPI', 'confirmQuotation', { quotationId, adminId });
+
+    const confirmedQuotation = await quoteService.confirmQuotation(quotationId, adminId);
+    
+    serviceLogger.success('AdminQuotesAPI', 'confirmQuotation', { quotationId });
+    
+    res.json({
+      success: true,
+      data: confirmedQuotation,
+      message: 'Quotation confirmed successfully'
+    });
+  } catch (error) {
+    serviceLogger.error('AdminQuotesAPI', 'confirmQuotation', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to confirm quotation',
       error: error.message
     });
   }

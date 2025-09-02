@@ -31,6 +31,16 @@ export default function AdminShipmentDetails() {
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
+  // Quote generation state
+  const [quoteData, setQuoteData] = useState(null);
+  const [quotations, setQuotations] = useState([]);
+  const [quotesLoading, setQuotesLoading] = useState(false);
+  const [generateQuoteLoading, setGenerateQuoteLoading] = useState(false);
+  
+  // Step-based workflow state
+  const [currentStep, setCurrentStep] = useState(1);
+  const [stepContentVisible, setStepContentVisible] = useState(false);
+  
   // Form state for editing
   const [editForm, setEditForm] = useState({});
   
@@ -61,7 +71,7 @@ export default function AdminShipmentDetails() {
       setLoading(true);
       setError(null);
       
-      // Use admin API endpoint for detailed shipment info  
+      // Use admin API endpoint for detailed shipment info
       const response = await makeAuthenticatedRequest(`${API_HOST}/api/admin/shipments/${shipmentId}`);
       
       if (!response.ok) {
@@ -194,6 +204,181 @@ export default function AdminShipmentDetails() {
     } finally {
       setStatusUpdateLoading(false);
     }
+  };
+
+  // Generate AI-powered quotation
+  const handleGenerateQuote = async () => {
+    if (!shipmentData) return;
+    
+    try {
+      setGenerateQuoteLoading(true);
+      
+      const response = await makeAuthenticatedRequest(`${API_HOST}/api/admin/quotes/generate-ai`, {
+        method: 'POST',
+        body: JSON.stringify({ 
+          shipmentId: parseInt(shipmentId),
+          options: {
+            currency: shipmentData.currency || 'USD',
+            validityHours: 72
+          }
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setQuoteData(result.data);
+          setQuotations(result.data.quotations || []);
+          
+          // Don't update status to QUOTED automatically - will be handled by backend trigger when quotation is confirmed
+          alert(`Successfully generated ${result.data.quotations?.length || 0} AI-powered quotation options! Please select one to confirm.`);
+        } else {
+          throw new Error(result.message || 'Failed to generate quotes');
+        }
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to generate quotes');
+      }
+      
+    } catch (err) {
+      console.error('Error generating quotes:', err);
+      alert(`Failed to generate quotes: ${err.message}`);
+    } finally {
+      setGenerateQuoteLoading(false);
+    }
+  };
+
+  // Load existing quotations for the shipment
+  const loadExistingQuotations = async () => {
+    if (!shipmentId) return;
+    
+    try {
+      setQuotesLoading(true);
+      
+      const response = await makeAuthenticatedRequest(`${API_HOST}/api/admin/quotes/shipment/${shipmentId}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setQuotations(result.data || []);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading quotations:', err);
+    } finally {
+      setQuotesLoading(false);
+    }
+  };
+
+  // Confirm a quotation (admin selects it as the official quote)
+  const handleConfirmQuotation = async (quotationId) => {
+    try {
+      const response = await makeAuthenticatedRequest(`${API_HOST}/api/admin/quotes/${quotationId}/confirm`, {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          alert('Quotation confirmed successfully!');
+          // Refresh quotations and shipment data
+          await loadExistingQuotations();
+          await fetchShipmentData();
+        } else {
+          throw new Error(result.message || 'Failed to confirm quotation');
+        }
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to confirm quotation');
+      }
+    } catch (error) {
+      console.error('Error confirming quotation:', error);
+      alert(`Failed to confirm quotation: ${error.message}`);
+    }
+  };
+
+  // Load quotations when shipmentData is available
+  useEffect(() => {
+    if (shipmentData && shipmentId) {
+      loadExistingQuotations();
+    }
+  }, [shipmentData, shipmentId]);
+
+  // Step management functions
+  const getStepStatus = (stepNumber) => {
+    if (!shipmentData) return 'pending';
+    
+    switch (stepNumber) {
+      case 1: // Created
+        return shipmentData.created_at ? 'completed' : 'pending';
+      case 2: // Quote
+        if (shipmentData.status === 'QUOTED' && shipmentData.quote_id) return 'completed';
+        if (shipmentData.status === 'PENDING_QUOTE' || shipmentData.status === 'UNDER_REVIEW') return 'active';
+        if (shipmentData.status === 'CREATED' && quotations.length === 0) return 'active';
+        return 'pending';
+      case 3: // Confirmed
+        if (shipmentData.status === 'CONFIRMED') return 'completed';
+        if (shipmentData.status === 'QUOTED') return 'active';
+        return 'pending';
+      case 4: // Picked Up
+        if (shipmentData.status === 'PICKED_UP') return 'completed';
+        if (shipmentData.status === 'CONFIRMED') return 'active';
+        return 'pending';
+      case 5: // Delivered
+        if (shipmentData.status === 'DELIVERED') return 'completed';
+        if (shipmentData.status === 'PICKED_UP' || shipmentData.status === 'IN_TRANSIT') return 'active';
+        return 'pending';
+      default:
+        return 'pending';
+    }
+  };
+
+  const isStepClickable = (stepNumber) => {
+    if (!shipmentData) return false;
+    
+    switch (stepNumber) {
+      case 1: // Created - always clickable if created
+        return shipmentData.created_at !== null;
+      case 2: // Quote - clickable if step 1 completed
+        return getStepStatus(1) === 'completed';
+      case 3: // Confirmed - clickable if step 2 completed
+        return getStepStatus(2) === 'completed';
+      case 4: // Picked Up - clickable if step 3 completed
+        return getStepStatus(3) === 'completed';
+      case 5: // Delivered - clickable if step 4 completed
+        return getStepStatus(4) === 'completed';
+      default:
+        return false;
+    }
+  };
+
+  const getStepIcon = (stepNumber) => {
+    const status = getStepStatus(stepNumber);
+    switch (stepNumber) {
+      case 1: return status === 'completed' ? '✅' : '📝';
+      case 2: return status === 'completed' ? '💰' : (status === 'active' ? '💵' : '💰');
+      case 3: return status === 'completed' ? '✅' : (status === 'active' ? '⏳' : '📋');
+      case 4: return status === 'completed' ? '🚚' : (status === 'active' ? '📦' : '🚚');
+      case 5: return status === 'completed' ? '🎉' : (status === 'active' ? '🚛' : '📍');
+      default: return '❓';
+    }
+  };
+
+  const getStepColor = (stepNumber) => {
+    const status = getStepStatus(stepNumber);
+    switch (status) {
+      case 'completed': return '#4ade80'; // Green
+      case 'active': return '#f59e0b';    // Orange  
+      case 'pending': return '#cbd5e0';   // Gray
+      default: return '#cbd5e0';
+    }
+  };
+
+  const handleStepClick = (stepNumber) => {
+    if (!isStepClickable(stepNumber)) return;
+    
+    setCurrentStep(stepNumber);
+    setStepContentVisible(true);
   };
 
   const handleFieldChange = (field, value) => {
@@ -336,11 +521,11 @@ export default function AdminShipmentDetails() {
             <div className="header-actions">
               <button onClick={() => window.print()} className="btn-outline">
                 Print
-              </button>
+                  </button>
             </div>
           </div>
 
-          {/* Status Timeline */}
+          {/* Interactive Step-Based Timeline */}
           <div className="status-timeline-section" style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             color: 'white',
@@ -348,7 +533,14 @@ export default function AdminShipmentDetails() {
             borderRadius: '12px',
             marginBottom: '2rem'
           }}>
-            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem' }}>Shipment Status Timeline</h2>
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem' }}>
+              Shipment Workflow Steps
+              {stepContentVisible && (
+                <span style={{ fontSize: '1rem', fontWeight: 'normal', marginLeft: '1rem' }}>
+                  - Step {currentStep}
+                </span>
+              )}
+            </h2>
             
             {/* Progress Line */}
             <div style={{
@@ -363,168 +555,241 @@ export default function AdminShipmentDetails() {
                 height: '100%',
                 background: 'white',
                 borderRadius: '2px',
-                width: '60%' // This should be calculated based on actual status
+                width: `${Math.max(0, (currentStep - 1) * 25)}%`
               }}></div>
             </div>
 
-            {/* Status Items */}
+            {/* Interactive Steps */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
               position: 'relative'
             }}>
-              {/* Created */}
-              <div className="status-item" style={{
-                textAlign: 'center',
-                position: 'relative',
-                zIndex: 1,
-                flex: 1
-              }}>
-                <div className="status-icon" style={{
-                  width: '50px',
-                  height: '50px',
-                  background: 'white',
-                  border: '3px solid #4ade80',
-                  borderRadius: '50%',
-                  margin: '0 auto 10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '20px'
-                }}>📋</div>
-                <div className="status-label" style={{
-                  fontSize: '12px',
-                  fontWeight: 600
-                }}>Created</div>
-                <div className="status-owner" style={{
-                  fontSize: '10px',
-                  opacity: 0.8,
-                  marginTop: '3px'
-                }}>Customer</div>
-              </div>
-
-              {/* Quote Pending */}
-              <div className="status-item" style={{
-                textAlign: 'center',
-                position: 'relative',
-                zIndex: 1,
-                flex: 1
-              }}>
-                <div className="status-icon" style={{
-                  width: '50px',
-                  height: '50px',
-                  background: 'white',
-                  border: '3px solid #4ade80',
-                  borderRadius: '50%',
-                  margin: '0 auto 10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '20px'
-                }}>💰</div>
-                <div className="status-label" style={{
-                  fontSize: '12px',
-                  fontWeight: 600
-                }}>Quote Ready</div>
-                <div className="status-owner" style={{
-                  fontSize: '10px',
-                  opacity: 0.8,
-                  marginTop: '3px'
-                }}>3PL Admin</div>
-              </div>
-
-              {/* Picked Up */}
-              <div className="status-item" style={{
-                textAlign: 'center',
-                position: 'relative',
-                zIndex: 1,
-                flex: 1
-              }}>
-                <div className="status-icon" style={{
-                  width: '50px',
-                  height: '50px',
-                  background: 'white',
-                  border: `3px solid ${shipmentData.status === 'PICKED_UP' ? '#4ade80' : '#cbd5e0'}`,
-                  borderRadius: '50%',
-                  margin: '0 auto 10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '20px'
-                }}>🚚</div>
-                <div className="status-label" style={{
-                  fontSize: '12px',
-                  fontWeight: 600
-                }}>Picked Up</div>
-                <div className="status-owner" style={{
-                  fontSize: '10px',
-                  opacity: 0.8,
-                  marginTop: '3px'
-                }}>Carrier</div>
-              </div>
-
-              {/* In Transit */}
-              <div className="status-item" style={{
-                textAlign: 'center',
-                position: 'relative',
-                zIndex: 1,
-                flex: 1
-              }}>
-                <div className="status-icon" style={{
-                  width: '50px',
-                  height: '50px',
-                  background: 'white',
-                  border: `3px solid ${shipmentData.status === 'IN_TRANSIT' ? '#4ade80' : '#cbd5e0'}`,
-                  borderRadius: '50%',
-                  margin: '0 auto 10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '20px'
-                }}>✈️</div>
-                <div className="status-label" style={{
-                  fontSize: '12px',
-                  fontWeight: 600
-                }}>In Transit</div>
-                <div className="status-owner" style={{
-                  fontSize: '10px',
-                  opacity: 0.8,
-                  marginTop: '3px'
-                }}>Carrier</div>
-              </div>
-
-              {/* Delivered */}
-              <div className="status-item" style={{
-                textAlign: 'center',
-                position: 'relative',
-                zIndex: 1,
-                flex: 1
-              }}>
-                <div className="status-icon" style={{
-                  width: '50px',
-                  height: '50px',
-                  background: 'white',
-                  border: `3px solid ${shipmentData.status === 'DELIVERED' ? '#4ade80' : '#cbd5e0'}`,
-                  borderRadius: '50%',
-                  margin: '0 auto 10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '20px'
-                }}>📦</div>
-                <div className="status-label" style={{
-                  fontSize: '12px',
-                  fontWeight: 600
-                }}>Delivered</div>
-                <div className="status-owner" style={{
-                  fontSize: '10px',
-                  opacity: 0.8,
-                  marginTop: '3px'
-                }}>Carrier</div>
-              </div>
+              {[
+                { number: 1, label: 'Created', owner: 'Customer' },
+                { number: 2, label: 'Quote', owner: '3PL Admin' },
+                { number: 3, label: 'Confirmed', owner: 'Customer' },
+                { number: 4, label: 'Picked Up', owner: '3PL Team' },
+                { number: 5, label: 'Delivered', owner: 'Carrier' }
+              ].map((step) => {
+                const isClickable = isStepClickable(step.number);
+                const isActive = currentStep === step.number && stepContentVisible;
+                
+                return (
+                  <div 
+                    key={step.number}
+                    className="status-item" 
+                    style={{
+                      textAlign: 'center',
+                      position: 'relative',
+                      zIndex: 1,
+                      flex: 1,
+                      cursor: isClickable ? 'pointer' : 'not-allowed',
+                      transform: isActive ? 'scale(1.1)' : 'scale(1)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={() => handleStepClick(step.number)}
+                  >
+                    <div 
+                      className="status-icon" 
+                      style={{
+                        width: '50px',
+                        height: '50px',
+                        background: isActive ? '#f59e0b' : 'white',
+                        border: `3px solid ${getStepColor(step.number)}`,
+                        borderRadius: '50%',
+                        margin: '0 auto 10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '20px',
+                        opacity: isClickable ? 1 : 0.5,
+                        color: isActive ? 'white' : '#333',
+                        boxShadow: isActive ? '0 0 20px rgba(245, 158, 11, 0.5)' : 'none'
+                      }}
+                    >
+                      {getStepIcon(step.number)}
+                    </div>
+                    <div 
+                      className="status-label" 
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        opacity: isClickable ? 1 : 0.6
+                      }}
+                    >
+                      {step.label}
+                    </div>
+                    <div 
+                      className="status-owner" 
+                      style={{
+                        fontSize: '10px',
+                        opacity: isClickable ? 0.8 : 0.4,
+                        marginTop: '3px'
+                      }}
+                    >
+                      {step.owner}
+                    </div>
+                    {!isClickable && step.number > 1 && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '0',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: 'rgba(0,0,0,0.7)',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        marginTop: '-8px'
+                      }}>
+                        Locked
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+            
+            {/* Step Content Section */}
+            {stepContentVisible && (
+              <div style={{
+                marginTop: '2rem',
+                padding: '2rem',
+                background: 'rgba(255,255,255,0.1)',
+                borderRadius: '12px',
+                backdropFilter: 'blur(10px)'
+              }}>
+                {currentStep === 1 && (
+                  <div>
+                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem' }}>
+                      📝 Step 1: Shipment Created
+                    </h3>
+                    <div style={{ fontSize: '0.95rem', lineHeight: '1.6' }}>
+                      <p><strong>Created On:</strong> {formatDate(shipmentData.created_at)}</p>
+                      <p><strong>Origin:</strong> {shipmentData.tech_origin || shipmentData.origin}</p>
+                      <p><strong>Destination:</strong> {shipmentData.destination_country || shipmentData.destination}</p>
+                      <p><strong>Weight:</strong> {shipmentData.package_weight_kg} kg</p>
+                      <p><strong>Dimensions:</strong> {shipmentData.package_length_cm}×{shipmentData.package_width_cm}×{shipmentData.package_height_cm} cm</p>
+                      <p><strong>Commodity:</strong> {shipmentData.description}</p>
+                      <p><strong>Estimated Value:</strong> {shipmentData.currency || 'USD'} {shipmentData.estimated_value || shipmentData.commercial_value}</p>
+                      <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+                        <small>✅ Shipment details have been successfully created by the customer. Ready for quotation.</small>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {currentStep === 2 && (
+                  <div>
+                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem' }}>
+                      💰 Step 2: Quotation Generation
+                    </h3>
+                    { quotations.length === 0 ? (
+                      <div>
+                        <p style={{ marginBottom: '2rem' }}>
+                          Generate AI-powered quotation options based on shipment requirements:
+                        </p>
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                          gap: '1rem', 
+                          marginBottom: '2rem' 
+                        }}>
+                          <div><strong>Transportation Mode:</strong> {shipmentData.mode || 'AIR'}</div>
+                          <div><strong>Priority:</strong> {shipmentData.shipment_priority || 'Standard'}</div>
+                          <div><strong>Currency:</strong> {shipmentData.currency || 'USD'}</div>
+                          <div><strong>Insurance Required:</strong> {shipmentData.insurance_required ? 'Yes' : 'No'}</div>
+                        </div>
+                        <button 
+                          onClick={handleGenerateQuote} 
+                          disabled={generateQuoteLoading}
+                          style={{
+                            padding: '1rem 2rem',
+                            fontSize: '1.125rem',
+                            fontWeight: '600',
+                            backgroundColor: generateQuoteLoading ? '#6b7280' : '#4ade80',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            cursor: generateQuoteLoading ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {generateQuoteLoading ? ' Generating AI Quotation...' : ' Generate AI Quotation'}
+                  </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ marginBottom: '1rem', padding: '1rem', background: 'rgba(34, 197, 94, 0.2)', borderRadius: '8px' }}>
+                          <small>✅ Quotation completed! View the generated quotes below.</small>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            document.getElementById('quotes-section')?.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                          style={{
+                            padding: '0.75rem 1.5rem',
+                            backgroundColor: '#3b82f6',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          📊 View Generated Quotes
+                  </button>
+                      </div>
+              )}
+            </div>
+                )}
+                
+                {currentStep === 3 && (
+                  <div>
+                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem' }}>
+                      ✅ Step 3: Customer Confirmation
+                    </h3>
+                    <p>Waiting for customer to review and accept one of the generated quotation options.</p>
           </div>
+                )}
+                
+                {currentStep === 4 && (
+                  <div>
+                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem' }}>
+                      🚚 Step 4: Pickup & Collection
+                    </h3>
+                    <p>Shipment is ready for pickup by the assigned carrier.</p>
+                  </div>
+                )}
+                
+                {currentStep === 5 && (
+                  <div>
+                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem' }}>
+                      🎉 Step 5: Delivery
+                    </h3>
+                    <p>Final delivery to the destination address.</p>
+                  </div>
+                )}
+                
+                <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+                  <button 
+                    onClick={() => setStepContentVisible(false)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      backgroundColor: 'rgba(255,255,255,0.2)',
+                      color: 'white',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Close Step Details
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
 
           {/* Admin Status Management */}
           <div className="shipment-section" style={{
@@ -602,8 +867,8 @@ export default function AdminShipmentDetails() {
                     fontSize: '1rem',
                     color: '#1a202c'
                   }}>{formatDate(shipmentData.export_date)}</span>
-                </div>
-                
+              </div>
+
                 <div className="detail-row" style={{ marginBottom: '1rem' }}>
                   <label style={{
                     display: 'block',
@@ -616,8 +881,8 @@ export default function AdminShipmentDetails() {
                     fontSize: '1rem',
                     color: '#1a202c'
                   }}>{shipmentData.mode || 'Not specified'}</span>
-                </div>
-                
+              </div>
+
                 <div className="detail-row" style={{ marginBottom: '1rem' }}>
                   <label style={{
                     display: 'block',
@@ -630,8 +895,8 @@ export default function AdminShipmentDetails() {
                     fontSize: '1rem',
                     color: '#1a202c'
                   }}>{shipmentData.destination_country || 'Not specified'}</span>
-                </div>
-                
+              </div>
+
                 <div className="detail-row" style={{ marginBottom: '1rem' }}>
                   <label style={{
                     display: 'block',
@@ -646,7 +911,7 @@ export default function AdminShipmentDetails() {
                   }}>{shipmentData.end_user_name || 'Not specified'}</span>
                 </div>
               </div>
-              
+
               {/* Right Column */}
               <div>
                 <div className="detail-row" style={{ marginBottom: '1rem' }}>
@@ -661,7 +926,7 @@ export default function AdminShipmentDetails() {
                     fontSize: '1rem',
                     color: '#1a202c'
                   }}>{formatValue(shipmentData.commercial_value)} {shipmentData.currency || 'USD'}</span>
-                </div>
+                  </div>
                 
                 <div className="detail-row" style={{ marginBottom: '1rem' }}>
                   <label style={{
@@ -675,8 +940,8 @@ export default function AdminShipmentDetails() {
                     fontSize: '1rem',
                     color: '#1a202c'
                   }}>{shipmentData.quantity || 'Not specified'} {shipmentData.quantity_unit || 'PCS'}</span>
-                </div>
-                
+              </div>
+
                 <div className="detail-row" style={{ marginBottom: '1rem' }}>
                   <label style={{
                     display: 'block',
@@ -689,8 +954,8 @@ export default function AdminShipmentDetails() {
                     fontSize: '1rem',
                     color: '#1a202c'
                   }}>{shipmentData.incoterms || 'Not specified'}</span>
-                </div>
-                
+              </div>
+
                 <div className="detail-row" style={{ marginBottom: '1rem' }}>
                   <label style={{
                     display: 'block',
@@ -705,8 +970,8 @@ export default function AdminShipmentDetails() {
                   }}>{shipmentData.tech_origin || shipmentData.origin || 'Not specified'}</span>
                 </div>
               </div>
-            </div>
-            
+              </div>
+
             {/* Additional Details */}
             <div style={{
               borderTop: '1px solid #e2e8f0',
@@ -729,7 +994,7 @@ export default function AdminShipmentDetails() {
                     fontSize: '1rem',
                     color: '#1a202c'
                   }}>{shipmentData.product_type || shipmentData.productType || 'Not specified'}</span>
-                </div>
+              </div>
                 
                 <div className="detail-row">
                   <label style={{
@@ -1017,7 +1282,7 @@ export default function AdminShipmentDetails() {
             {documentsLoading ? (
               <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
                 Loading documents...
-              </div>
+                </div>
             ) : documents.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {documents.map((doc, index) => (
@@ -1038,7 +1303,7 @@ export default function AdminShipmentDetails() {
                         marginBottom: '0.25rem'
                       }}>
                         {doc.filename || doc.original_filename}
-                      </div>
+                </div>
                       <div style={{
                         fontSize: '0.875rem',
                         color: '#6b7280',
@@ -1052,7 +1317,7 @@ export default function AdminShipmentDetails() {
                         {doc.confidence_score && (
                           <span>Confidence: {Math.round(doc.confidence_score * 100)}%</span>
                         )}
-                      </div>
+              </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button 
@@ -1104,8 +1369,8 @@ export default function AdminShipmentDetails() {
               }}>
                 <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📄</div>
                 <div>No documents uploaded yet</div>
-              </div>
-            )}
+            </div>
+          )}
           </div>
 
           {/* Audit Trail */}
@@ -1144,8 +1409,293 @@ export default function AdminShipmentDetails() {
                     fontSize: '0.875rem',
                     color: '#6b7280'
                   }}>Shipment record created on {formatDate(shipmentData.created_at)}</div>
+                  </div>
                 </div>
+              
+              {/* Quotation Section */}
+              {(shipmentData.confirmed_quotation_id || quotations.length > 0 || quoteData || (shipmentData.status === 'PENDING_QUOTE' || shipmentData.status === 'UNDER_REVIEW')) && (
+                <div id="quotes-section" style={{
+                  background: 'white',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e7eb',
+                  marginBottom: '1.5rem'
+                }}>
+                  <div style={{
+                    padding: '1.5rem',
+                    borderBottom: '1px solid #e5e7eb',
+                    background: '#f8fafc'
+                  }}>
+                    <h3 style={{
+                      fontSize: '1.25rem',
+                      fontWeight: '600',
+                      color: '#1f2937',
+                      margin: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}>
+                      💰 AI-Generated Quotations
+                      {quotesLoading && <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Loading...</span>}
+                    </h3>
               </div>
+              
+                  <div style={{ padding: '1.5rem' }}>
+                    {quotesLoading ? (
+                      <div style={{ textAlign: 'center', padding: '2rem' }}>
+                        <div style={{ marginBottom: '1rem' }}>🔄 Loading quotes...</div>
+                  </div>
+                    ) : (quotations.length > 0 || quoteData?.quotes) ? (
+                      <div style={{ display: 'grid', gap: '1rem' }}>
+                        {(quotations.length > 0 ? quotations : quoteData?.quotes || []).map((quote, index) => {
+                          const isFromNewStructure = quotations.length > 0;
+                          const quoteType = isFromNewStructure ? quote.quote_breakdown?.type : quote.type;
+                          const quotationId = quote.id;
+                          const isConfirmed = quote.is_confirmed;
+                          const total = isFromNewStructure ? quote.total_cost : quote.total;
+                          
+                          return (
+                          <div key={quotationId || index} style={{
+                            border: `2px solid ${isConfirmed ? '#22c55e' : '#e5e7eb'}`,
+                            borderRadius: '8px',
+                            padding: '1.5rem',
+                            background: isConfirmed ? '#f0fdf4' : 
+                                       (quoteType === 'economy' ? '#f8fafc' : 
+                                        quoteType === 'fast' ? '#fef3c7' : '#f0f8ff'),
+                            position: 'relative'
+                          }}>
+                            {isConfirmed && (
+                              <div style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                background: '#22c55e',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: '600'
+                              }}>
+                                ✓ CONFIRMED
+                </div>
+                            )}
+                            
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginBottom: '1rem'
+                            }}>
+                              <h4 style={{
+                                fontSize: '1.125rem',
+                                fontWeight: '600',
+                                color: '#1f2937',
+                                margin: 0,
+                                textTransform: 'uppercase'
+                              }}>
+                                {quoteType === 'economy' && '🟢'} 
+                                {quoteType === 'balanced' && '🟡'} 
+                                {quoteType === 'fast' && '🔴'} 
+                                {quoteType || 'STANDARD'} OPTION
+                              </h4>
+                              <div style={{
+                                fontSize: '1.5rem',
+                                fontWeight: '700',
+                                color: '#16a34a'
+                              }}>
+                                {quote.currency || '$'}{total?.toFixed(2) || '0.00'}
+              </div>
+            </div>
+                            
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                              gap: '1rem',
+                              marginBottom: '1rem'
+                            }}>
+                              <div>
+                                <strong>Carrier:</strong> {isFromNewStructure ? quote.carrier : quote.carrier || 'N/A'}
+          </div>
+                              <div>
+                                <strong>Service:</strong> {isFromNewStructure ? quote.service_type : quote.service || 'N/A'}
+        </div>
+                              <div>
+                                <strong>Transit Time:</strong> {isFromNewStructure ? `${quote.estimated_delivery_days || 'N/A'} days` : quote.transitTime || 'N/A'}
+                              </div>
+                              {isFromNewStructure && (
+                                <div>
+                                  <strong>Quote Number:</strong> {quote.quote_number}
+                                </div>
+                              )}
+                              {isFromNewStructure && (
+                                <div>
+                                  <strong>Valid Until:</strong> {new Date(quote.valid_until).toLocaleDateString()}
+                                </div>
+                              )}
+                              {isFromNewStructure && (
+                                <div>
+                                  <strong>Method:</strong> {quote.quotation_method}
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Details breakdown */}
+                            {(quote.details || isFromNewStructure) && (
+                              <div style={{
+                                background: 'rgba(255,255,255,0.5)',
+                                padding: '1rem',
+                                borderRadius: '6px',
+                                fontSize: '0.875rem'
+                              }}>
+                                {isFromNewStructure ? (
+                                  <>
+                                    <div><strong>Base Shipping:</strong> ${quote.base_shipping_cost?.toFixed(2) || '0.00'}</div>
+                                    <div><strong>Additional Fees:</strong> ${quote.additional_fees?.toFixed(2) || '0.00'}</div>
+                                    <div><strong>Tax Amount:</strong> ${quote.tax_amount?.toFixed(2) || '0.00'}</div>
+                                    {quote.quote_breakdown && (
+                                      <>
+                                        <div><strong>Fuel Surcharge:</strong> ${quote.quote_breakdown.fuelSurcharge?.toFixed(2) || '0.00'}</div>
+                                        <div><strong>Zone Adjustment:</strong> ${quote.quote_breakdown.zoneAdjustment?.toFixed(2) || '0.00'}</div>
+                                        <div><strong>3PL Margin:</strong> ${quote.quote_breakdown.margin?.toFixed(2) || '0.00'}</div>
+                                      </>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <div><strong>Base Rate:</strong> ${quote.details.baseRate?.toFixed(2) || '0.00'}</div>
+                                    <div><strong>Fuel Surcharge:</strong> ${quote.details.fuelSurcharge?.toFixed(2) || '0.00'}</div>
+                                    <div><strong>Zone Adjustment:</strong> ${quote.details.zoneAdjustment?.toFixed(2) || '0.00'}</div>
+                                    <div><strong>Additional Fees:</strong> ${quote.details.additionalFees?.toFixed(2) || '0.00'}</div>
+                                    <div><strong>3PL Margin:</strong> ${quote.details.margin?.toFixed(2) || '0.00'}</div>
+                                    <div><strong>Chargeable Weight:</strong> {quote.details.chargeableWeight || 0} kg</div>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Confirmation button for new structure quotations */}
+                            {isFromNewStructure && quotationId && !isConfirmed && (
+                              <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+                                <button
+                                  onClick={() => handleConfirmQuotation(quotationId)}
+                                  style={{
+                                    padding: '0.75rem 1.5rem',
+                                    backgroundColor: '#3b82f6',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    fontWeight: '600'
+                                  }}
+                                >
+                                  ✅ Confirm This Quotation
+                                </button>
+                              </div>
+                            )}
+                            
+                            {/* Notes if available */}
+                            {quote.notes && (
+                              <div style={{
+                                marginTop: '1rem',
+                                padding: '0.75rem',
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                borderRadius: '6px',
+                                fontSize: '0.875rem'
+                              }}>
+                                <strong>Notes:</strong> {quote.notes}
+                              </div>
+                            )}
+                          </div>
+                          );
+                        })}
+                        
+                        {quoteData.aiAnalysis && (
+                          <div style={{
+                            marginTop: '1rem',
+                            padding: '1rem',
+                            background: '#f0f8ff',
+                            borderRadius: '8px',
+                            border: '1px solid #bfdbfe'
+                          }}>
+                            <h5 style={{ 
+                              fontSize: '1rem', 
+                              fontWeight: '600', 
+                              marginBottom: '0.5rem',
+                              color: '#1f2937'
+                            }}>
+                               AI Analysis Summary
+                            </h5>
+                            <div style={{
+                              fontSize: '0.875rem',
+                              color: '#374151',
+                              maxHeight: '200px',
+                              overflowY: 'auto',
+                              whiteSpace: 'pre-wrap'
+                            }}>
+                              {quoteData.aiAnalysis.substring(0, 500)}...
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '2rem' }}>
+                        {!shipmentData.confirmed_quotation_id && (shipmentData.status === 'PENDING_QUOTE' || shipmentData.status === 'UNDER_REVIEW') ? (
+                          <div>
+                            <div style={{ 
+                              color: '#6b7280', 
+                              marginBottom: '2rem', 
+                              fontSize: '1.125rem' 
+                            }}>
+                              No quotations generated yet
+                            </div>
+                            <div style={{ 
+                              marginBottom: '2rem', 
+                              padding: '1.5rem', 
+                              background: '#f8fafc', 
+                              borderRadius: '8px',
+                              border: '1px solid #e5e7eb'
+                            }}>
+                              <h4 style={{ margin: '0 0 1rem 0', color: '#374151' }}>Ready to Generate AI-Powered Quotations</h4>
+                              <div style={{ 
+                                display: 'grid', 
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                                gap: '1rem', 
+                                marginBottom: '1.5rem',
+                                fontSize: '0.875rem'
+                              }}>
+                                <div><strong>Transportation:</strong> {shipmentData.mode || 'AIR'}</div>
+                                <div><strong>Priority:</strong> {shipmentData.shipment_priority || 'Standard'}</div>
+                                <div><strong>Currency:</strong> {shipmentData.currency || 'USD'}</div>
+                                <div><strong>Weight:</strong> {shipmentData.package_weight_kg} kg</div>
+                              </div>
+                            </div>
+                            <button 
+                              onClick={handleGenerateQuote} 
+                              disabled={generateQuoteLoading}
+                              style={{
+                                padding: '1rem 2rem',
+                                fontSize: '1.125rem',
+                                fontWeight: '600',
+                                backgroundColor: generateQuoteLoading ? '#6b7280' : '#4ade80',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: generateQuoteLoading ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              {generateQuoteLoading ? ' Generating AI Quotation...' : ' Generate AI Quotation'}
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ color: '#6b7280' }}>
+                            No quotations available
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               
               <div style={{
                 display: 'flex',

@@ -1,5 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { getJSON } from '../services/api.js';
+import { getJSON } from '../../services/api.js';
+
+// Utility function to convert markdown-style formatting to HTML
+const formatAIResponse = (content) => {
+  if (!content) return '';
+  
+  let formatted = content
+    // First, handle headers BEFORE converting newlines
+    .replace(/^### (.*?)$/gm, '<div style="font-size: 1.1rem; font-weight: 600; color: #1f2937; margin: 1rem 0 0.5rem 0;">$1</div>')
+    .replace(/^## (.*?)$/gm, '<div style="font-size: 1.2rem; font-weight: 600; color: #1f2937; margin: 1rem 0 0.5rem 0;">$1</div>')
+    .replace(/^# (.*?)$/gm, '<div style="font-size: 1.3rem; font-weight: 600; color: #1f2937; margin: 1rem 0 0.5rem 0;">$1</div>')
+    // Handle numbered lists BEFORE converting newlines
+    .replace(/^(\d+)\. (.*?)$/gm, '<div style="margin-left: 1.5rem; margin-bottom: 0.5rem; color: #374151;">$1. $2</div>')
+    // Handle bullet points BEFORE converting newlines
+    .replace(/^• (.*?)$/gm, '<div style="margin-left: 1.5rem; margin-bottom: 0.5rem; color: #374151;">• $1</div>')
+    // Convert **bold** to <b>bold</b> with styling
+    .replace(/\*\*(.*?)\*\*/g, '<b style="font-weight: 600; color: #1f2937;">$1</b>')
+    // Convert line breaks to <br> tags (do this LAST)
+    .replace(/\n/g, '<br>')
+    // Add spacing after double breaks
+    .replace(/(<br><br>)/g, '<div style="margin-bottom: 0.75rem;"></div>');
+  
+  return formatted;
+};
 
 export default function AIQuery({ onOpenCanvas }) {
   const [query, setQuery] = useState('');
@@ -48,14 +71,11 @@ export default function AIQuery({ onOpenCanvas }) {
     setQuery(''); // Clear input immediately
     
     try {
-        console.log(uploadedFiles.length);
-        console.log(detectExportIntent(userMessage.content));
       // Check if user has files and wants to export/ship
       if (uploadedFiles.length > 0 && detectExportIntent(userMessage.content)) {
         // Use new Invoice Detection API
         let invoiceProcessingResult = null;
         try {
-          console.log('🔍 Processing uploaded files with Invoice Detection API...');
           
           // Only process the first file for now (Commercial Invoice detection)
           const firstFile = uploadedFiles[0];
@@ -71,10 +91,8 @@ export default function AIQuery({ onOpenCanvas }) {
           
           if (invoiceResponse.ok) {
             invoiceProcessingResult = await invoiceResponse.json();
-            console.log('✅ Invoice processing completed:', invoiceProcessingResult);
           } else {
             const errorData = await invoiceResponse.json();
-            console.warn('⚠️ Invoice processing failed:', errorData);
             
             // If it's not a Commercial Invoice or wrong intent, show error to user
             if (errorData.error) {
@@ -90,7 +108,6 @@ export default function AIQuery({ onOpenCanvas }) {
             }
           }
         } catch (error) {
-          console.error('❌ Invoice processing error:', error);
           const botResponse = {
             id: Date.now() + 1,
             content: '❌ **Error processing document**\n\nThere was an error processing your document. Please try again with a valid Commercial Invoice.',
@@ -106,6 +123,7 @@ export default function AIQuery({ onOpenCanvas }) {
         const extractedDate = extractDateFromQuery(userMessage.content);
         const extractedDestination = extractDestination(userMessage.content);
         
+        
         // Create canvas data with invoice processing results
         const canvasData = {
           extractedDate,
@@ -114,18 +132,15 @@ export default function AIQuery({ onOpenCanvas }) {
           originalQuery: userMessage.content,
           invoiceData: invoiceProcessingResult, // Include invoice processing results
           shipmentId: invoiceProcessingResult?.data?.shipment_id, // Include shipment ID for tracking
+          uploadCompleted: true, // CRITICAL FLAG: Upload API has completed successfully
+          uploadTimestamp: Date.now(), // Timestamp to ensure freshness
           // Map OCR data to expected format for frontend
           ocrData: invoiceProcessingResult?.data?.extracted_fields ? {
             fieldSuggestions: invoiceProcessingResult.data.extracted_fields
           } : null
         };
         
-        // Debug logging for OCR data structure
-        if (invoiceProcessingResult?.data?.extracted_fields) {
-          console.log('🔍 Invoice OCR extracted_fields:', invoiceProcessingResult.data.extracted_fields);
-          console.log('🔍 Consignee name in extracted fields:', invoiceProcessingResult.data.extracted_fields.consignee_name);
-          console.log('🔍 Mapped to canvasData.ocrData.fieldSuggestions:', canvasData.ocrData.fieldSuggestions);
-        }
+        
 
         // Create AI response with invoice processing summary
         let invoiceSummary = '';
@@ -133,7 +148,7 @@ export default function AIQuery({ onOpenCanvas }) {
           if (invoiceProcessingResult.type === 'chatbot_response') {
             // RAG chatbot fallback response
             const docClass = invoiceProcessingResult.document_classification;
-            invoiceSummary = `\n\n**🤖 AI Assistant Response**
+            invoiceSummary = `\n\n** AI Assistant Response**
 📄 **Document Status**: ${docClass?.is_commercial_invoice ? 'Commercial Invoice' : 'Not a Commercial Invoice'} (${Math.round(docClass?.confidence * 100)}% confidence)
 💬 **Response**: ${invoiceProcessingResult.message}
 
@@ -141,7 +156,7 @@ export default function AIQuery({ onOpenCanvas }) {
 ${invoiceProcessingResult.chatbot_response}`;
           } else if (invoiceProcessingResult.type === 'general_response') {
             // General response for non-export intents
-            invoiceSummary = `\n\n**🤖 General Inquiry Response**
+            invoiceSummary = `\n\n** General Inquiry Response**
 💬 **Message**: ${invoiceProcessingResult.message}
 
 **Suggestions:**
@@ -205,7 +220,7 @@ The canvas will guide you through the complete export process step by step.`,
           aiMessage = {
             id: Date.now() + 1,
             type: 'ai',
-            content: `🤖 **AI Assistant Response**
+            content: ` **AI Assistant Response**
 
 ${invoiceProcessingResult?.message || 'I\'ve processed your query and provided information below.'}${invoiceSummary}
 
@@ -408,8 +423,8 @@ ${invoiceProcessingResult?.suggestions ? `**Suggestions:**\n${invoiceProcessingR
       flexDirection: 'column'
     }}>
       <div className="card-header" style={{flexShrink: 0}}>
-        <div className="card-icon">🤖</div>
-        <h2 className="card-title">AI Compliance Assistant</h2>
+        <div className="card-icon"><img src="/assets/logo.png" alt="GIFS Logistics Copilot" style={{width: '40px', height: '40px'}}/></div>
+        <h2 className="card-title">GIFS Logistics Copilot</h2>
         {conversation.length > 0 && (
           <button 
             className="btn btn-secondary"
@@ -499,9 +514,9 @@ ${invoiceProcessingResult?.suggestions ? `**Suggestions:**\n${invoiceProcessingR
               color: 'var(--text-muted)',
               textAlign: 'center'
             }}>
-              <div style={{fontSize: '3rem', marginBottom: '1rem'}}>🤖</div>
+              <div style={{fontSize: '3rem', marginBottom: '1rem'}}></div>
               <h3 style={{color: 'var(--primary-light)', marginBottom: '0.5rem'}}>
-                Welcome to AI Compliance Assistant
+                Welcome to GIFS Logistics Copilot
               </h3>
               <p style={{marginBottom: '2rem', maxWidth: '400px'}}>
                 Ask questions about Malaysian logistics compliance, export procedures, and regulations
@@ -542,24 +557,6 @@ ${invoiceProcessingResult?.suggestions ? `**Suggestions:**\n${invoiceProcessingR
                 alignItems: 'flex-start',
                 gap: '1rem'
               }}>
-                {/* Avatar */}
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  background: message.type === 'user' 
-                    ? 'linear-gradient(135deg, var(--primary), var(--secondary))'
-                    : message.isError 
-                      ? 'linear-gradient(135deg, var(--error), #ff6b6b)'
-                      : 'linear-gradient(135deg, var(--secondary), var(--accent))',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.2rem',
-                  flexShrink: 0
-                }}>
-                  {message.type === 'user' ? '👤' : '🤖'}
-                </div>
 
                 {/* Message Bubble */}
                 <div style={{
@@ -609,13 +606,16 @@ ${invoiceProcessingResult?.suggestions ? `**Suggestions:**\n${invoiceProcessingR
                       </div>
                     )}
                     
-                    <div style={{
-                      whiteSpace: 'pre-wrap',
-                      lineHeight: 1.6,
-                      fontSize: '0.95rem'
-                    }}>
-                      {message.content}
-                    </div>
+                    <div 
+                      style={{
+                        lineHeight: 1.6,
+                        fontSize: '0.95rem'
+                      }}
+                      dangerouslySetInnerHTML={{
+                        __html: formatAIResponse(message.content)
+                      }}
+                    />
+
                   </div>
 
                   {/* Processed Data Display */}
@@ -654,66 +654,6 @@ ${invoiceProcessingResult?.suggestions ? `**Suggestions:**\n${invoiceProcessingR
                     </div>
                   )}
 
-                  {/* Sources (only for AI messages) */}
-                  {message.type === 'ai' && message.sources && message.sources.length > 0 && (
-                    <div style={{
-                      background: 'rgba(90, 140, 179, 0.05)',
-                      border: '1px solid rgba(90, 140, 179, 0.2)',
-                      borderRadius: '12px',
-                      padding: '1rem',
-                      fontSize: '0.85rem'
-                    }}>
-                      <h5 style={{
-                        color: 'var(--primary-light)', 
-                        marginBottom: '0.75rem',
-                        fontSize: '0.9rem'
-                      }}>
-                        📚 Sources ({message.sources.length})
-                      </h5>
-                      <div style={{display: 'grid', gap: '0.5rem'}}>
-                        {message.sources.map((source, sourceIndex) => (
-                          <div key={sourceIndex} style={{
-                            background: 'rgba(90, 140, 179, 0.1)',
-                            border: '1px solid rgba(90, 140, 179, 0.2)',
-                            borderRadius: '8px',
-                            padding: '0.75rem',
-                            fontSize: '0.8rem'
-                          }}>
-                            <div className="flex-between mb-1">
-                              <strong style={{color: 'var(--text-primary)', fontSize: '0.85rem'}}>
-                                {source.title}
-                              </strong>
-                              {source.similarity_score && (
-                                <span style={{
-                                  color: 'var(--primary-light)',
-                                  fontSize: '0.7rem',
-                                  background: 'rgba(90, 140, 179, 0.2)',
-                                  padding: '0.25rem 0.5rem',
-                                  borderRadius: '12px'
-                                }}>
-                                  {(parseFloat(source.similarity_score) * 100).toFixed(1)}%
-                                </span>
-                              )}
-                            </div>
-                            {source.section && (
-                              <div style={{color: 'var(--text-muted)', fontSize: '0.75rem', marginBottom: '0.5rem'}}>
-                                Section: {source.section}
-                              </div>
-                            )}
-                            {source.preview && (
-                              <div style={{
-                                color: 'var(--text-secondary)',
-                                fontSize: '0.75rem',
-                                fontStyle: 'italic'
-                              }}>
-                                "{source.preview}"
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   {/* Timestamp */}
                   <div style={{
@@ -746,7 +686,7 @@ ${invoiceProcessingResult?.suggestions ? `**Suggestions:**\n${invoiceProcessingR
                 justifyContent: 'center',
                 fontSize: '1.2rem'
               }}>
-                🤖
+                
               </div>
               <div style={{
                 background: 'var(--surface-light)',

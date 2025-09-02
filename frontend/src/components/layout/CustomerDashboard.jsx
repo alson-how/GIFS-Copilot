@@ -9,7 +9,7 @@ import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
 import CustomerSidebar from './CustomerSidebar';
 
 // Import page components
-import AIQuery from '../AIQuery';
+import AIQuery from '../shared/AIQuery';
 import TraditionalWorkflow from '../../pages/workflow/TraditionalWorkflow';
 import ShipmentOrdersList from '../ShipmentOrdersList';
 import PermitDocument from '../PermitDocument';
