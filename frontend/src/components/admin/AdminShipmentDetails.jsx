@@ -452,11 +452,13 @@ export default function AdminShipmentDetails() {
     'DELIVERED', 'CANCELLED', 'EXPIRED'
   ];
 
+  const isCanvas = window.location.pathname.includes('/canvas');
+
   if (loading) {
     return (
-      <div className="admin-layout">
-        <AdminSidebar collapsed={sidebarCollapsed} onToggle={setSidebarCollapsed} />
-        <div className={`admin-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <div className={isCanvas ? "canvas-content" : "admin-layout"}>
+        {!isCanvas && <AdminSidebar collapsed={sidebarCollapsed} onToggle={setSidebarCollapsed} />}
+        <div className={isCanvas ? "canvas-content-inner" : `admin-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
           <div className="loading-container">
             <div className="spinner"></div>
             <p>Loading shipment details...</p>
@@ -468,18 +470,20 @@ export default function AdminShipmentDetails() {
 
   if (error) {
     return (
-      <div className="admin-layout">
-        <AdminSidebar collapsed={sidebarCollapsed} onToggle={setSidebarCollapsed} />
-        <div className={`admin-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <div className={isCanvas ? "canvas-content" : "admin-layout"}>
+        {!isCanvas && <AdminSidebar collapsed={sidebarCollapsed} onToggle={setSidebarCollapsed} />}
+        <div className={isCanvas ? "canvas-content-inner" : `admin-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
           <div className="error-container">
             <h3>Error Loading Shipment</h3>
             <p>{error}</p>
             <button onClick={loadShipmentData} className="btn-primary">
               Retry
             </button>
-            <button onClick={() => navigate('/admin/shipments')} className="btn-secondary">
-              Back to Shipments
-            </button>
+            {!isCanvas && (
+              <button onClick={() => navigate('/admin/shipments')} className="btn-secondary">
+                Back to Shipments
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -488,15 +492,17 @@ export default function AdminShipmentDetails() {
 
   if (!shipmentData) {
     return (
-      <div className="admin-layout">
-        <AdminSidebar collapsed={sidebarCollapsed} onToggle={setSidebarCollapsed} />
-        <div className={`admin-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <div className={isCanvas ? "canvas-content" : "admin-layout"}>
+        {!isCanvas && <AdminSidebar collapsed={sidebarCollapsed} onToggle={setSidebarCollapsed} />}
+        <div className={isCanvas ? "canvas-content-inner" : `admin-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
           <div className="error-container">
             <h3>Shipment Not Found</h3>
             <p>The requested shipment could not be found.</p>
-            <button onClick={() => navigate('/admin/shipments')} className="btn-primary">
-              Back to Shipments
-            </button>
+            {!isCanvas && (
+              <button onClick={() => navigate('/admin/shipments')} className="btn-primary">
+                Back to Shipments
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -504,16 +510,18 @@ export default function AdminShipmentDetails() {
   }
 
   return (
-    <div className="admin-layout">
-      <AdminSidebar collapsed={sidebarCollapsed} onToggle={setSidebarCollapsed} />
-      <div className={`admin-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+    <div className={isCanvas ? "canvas-content" : "admin-layout"}>
+      {!isCanvas && <AdminSidebar collapsed={sidebarCollapsed} onToggle={setSidebarCollapsed} />}
+      <div className={isCanvas ? "canvas-content-inner" : `admin-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         <div className="admin-shipment-details">
           {/* Header */}
           <div className="shipment-header">
             <div className="header-left">
-              <button onClick={() => navigate('/admin/shipments')} className="back-button">
-                ← Back to Shipments
-              </button>
+              {!isCanvas && (
+                <button onClick={() => navigate('/admin/shipments')} className="back-button">
+                  ← Back to Shipments
+                </button>
+              )}
               <h1>Shipment Details</h1>
               <div className="shipment-id">ID: {shipmentData.shipment_id}</div>
             </div>
@@ -521,7 +529,7 @@ export default function AdminShipmentDetails() {
             <div className="header-actions">
               <button onClick={() => window.print()} className="btn-outline">
                 Print
-                  </button>
+              </button>
             </div>
           </div>
 

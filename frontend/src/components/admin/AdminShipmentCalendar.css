@@ -1,0 +1,477 @@
+/**
+ * Apple Calendar Custom Styles
+ * Complete CSS for the calendar layout without Tailwind dependencies
+ */
+
+/* Main calendar container */
+.calendar-container {
+  height: 100vh;
+  background-color: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Navigation Header - Apple Calendar Style */
+.calendar-header {
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 24px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.month-navigation {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav-arrow {
+  transition: all 150ms ease;
+  border-radius: 6px;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-arrow:hover {
+  background-color: #f3f4f6;
+}
+
+.nav-arrow:active {
+  transform: scale(0.9);
+  background-color: #e5e7eb;
+}
+
+.apple-calendar-title {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  font-size: 20px;
+  color: #111827;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.today-button {
+  transition: all 150ms ease;
+  border-radius: 6px;
+  font-weight: 500;
+  color: #2563eb;
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.today-button:hover {
+  background-color: #dbeafe;
+}
+
+.today-button:active {
+  transform: scale(0.95);
+  background-color: #bfdbfe;
+}
+
+.apple-button {
+  transition: all 150ms ease;
+  border-radius: 6px;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.apple-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.apple-button:active {
+  transform: scale(0.95);
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.view-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.view-selector span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.view-selector .chevron {
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
+  transform: rotate(90deg);
+}
+
+/* Calendar Grid */
+.calendar-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+}
+
+.day-headers {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.day-header {
+  padding: 12px 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  border-right: 1px solid #e5e7eb;
+}
+
+.day-header:last-child {
+  border-right: none;
+}
+
+.calendar-days {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 1fr;
+}
+
+/* Day cell styling */
+.calendar-day {
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  min-height: 120px;
+  position: relative;
+  background-color: white;
+}
+
+.calendar-day.today {
+  background-color: #e3f2fd;
+}
+
+.calendar-day.weekend {
+  background-color: #fafafa;
+}
+
+.calendar-day:last-child {
+  border-right: none;
+}
+
+.day-number {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.calendar-day.today .day-number {
+  color: #2563eb;
+}
+
+.shipments-container {
+  padding-top: 32px;
+  padding-left: 4px;
+  padding-right: 4px;
+  padding-bottom: 8px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.shipments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shipments-list.limited {
+  max-height: 220px;
+  overflow: hidden;
+}
+
+/* Shipment Event Cards */
+.calendar-event-card {
+  position: relative;
+  cursor: pointer;
+  height: 52px; /* Increased height to accommodate status label */
+  margin: 2px 0;
+  border-radius: 6px;
+  padding: 6px 8px;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.calendar-event-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-event-card:active {
+  transform: scale(0.98);
+  transition-duration: 75ms;
+}
+
+/* Status icon */
+.status-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Priority dot */
+.priority-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transition: transform 150ms ease;
+}
+
+.calendar-event-card:hover .priority-dot {
+  transform: scale(1.2);
+}
+
+/* Event content container */
+.event-content {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0; /* Allow text truncation */
+}
+
+/* Event card title (company name) */
+.event-card-title {
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1.2;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+/* Event card status label */
+.event-card-status {
+  font-weight: 400;
+  font-size: 10px;
+  line-height: 1.2;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+/* Event card subtitle (destination and price) */
+.event-card-subtitle {
+  font-weight: 400;
+  font-size: 10px;
+  line-height: 1.2;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hover-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0);
+  border-radius: 6px;
+  transition: all 150ms ease;
+}
+
+.calendar-event-card:hover .hover-overlay {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Show more/less buttons */
+.show-more-button {
+  font-size: 12px;
+  color: #6b7280;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  margin-top: 4px;
+  font-weight: 500;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.show-more-button:hover {
+  color: #374151;
+  background-color: #f3f4f6;
+}
+
+/* Loading state */
+.loading-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-text {
+  color: #6b7280;
+}
+
+/* Canvas Side Panel */
+.canvas-panel {
+  position: fixed;
+  top: 0;
+  left: 0; /* Changed from right: 0 to left: 0 for full screen */
+  height: 100vh;
+  width: 100vw; /* Changed from 384px to 100vw for full screen */
+  background-color: white;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  z-index: 1000; /* Increased z-index to be above everything */
+  transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  overflow: hidden; /* Prevent scrolling issues */
+}
+
+.canvas-panel.open {
+  transform: translateX(0);
+}
+
+.canvas-panel.closed {
+  transform: translateX(100%);
+}
+
+.canvas-header {
+  background-color: #f9fafb;
+  padding: 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 80px; /* Fixed height for header */
+  box-sizing: border-box;
+}
+
+.canvas-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.canvas-close-button {
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.canvas-close-button:hover {
+  background-color: #e5e7eb;
+}
+
+.canvas-content {
+  flex: 1;
+  overflow: auto;
+  height: calc(100vh - 80px); /* Full height minus header */
+  background-color: white;
+}
+
+/* Canvas overlay */
+.canvas-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999; /* Below canvas panel but above everything else */
+  background-color: rgba(0, 0, 0, 0.5); /* Darker overlay for better focus */
+  transition: opacity 300ms ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .calendar-event-card {
+    height: 48px;
+    padding: 4px 6px;
+  }
+  
+  .event-card-title,
+  .event-card-status,
+  .event-card-subtitle {
+    font-size: 9px;
+  }
+  
+  .canvas-panel {
+    width: 100vw;
+  }
+  
+  .calendar-header {
+    padding: 0 16px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  
+  .apple-calendar-title {
+    font-size: 18px;
+  }
+}
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark) {
+  .calendar-day {
+    border-color: #374151;
+    background-color: #1f2937;
+  }
+  
+  .calendar-day.today {
+    background-color: #1e3a8a;
+  }
+  
+  .calendar-day.weekend {
+    background-color: #111827;
+  }
+  
+  .calendar-header {
+    background-color: #111827;
+    border-color: #374151;
+  }
+  
+  .apple-calendar-title {
+    color: #f9fafb;
+  }
+}

@@ -15,6 +15,82 @@ const pool = new Pool({
 
 const router = express.Router();
 
+// GET /api/admin/shipments/calendar - Calendar view data
+router.get('/calendar', authAdmin, async (req, res) => {
+  try {
+    const { month, year } = req.query;
+    const currentMonth = month ? parseInt(month) : new Date().getMonth() + 1;
+    const currentYear = year ? parseInt(year) : new Date().getFullYear();
+
+    // Get first and last day of the month
+    const startDate = new Date(currentYear, currentMonth - 1, 1);
+    const endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59);
+
+    logger.info(`Fetching calendar data for ${currentMonth}/${currentYear}`);
+
+    const query = `
+      SELECT 
+        s.shipment_id,
+        s.status,
+        s.shipment_priority,
+        s.end_user_name,
+        s.destination_country,
+        s.product_type,
+        s.commercial_value,
+        s.currency,
+        s.updated_at as last_updated,
+        s.created_at,
+        s.customer_id,
+        DATE(s.updated_at) as event_date
+      FROM shipments s
+      WHERE s.updated_at >= $1 AND s.updated_at <= $2
+      ORDER BY s.updated_at DESC
+    `;
+
+    const result = await pool.query(query, [startDate.toISOString(), endDate.toISOString()]);
+    
+    // Group shipments by date
+    const shipmentsByDate = {};
+    result.rows.forEach(shipment => {
+      const dateKey = shipment.event_date.toISOString().split('T')[0];
+      if (!shipmentsByDate[dateKey]) {
+        shipmentsByDate[dateKey] = [];
+      }
+      shipmentsByDate[dateKey].push({
+        id: shipment.shipment_id,
+        status: shipment.status,
+        priority: shipment.shipment_priority || 'Standard',
+        userName: shipment.customer_id ? `Customer-${shipment.customer_id.toString().substring(0, 8)}` : 'Unknown Customer',
+        endUser: shipment.end_user_name || 'N/A',
+        destination: shipment.destination_country,
+        productType: shipment.product_type,
+        value: shipment.commercial_value,
+        currency: shipment.currency || 'USD',
+        lastUpdated: shipment.last_updated,
+        createdAt: shipment.created_at
+      });
+    });
+
+    res.json({
+      success: true,
+      data: {
+        month: currentMonth,
+        year: currentYear,
+        shipmentsByDate,
+        totalShipments: result.rows.length
+      }
+    });
+
+  } catch (error) {
+    logger.error('Calendar data fetch failed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch calendar data',
+      error: error.message
+    });
+  }
+});
+
 // GET /api/admin/shipments - List all shipments (admin access)
 router.get('/', authAdmin, async (req, res) => {
   try {

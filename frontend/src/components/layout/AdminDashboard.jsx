@@ -15,6 +15,7 @@ import ManageShipments from '../admin/ManageShipments';
 import ManageCarriers from '../admin/ManageCarriers';
 import ManageFees from '../admin/ManageFees';
 import AdminShipmentDetails from '../admin/AdminShipmentDetails';
+import AdminShipmentCalendar from '../admin/AdminShipmentCalendar';
 import ShipmentDetails from '../ShipmentDetails';
 
 import './AdminDashboard.scss';
@@ -84,6 +85,7 @@ const AdminDashboard = () => {
             <Route path="/dashboard" element={<AdminDashboardHome />} />
             <Route path="/ai-query" element={<AIQuery />} />
             <Route path="/manage-shipments" element={<ManageShipments />} />
+            <Route path="/calendar" element={<AdminShipmentCalendar />} />
             <Route path="/manage-carriers" element={<ManageCarriers />} />
             <Route path="/manage-fees" element={<ManageFees />} />
             <Route path="/shipment/:shipmentId" element={<AdminShipmentDetails />} />

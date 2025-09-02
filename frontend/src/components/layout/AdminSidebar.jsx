@@ -34,6 +34,13 @@ const AdminSidebar = ({ isCollapsed, onToggleCollapse, admin, onLogout }) => {
       description: 'View and manage all shipments'
     },
     {
+      id: 'calendar',
+      label: 'Calendar View',
+      icon: '📅',
+      path: '/admin/calendar',
+      description: 'Apple Calendar-style shipment timeline'
+    },
+    {
       id: 'manage-carriers',
       label: 'Manage Carriers',
       icon: '🚚',
